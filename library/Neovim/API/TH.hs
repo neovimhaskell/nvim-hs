@@ -16,15 +16,15 @@ module Neovim.API.TH
     , module Data.Data
     ) where
 
-import Neovim.API.Parser
-import Neovim.API.Classes
+import           Neovim.API.Classes
+import           Neovim.API.Parser
 
-import Language.Haskell.TH
+import           Language.Haskell.TH
 
-import Data.Data (Data, Typeable)
-import Control.Applicative
-import Data.Monoid
-import Control.Exception.Lifted
+import           Control.Applicative
+import           Control.Exception.Lifted
+import           Data.Data                (Data, Typeable)
+import           Data.Monoid
 
 generateAPI :: Q [Dec]
 generateAPI = do

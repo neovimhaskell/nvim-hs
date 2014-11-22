@@ -11,6 +11,7 @@ Stability   :  experimental
 -}
 module Neovim.API.Parser
     ( NeovimAPI(..)
+    , NeovimFunction(..)
     , parseAPI
     ) where
 
@@ -29,11 +30,32 @@ import qualified Data.Text                as T
 import           System.IO                (hClose)
 import           System.Process
 
-data NeovimAPI = NeovimAPI
-               { errorTypes :: [(String, Int64)]
-               -- ^ The error types are defined by a name and an
-               -- identifier. (as of 2014-11-22)
-               }
+data NeovimFunction
+    = NeovimFunction
+    { name :: String
+    -- ^ function name
+    , parameters :: [(String, String)]
+    -- ^ A list of type name (TODO change?) and variable name.
+    , canFail :: Bool
+    -- ^ Indicator whether the function can fail/throws error.
+    -- TODO Investigate exact meaning.
+    , deferred :: Bool
+    -- ^ Indicator whether the this function is asynchronous?.
+    -- TODO Is that true?
+    , returnType :: String
+    -- ^ Functions return type (TODO change?)
+    }
+    deriving (Show)
+
+data NeovimAPI
+    = NeovimAPI
+    { errorTypes :: [(String, Int64)]
+    -- ^ The error types are defined by a name and an identifier. (as of
+    -- 2014-11-22)
+    , functions :: [NeovimFunction]
+    -- ^ The remotely executable functions provided by the neovim api.
+    }
+    deriving (Show)
 
 parseAPI :: IO (Either String NeovimAPI)
 parseAPI = join . fmap (runExcept . extractAPI) <$> runExceptT decodeAPI
@@ -41,6 +63,7 @@ parseAPI = join . fmap (runExcept . extractAPI) <$> runExceptT decodeAPI
 extractAPI :: Object -> Except String NeovimAPI
 extractAPI apiObj = NeovimAPI
     <$> extractErrorTypes apiObj
+    <*> extractFunctions apiObj
 
 decodeAPI :: ExceptT String IO Object
 decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
@@ -56,7 +79,6 @@ decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
         hClose out
         terminateProcess ph
 
-
 oMap :: Object -> Except String (Map Object Object)
 oMap o = case o of
     ObjectMap m -> return m
@@ -66,6 +88,10 @@ oLookup :: Object -> Object -> Except String Object
 oLookup qry o = oMap o
     >>= maybe (throwError ("No entry for" <> show qry)) return
         . Map.lookup qry
+
+oLookupDefault :: Object -> Object -> Object -> Except String Object
+oLookupDefault d qry o = oMap o
+    >>= maybe (return d) return . Map.lookup qry
 
 -- | Extract a 'String' from on 'Object'.
 --
@@ -82,16 +108,43 @@ oToString o = case o of
 oInt :: Object -> Except String Int64
 oInt o = case o of
     ObjectInt i -> return i
-    _           -> throwError $ show o <> " is not an Int64"
+    _           -> throwError $ show o <> " is not an Int64."
+
+oArr :: Object -> Except String [Object]
+oArr o = case o of
+    ObjectArray os -> return os
+    _              -> throwError $ show o <> " is not an Array."
+
+oToBool :: Object -> Except String Bool
+oToBool o = case o of
+    ObjectBool b -> return b
+    _            -> throwError $ show o <> " is not a boolean."
 
 extractErrorTypes :: Object -> Except String [(String, Int64)]
 extractErrorTypes objAPI = do
     errMap <- oLookup (ObjectBinary "error_types") objAPI
     errTypes <- Map.toList <$> oMap errMap
-    forM errTypes $ \(name, idMap) -> do
-        n <- oToString name
+    forM errTypes $ \(errName, idMap) -> do
+        n <- oToString errName
         i <- oInt =<< oLookup (ObjectBinary "id") idMap
         return (n,i)
 
+extractFunctions :: Object -> Except String [NeovimFunction]
+extractFunctions objAPI = do
+    funList <- oArr =<< oLookup (ObjectBinary "functions") objAPI
+    forM funList extractFunction
+
+toParameterlist :: [Object] -> Except String [(String, String)]
+toParameterlist ps = forM ps $ \p -> do
+    [t, n] <- mapM oToString =<< oArr p
+    return (t, n)
+
+extractFunction :: Object -> Except String NeovimFunction
+extractFunction funDefMap = NeovimFunction
+    <$> (oLookup (ObjectBinary "name") funDefMap >>= oToString)
+    <*> (oLookup (ObjectBinary "parameters") funDefMap >>= oArr >>= toParameterlist)
+    <*> (oLookupDefault (ObjectBool False) (ObjectBinary "can_fail") funDefMap >>= oToBool)
+    <*> (oLookup (ObjectBinary "deferred") funDefMap >>= oToBool)
+    <*> (oLookup (ObjectBinary "return_type") funDefMap >>= oToString)
 
 
