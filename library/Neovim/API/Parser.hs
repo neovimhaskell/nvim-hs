@@ -50,8 +50,8 @@ data NeovimFunction
 data NeovimAPI
     = NeovimAPI
     { errorTypes :: [(String, Int64)]
-    -- ^ The error types are defined by a name and an identifier. (as of
-    -- 2014-11-22)
+    -- ^ The error types are defined by a name and an identifier.
+    , customTypes :: [(String, Int64)]
     , functions :: [NeovimFunction]
     -- ^ The remotely executable functions provided by the neovim api.
     }
@@ -63,6 +63,7 @@ parseAPI = join . fmap (runExcept . extractAPI) <$> runExceptT decodeAPI
 extractAPI :: Object -> Except String NeovimAPI
 extractAPI apiObj = NeovimAPI
     <$> extractErrorTypes apiObj
+    <*> extractCustomTypes apiObj
     <*> extractFunctions apiObj
 
 decodeAPI :: ExceptT String IO Object
@@ -121,13 +122,20 @@ oToBool o = case o of
     _            -> throwError $ show o <> " is not a boolean."
 
 extractErrorTypes :: Object -> Except String [(String, Int64)]
-extractErrorTypes objAPI = do
-    errMap <- oLookup (ObjectBinary "error_types") objAPI
-    errTypes <- Map.toList <$> oMap errMap
-    forM errTypes $ \(errName, idMap) -> do
+extractErrorTypes objAPI =
+    extractTypeNameAndID =<< oLookup (ObjectBinary "error_types") objAPI
+
+extractTypeNameAndID :: Object -> Except String [(String, Int64)]
+extractTypeNameAndID m = do
+    types <- Map.toList <$> oMap m
+    forM types $ \(errName, idMap) -> do
         n <- oToString errName
         i <- oInt =<< oLookup (ObjectBinary "id") idMap
         return (n,i)
+
+extractCustomTypes :: Object -> Except String [(String, Int64)]
+extractCustomTypes objAPI =
+    extractTypeNameAndID =<< oLookup (ObjectBinary "types") objAPI
 
 extractFunctions :: Object -> Except String [NeovimFunction]
 extractFunctions objAPI = do

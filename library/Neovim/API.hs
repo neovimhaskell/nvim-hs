@@ -15,4 +15,4 @@ module Neovim.API
 
 import Neovim.API.TH
 
-$(generateAPI)
+$(generateAPITypes)

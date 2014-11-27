@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {- |
 Module      :  Neovim.API.TH
 Description :  Template Haskell API generation module
@@ -10,7 +11,7 @@ Stability   :  experimental
 
 -}
 module Neovim.API.TH
-    ( generateAPI
+    ( generateAPITypes
     , module Control.Exception.Lifted
     , module Neovim.API.Classes
     , module Data.Data
@@ -22,30 +23,44 @@ import           Neovim.API.Parser
 import           Language.Haskell.TH
 
 import           Control.Applicative
+import           Control.Exception
 import           Control.Exception.Lifted
+import           Control.Monad
 import           Data.Data                (Data, Typeable)
+import           Data.MessagePack
 import           Data.Monoid
 
-generateAPI :: Q [Dec]
-generateAPI = do
+generateAPITypes :: Q [Dec]
+generateAPITypes = do
     api <- either fail return =<< runIO parseAPI
     let exceptionName = mkName "NeovimException"
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
-    concat <$> sequence
-        [ exceptionDataType exceptionName $ fst <$> exceptions
+        customTypesN = (\(n,i) -> (mkName n, i)) <$> customTypes api
+    join <$> sequence
+        [ fmap return . createDataTypeWithObjectComponent exceptionName $ fst <$> exceptions
         , exceptionInstance exceptionName
-        , idInstance exceptionName exceptions
+        , customTypeInstance exceptionName exceptions
+        , mapM (\n -> createDataTypeWithObjectComponent n [n]) $ fst <$> customTypesN
+        , fmap join $ mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
         ]
--- | For every error type in the deserialized 'Object', create
--- a constructor in the NeovimException data type.
-exceptionDataType :: Name -> [Name] -> Q [Dec]
-exceptionDataType exceptionName names = return <$>
-    dataD
-        (return [])
-        exceptionName
-        []
-        (map (\name -> normalC name []) names)
-        (mkName <$> ["Data", "Typeable", "Eq", "Show"])
+
+-- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@
+-- will create this:
+-- @
+-- data SomeName = Foo !Object
+--               | Bar !Object
+--               deriving (Typeable, Eq, Show)
+-- @
+--
+createDataTypeWithObjectComponent :: Name -> [Name] -> Q Dec
+createDataTypeWithObjectComponent n cs = do
+        tObject <- [t|Object|]
+        dataD
+            (return [])
+            n
+            []
+            (map (\n-> normalC n [return (IsStrict, tObject)]) cs)
+            (mkName <$> ["Typeable", "Eq", "Show"])
 
 -- | If the first parameter is @mkName NeovimException@, this function will
 -- generate  @instance Exception NeovimException"@.
@@ -53,31 +68,43 @@ exceptionInstance :: Name -> Q [Dec]
 exceptionInstance exceptionName = return <$>
     instanceD
         (return [])
-        ((conT . mkName) "Exception" `appT` conT exceptionName)
+        ([t|Exception|] `appT` conT exceptionName)
         []
 
--- | Create an 'ID' instance for the given type name and the list of
--- Constructor names paired with the 'Int64' value representing their
--- identifier.
-idInstance :: Name -> [(Name, Int64)] -> Q [Dec]
-idInstance typeName nis =
-    let fromIDClause n i = clause
+-- | @customTypeInstance Foo [(Bar, 1), (Quz, 2)]@
+-- will create this:
+-- @
+-- instance CustomType Foo where
+--     getID (Bar _) = 1
+--     getID (Quz _) = 2
+--
+--     getConstructor 1 = Bar
+--     getConstructor 2 = Quz
+-- @
+customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
+customTypeInstance typeName nis =
+    let getConstructorClause n i = clause
             [(litP . integerL . toInteger) i]
             (normalB (conE n))
             []
 
-        toIDClause n i = clause
-            [conP n []]
+        getIDClause n i = clause
+            [conP n [ [p|_|] ] ]
             (normalB ((litE . IntegerL . toInteger) i))
+            []
+
+        payloadClause n = [p|p|] >>= \(VarP p) -> clause
+            [conP n [return (VarP p)] ]
+            (normalB (varE p))
             []
 
     in sequence
             [ instanceD
                 (return [])
-                ((conT . mkName) "ID" `appT` conT typeName)
-                [ funD (mkName "fromID") $ map (uncurry fromIDClause) nis
-                , funD (mkName "toID") $ map (uncurry toIDClause) nis
+                ([t|CustomType|] `appT` conT typeName)
+                [ funD (mkName "getConstructor") $ map (uncurry getConstructorClause) nis
+                , funD (mkName "getID") $ map (uncurry getIDClause) nis
+                , funD (mkName "payload") $ map (payloadClause . fst) nis
                 ]
             ]
-
 

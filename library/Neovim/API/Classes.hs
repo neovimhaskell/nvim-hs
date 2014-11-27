@@ -9,15 +9,27 @@ Stability   :  experimental
 
 -}
 module Neovim.API.Classes
-    ( ID(..)
+    ( CustomType(..)
+    , Callable(..)
     , module Data.Int
     ) where
 
 import Data.Int (Int64)
+import Data.ByteString
+import Data.MessagePack
 
--- | This is pretty much just 'Enum'. This class exists because  'Enum'
--- does not guarantee 64 bit compatibility.
-class ID a where
-    toID :: a -> Int64
-    fromID :: Int64 -> a
+class CustomType a where
+    -- | Custom types (and error types) contain a unique identifier that is
+    -- used for serialization. This function extracts this idenfifier.
+    getID :: a -> Int64
+    -- | Custom types can contain any type of payload.
+    getConstructor :: Int64 -> Object -> a
+    -- | Return the custom payload of the given value.
+    payload :: a -> Object
+
+-- | All generated functions are instance of this class.
+class Callable a where
+    -- | Extract the name and arguments from the data type.
+    args :: a -> (ByteString, [Object])
+
 
