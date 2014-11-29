@@ -23,12 +23,15 @@ library
   build-depends:        base >=4.6 && <5
                       , bytestring
                       , cereal
+                      , conduit
                       , conduit-extra
                       , containers
                       , dyre
-                      , messagepack
+                      , messagepack >= 0.3
+                      , network
                       , lifted-base
                       , mtl
+                      , optparse-applicative
                       , process
                       , stm
                       , template-haskell

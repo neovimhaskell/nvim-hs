@@ -35,7 +35,7 @@ data NeovimFunction
     { name :: String
     -- ^ function name
     , parameters :: [(String, String)]
-    -- ^ A list of type name (TODO change?) and variable name.
+    -- ^ A list of type name and variable name.
     , canFail :: Bool
     -- ^ Indicator whether the function can fail/throws error.
     -- TODO Investigate exact meaning.
@@ -43,7 +43,7 @@ data NeovimFunction
     -- ^ Indicator whether the this function is asynchronous?.
     -- TODO Is that true?
     , returnType :: String
-    -- ^ Functions return type (TODO change?)
+    -- ^ Functions return type.
     }
     deriving (Show)
 

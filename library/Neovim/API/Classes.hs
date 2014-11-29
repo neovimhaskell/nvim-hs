@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverlappingInstances #-}
 {- |
 Module      :  Neovim.API.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
@@ -9,27 +12,76 @@ Stability   :  experimental
 
 -}
 module Neovim.API.Classes
-    ( CustomType(..)
+    ( NvimInstance(..)
     , Callable(..)
     , module Data.Int
     ) where
 
-import Data.Int (Int64)
-import Data.ByteString
-import Data.MessagePack
+import           Control.Arrow
+import           Data.ByteString      (ByteString)
+import           Data.Int             (Int64,Int8)
+import           Data.Map             (Map)
+import qualified Data.Map             as Map
+import           Data.MessagePack
+import           Data.Serialize
+import           Data.Text            (Text)
 
-class CustomType a where
-    -- | Custom types (and error types) contain a unique identifier that is
-    -- used for serialization. This function extracts this idenfifier.
-    getID :: a -> Int64
-    -- | Custom types can contain any type of payload.
-    getConstructor :: Int64 -> Object -> a
-    -- | Return the custom payload of the given value.
-    payload :: a -> Object
+-- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
+import qualified Data.ByteString.UTF8 as U (fromString, toString)
+import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
+
 
 -- | All generated functions are instance of this class.
 class Callable a where
     -- | Extract the name and arguments from the data type.
     args :: a -> (ByteString, [Object])
 
+
+-- | Conversion from 'Object' files to Haskell types and back with respect
+-- to neovim's interpretation.
+class NvimInstance o where
+    toObject :: o -> Object
+    fromObject :: Object -> o
+
+{-instance NvimInstance o => Serialize o where-}
+    {-put = put . toObject-}
+    {-get = fmap toObject get-}
+
+instance NvimInstance () where
+    toObject _ = ObjectNil
+    fromObject ~ObjectNil = ()
+
+instance NvimInstance Bool where
+    toObject = ObjectBool
+    fromObject ~(ObjectBool o) = o
+
+instance NvimInstance Double where
+    toObject = ObjectDouble
+    fromObject ~(ObjectDouble o) = o
+
+instance NvimInstance Int64 where
+    toObject = ObjectInt
+    fromObject ~(ObjectInt o) = o
+
+instance NvimInstance [Char] where
+    toObject = ObjectBinary . U.fromString
+    fromObject ~(ObjectBinary o) = U.toString o
+
+instance NvimInstance o => NvimInstance [o] where
+    toObject = ObjectArray . map toObject
+    fromObject ~(ObjectArray os) = map fromObject os
+
+instance (Ord key, NvimInstance key, NvimInstance val) => NvimInstance (Map key val) where
+    toObject = ObjectMap
+        . Map.fromList . map (toObject *** toObject) . Map.toList
+    fromObject ~(ObjectMap om) = Map.fromList
+        . map (fromObject *** fromObject) $ Map.toList om
+
+instance NvimInstance Text where
+    toObject = ObjectBinary . encodeUtf8
+    fromObject ~(ObjectBinary o) = decodeUtf8 o
+
+instance NvimInstance ByteString where
+    toObject = ObjectBinary
+    fromObject ~(ObjectBinary o) = o
 

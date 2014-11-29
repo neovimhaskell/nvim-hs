@@ -15,6 +15,7 @@ module Neovim.API.TH
     , module Control.Exception.Lifted
     , module Neovim.API.Classes
     , module Data.Data
+    , module Data.MessagePack
     ) where
 
 import           Neovim.API.Classes
@@ -23,10 +24,16 @@ import           Neovim.API.Parser
 import           Language.Haskell.TH
 
 import           Control.Applicative
+import           Control.Arrow
+import           Control.Concurrent.STM   (TVar)
 import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
+import           Data.ByteString          (ByteString)
 import           Data.Data                (Data, Typeable)
+import           Data.Map                 (Map)
+import qualified Data.Map                 as Map
+import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 
@@ -37,12 +44,28 @@ generateAPITypes = do
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
         customTypesN = (\(n,i) -> (mkName n, i)) <$> customTypes api
     join <$> sequence
-        [ fmap return . createDataTypeWithObjectComponent exceptionName $ fst <$> exceptions
+        [ fmap return . createDataTypeWithByteStringComponent exceptionName $ fst <$> exceptions
         , exceptionInstance exceptionName
         , customTypeInstance exceptionName exceptions
-        , mapM (\n -> createDataTypeWithObjectComponent n [n]) $ fst <$> customTypesN
+        , mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ fst <$> customTypesN
         , fmap join $ mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
+        , fmap join . mapM createFunction $ functions api
         ]
+
+apiTypeToHaskellTypeMap :: Map String String
+apiTypeToHaskellTypeMap = Map.fromList
+    [ ("Boolean", "Bool")
+    , ("Integer", "Int64")
+    ]
+
+apiTypeToHaskellType :: String -> String
+apiTypeToHaskellType at = fromMaybe at $ Map.lookup at apiTypeToHaskellTypeMap
+
+createFunction :: NeovimFunction -> Q [Dec]
+createFunction nf = do
+    let rt = mkName $ apiTypeToHaskellType (returnType nf)
+    vars <- mapM (\(t,n) -> (,) <$> newName t <*> newName n) $ parameters nf
+    return [] -- TODO saep 2014-11-28
 
 -- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@
 -- will create this:
@@ -52,12 +75,12 @@ generateAPITypes = do
 --               deriving (Typeable, Eq, Show)
 -- @
 --
-createDataTypeWithObjectComponent :: Name -> [Name] -> Q Dec
-createDataTypeWithObjectComponent n cs = do
-        tObject <- [t|Object|]
+createDataTypeWithByteStringComponent :: Name -> [Name] -> Q Dec
+createDataTypeWithByteStringComponent nme cs = do
+        tObject <- [t|ByteString|]
         dataD
             (return [])
-            n
+            nme
             []
             (map (\n-> normalC n [return (IsStrict, tObject)]) cs)
             (mkName <$> ["Typeable", "Eq", "Show"])
@@ -74,37 +97,35 @@ exceptionInstance exceptionName = return <$>
 -- | @customTypeInstance Foo [(Bar, 1), (Quz, 2)]@
 -- will create this:
 -- @
--- instance CustomType Foo where
---     getID (Bar _) = 1
---     getID (Quz _) = 2
---
---     getConstructor 1 = Bar
---     getConstructor 2 = Quz
+-- instance Serializable Foo where
+--     toObject (Bar bs) = ObjectExt 1 bs
+--     toObject (Quz bs) = ObjectExt 2 bs
+--     fromObject (ObjectExt 1 bs) = Bar bs
+--     fromObject (ObjectExt 2 bs) = Quz bs
 -- @
 customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
 customTypeInstance typeName nis =
-    let getConstructorClause n i = clause
-            [(litP . integerL . toInteger) i]
-            (normalB (conE n))
-            []
-
-        getIDClause n i = clause
-            [conP n [ [p|_|] ] ]
-            (normalB ((litE . IntegerL . toInteger) i))
-            []
-
-        payloadClause n = [p|p|] >>= \(VarP p) -> clause
-            [conP n [return (VarP p)] ]
-            (normalB (varE p))
-            []
-
-    in sequence
-            [ instanceD
-                (return [])
-                ([t|CustomType|] `appT` conT typeName)
-                [ funD (mkName "getConstructor") $ map (uncurry getConstructorClause) nis
-                , funD (mkName "getID") $ map (uncurry getIDClause) nis
-                , funD (mkName "payload") $ map (payloadClause . fst) nis
-                ]
+    let patTilde = case nis of
+                       [_] -> tildeP
+                       _   -> id
+        fromObjectClause n i = newName "bs" >>= \bs -> clause
+            [ patTilde
+                (conP (mkName "ObjectExt")
+                    [(litP . integerL . fromIntegral) i,varP bs])
             ]
+            (normalB [|$(conE n) $(varE bs)|])
+            []
+
+        toObjectClause n i = newName "bs" >>= \bs -> clause
+            [conP n [varP bs]]
+            (normalB [|ObjectExt $((litE. integerL . fromIntegral) i) $(varE bs)|])
+            []
+
+    in return <$> instanceD
+        (return [])
+        ([t|NvimInstance|] `appT` conT typeName)
+        [ funD (mkName "toObject") $ map (uncurry toObjectClause) nis
+        , funD (mkName "fromObject") $ map (uncurry fromObjectClause) nis
+        ]
+
 
