@@ -12,6 +12,7 @@ Stability   :  experimental
 module Neovim.API.Parser
     ( NeovimAPI(..)
     , NeovimFunction(..)
+    , NeovimType(..)
     , parseAPI
     ) where
 
@@ -29,30 +30,36 @@ import           Data.Serialize
 import qualified Data.Text                as T
 import           System.IO                (hClose)
 import           System.Process
+import           Text.Parsec              as P
+
+data NeovimType = SimpleType String
+                | NestedType NeovimType (Maybe Int)
+                | Void
+                deriving (Show, Eq)
 
 data NeovimFunction
     = NeovimFunction
-    { name :: String
+    { name       :: String
     -- ^ function name
-    , parameters :: [(String, String)]
+    , parameters :: [(NeovimType, String)]
     -- ^ A list of type name and variable name.
-    , canFail :: Bool
+    , canFail    :: Bool
     -- ^ Indicator whether the function can fail/throws error.
     -- TODO Investigate exact meaning.
-    , deferred :: Bool
+    , deferred   :: Bool
     -- ^ Indicator whether the this function is asynchronous?.
     -- TODO Is that true?
-    , returnType :: String
+    , returnType :: NeovimType
     -- ^ Functions return type.
     }
     deriving (Show)
 
 data NeovimAPI
     = NeovimAPI
-    { errorTypes :: [(String, Int64)]
+    { errorTypes  :: [(String, Int64)]
     -- ^ The error types are defined by a name and an identifier.
     , customTypes :: [(String, Int64)]
-    , functions :: [NeovimFunction]
+    , functions   :: [NeovimFunction]
     -- ^ The remotely executable functions provided by the neovim api.
     }
     deriving (Show)
@@ -142,17 +149,39 @@ extractFunctions objAPI = do
     funList <- oArr =<< oLookup (ObjectBinary "functions") objAPI
     forM funList extractFunction
 
-toParameterlist :: [Object] -> Except String [(String, String)]
+toParameterlist :: [Object] -> Except String [(NeovimType, String)]
 toParameterlist ps = forM ps $ \p -> do
     [t, n] <- mapM oToString =<< oArr p
-    return (t, n)
+    t' <- parseType t
+    return (t', n)
 
 extractFunction :: Object -> Except String NeovimFunction
 extractFunction funDefMap = NeovimFunction
     <$> (oLookup (ObjectBinary "name") funDefMap >>= oToString)
-    <*> (oLookup (ObjectBinary "parameters") funDefMap >>= oArr >>= toParameterlist)
-    <*> (oLookupDefault (ObjectBool False) (ObjectBinary "can_fail") funDefMap >>= oToBool)
+    <*> (oLookup (ObjectBinary "parameters") funDefMap
+            >>= oArr >>= toParameterlist)
+    <*> (oLookupDefault (ObjectBool False) (ObjectBinary "can_fail") funDefMap
+            >>= oToBool)
     <*> (oLookup (ObjectBinary "deferred") funDefMap >>= oToBool)
-    <*> (oLookup (ObjectBinary "return_type") funDefMap >>= oToString)
+    <*> (oLookup (ObjectBinary "return_type") funDefMap
+            >>= oToString >>= parseType)
 
+parseType :: String -> Except String NeovimType
+parseType s = either (throwError . show) return $ parse (pType <* eof) s s
+
+pType :: Parsec String u NeovimType
+pType = pArray P.<|> pVoid P.<|> pSimple
+
+pVoid :: Parsec String u NeovimType
+pVoid = const Void <$> (P.try (string "void") <* eof)
+
+pSimple :: Parsec String u NeovimType
+pSimple = SimpleType <$> many1 (noneOf ",)")
+
+pArray :: Parsec String u NeovimType
+pArray = NestedType <$> (P.try (string "ArrayOf(") *> pType)
+                    <*> optionMaybe pNum <* char ')'
+
+pNum :: Parsec String u Int
+pNum = read <$> (P.try (char ',') *> spaces *> many1 (oneOf ['0'..'9']))
 

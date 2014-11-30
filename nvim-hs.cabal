@@ -20,7 +20,7 @@ library
                       , Neovim.API.Parser
                       , Neovim.API.TH
   -- other-extensions:
-  build-depends:        base >=4.6 && <5
+  build-depends:        base ==4.*
                       , bytestring
                       , cereal
                       , conduit
@@ -32,6 +32,7 @@ library
                       , lifted-base
                       , mtl
                       , optparse-applicative
+                      , parsec ==3.*
                       , process
                       , stm
                       , template-haskell

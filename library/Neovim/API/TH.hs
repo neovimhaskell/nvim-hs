@@ -19,13 +19,14 @@ module Neovim.API.TH
     ) where
 
 import           Neovim.API.Classes
+import           Neovim.API.Context
 import           Neovim.API.Parser
 
 import           Language.Haskell.TH
 
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Concurrent.STM   (TVar)
+import           Control.Concurrent.STM   (STM)
 import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
@@ -42,30 +43,92 @@ generateAPITypes = do
     api <- either fail return =<< runIO parseAPI
     let exceptionName = mkName "NeovimException"
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
-        customTypesN = (\(n,i) -> (mkName n, i)) <$> customTypes api
+        customTypesN = first mkName <$> customTypes api
     join <$> sequence
         [ fmap return . createDataTypeWithByteStringComponent exceptionName $ fst <$> exceptions
         , exceptionInstance exceptionName
         , customTypeInstance exceptionName exceptions
         , mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ fst <$> customTypesN
-        , fmap join $ mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
+        , join <$> mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
         , fmap join . mapM createFunction $ functions api
         ]
 
-apiTypeToHaskellTypeMap :: Map String String
+apiTypeToHaskellTypeMap :: Map String (Q Type)
 apiTypeToHaskellTypeMap = Map.fromList
-    [ ("Boolean", "Bool")
-    , ("Integer", "Int64")
+    [ ("Boolean", [t|Bool|])
+    , ("Integer", [t|Int64|])
+    , ("Float"  , [t|Double|])
+    , ("Array"  , [t|Object|])
     ]
 
-apiTypeToHaskellType :: String -> String
-apiTypeToHaskellType at = fromMaybe at $ Map.lookup at apiTypeToHaskellTypeMap
+apiTypeToHaskellType :: NeovimType -> Maybe (Q Type)
+apiTypeToHaskellType at = case at of
+    Void -> Nothing
+    NestedType t Nothing ->
+        appT listT <$> apiTypeToHaskellType t
+    NestedType t (Just n) ->
+        foldl appT (tupleT n) . replicate n <$> apiTypeToHaskellType t
+    SimpleType t ->
+        return . fromMaybe ((conT . mkName) t) $ Map.lookup t apiTypeToHaskellTypeMap
 
+-- | This function will create a wrapper function with neovim's function name
+-- as its name.
+--
+-- Synchronous function:
+-- @
+-- buffer_get_number :: Buffer -> Neovim Int64
+-- buffer_get_number buffer = scall "buffer_get_number" [toObject buffer]
+-- @
+--
+-- Asynchronous function:
+-- @
+-- vim_eval :: String -> Neovim (TMVar Object)
+-- vim_eval str = acall "vim_eval" [toObject str]
+-- @
+--
+-- Asynchronous function without a return value:
+-- @
+-- vim_feed_keys :: String -> String -> Bool -> Neovim ()
+-- vim_feed_keys keys mode escape_csi =
+--     acallVoid "vim_feed_keys" [ toObject keys
+--                               , toObject mode
+--                               , toObject escape_csi
+--                               ]
+-- @
+--
 createFunction :: NeovimFunction -> Q [Dec]
 createFunction nf = do
-    let rt = mkName $ apiTypeToHaskellType (returnType nf)
-    vars <- mapM (\(t,n) -> (,) <$> newName t <*> newName n) $ parameters nf
-    return [] -- TODO saep 2014-11-28
+    let resultMod | deferred nf = appT [t|STM|]
+                  | otherwise   = id
+
+        callFn | returnType nf == Void = [|acallVoid|]
+               | deferred nf           = [|acall|]
+               | otherwise             = [|scall|]
+
+        functionName = (mkName . name) nf
+        toObjVar v = [|toObject $(varE v)|]
+
+    ret <- [t|Neovim|] `appT` case (apiTypeToHaskellType . returnType) nf of
+        Nothing -> [t|()|]
+        Just t -> resultMod t
+
+    -- fromJust should be safe here as void parameters do not make a lot of
+    -- sense and probably are an error in the API
+    vars <- mapM (\(t,n) -> (,) <$> (fromJust . apiTypeToHaskellType) t
+                                <*> newName n)
+            $ parameters nf
+    sequence
+        [ sigD functionName . return
+            . foldr (AppT . AppT ArrowT) ret $ map fst vars
+        , funD functionName
+            [ clause
+                (map (varP . snd) vars)
+                (normalB (callFn
+                    `appE` (litE . stringL . name) nf
+                    `appE` listE (map (toObjVar . snd) vars)))
+                []
+            ]
+        ]
 
 -- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@
 -- will create this:
@@ -108,6 +171,8 @@ customTypeInstance typeName nis =
     let patTilde = case nis of
                        [_] -> tildeP
                        _   -> id
+
+        fromObjectClause :: Name -> Int64 -> Q Clause
         fromObjectClause n i = newName "bs" >>= \bs -> clause
             [ patTilde
                 (conP (mkName "ObjectExt")
