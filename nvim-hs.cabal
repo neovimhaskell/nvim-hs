@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:      Neovim
-  other-modules:        Neovim.API
+  other-modules:        Neovim.API.String
                       , Neovim.API.Classes
                       , Neovim.API.Parser
                       , Neovim.API.TH

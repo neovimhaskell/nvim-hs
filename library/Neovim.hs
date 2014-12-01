@@ -12,8 +12,8 @@ useful for plugin developement for neovim.
 -}
 module Neovim
     ( module Neovim.API.Classes
-    , module Neovim.API
+    , module Neovim.API.String
     ) where
 
-import Neovim.API
+import Neovim.API.String
 import Neovim.API.Classes

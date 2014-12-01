@@ -11,7 +11,8 @@ Stability   :  experimental
 
 -}
 module Neovim.API.TH
-    ( generateAPITypes
+    ( generateAPI
+    , defaultAPITypeToHaskellTypeMap
     , module Control.Exception.Lifted
     , module Neovim.API.Classes
     , module Data.Data
@@ -38,8 +39,8 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 
-generateAPITypes :: Q [Dec]
-generateAPITypes = do
+generateAPI :: Map String (Q Type) -> Q [Dec]
+generateAPI typeMap = do
     api <- either fail return =<< runIO parseAPI
     let exceptionName = mkName "NeovimException"
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
@@ -50,26 +51,26 @@ generateAPITypes = do
         , customTypeInstance exceptionName exceptions
         , mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ fst <$> customTypesN
         , join <$> mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
-        , fmap join . mapM createFunction $ functions api
+        , fmap join . mapM (createFunction typeMap) $ functions api
         ]
 
-apiTypeToHaskellTypeMap :: Map String (Q Type)
-apiTypeToHaskellTypeMap = Map.fromList
+defaultAPITypeToHaskellTypeMap :: Map String (Q Type)
+defaultAPITypeToHaskellTypeMap = Map.fromList
     [ ("Boolean", [t|Bool|])
     , ("Integer", [t|Int64|])
     , ("Float"  , [t|Double|])
     , ("Array"  , [t|Object|])
     ]
 
-apiTypeToHaskellType :: NeovimType -> Maybe (Q Type)
-apiTypeToHaskellType at = case at of
+apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Maybe (Q Type)
+apiTypeToHaskellType typeMap at = case at of
     Void -> Nothing
     NestedType t Nothing ->
-        appT listT <$> apiTypeToHaskellType t
+        appT listT <$> apiTypeToHaskellType typeMap t
     NestedType t (Just n) ->
-        foldl appT (tupleT n) . replicate n <$> apiTypeToHaskellType t
+        foldl appT (tupleT n) . replicate n <$> apiTypeToHaskellType typeMap t
     SimpleType t ->
-        return . fromMaybe ((conT . mkName) t) $ Map.lookup t apiTypeToHaskellTypeMap
+        return . fromMaybe ((conT . mkName) t) $ Map.lookup t typeMap
 
 -- | This function will create a wrapper function with neovim's function name
 -- as its name.
@@ -96,8 +97,8 @@ apiTypeToHaskellType at = case at of
 --                               ]
 -- @
 --
-createFunction :: NeovimFunction -> Q [Dec]
-createFunction nf = do
+createFunction :: Map String (Q Type) -> NeovimFunction -> Q [Dec]
+createFunction typeMap nf = do
     let resultMod | deferred nf = appT [t|STM|]
                   | otherwise   = id
 
@@ -108,13 +109,14 @@ createFunction nf = do
         functionName = (mkName . name) nf
         toObjVar v = [|toObject $(varE v)|]
 
-    ret <- [t|Neovim|] `appT` case (apiTypeToHaskellType . returnType) nf of
-        Nothing -> [t|()|]
-        Just t -> resultMod t
+    ret <- [t|Neovim|]
+        `appT` case (apiTypeToHaskellType typeMap . returnType) nf of
+            Nothing -> [t|()|]
+            Just t -> resultMod t
 
     -- fromJust should be safe here as void parameters do not make a lot of
     -- sense and probably are an error in the API
-    vars <- mapM (\(t,n) -> (,) <$> (fromJust . apiTypeToHaskellType) t
+    vars <- mapM (\(t,n) -> (,) <$> (fromJust . apiTypeToHaskellType typeMap) t
                                 <*> newName n)
             $ parameters nf
     sequence
