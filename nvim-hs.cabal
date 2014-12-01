@@ -17,8 +17,12 @@ library
   exposed-modules:      Neovim
   other-modules:        Neovim.API.String
                       , Neovim.API.Classes
+                      , Neovim.API.Context
                       , Neovim.API.Parser
                       , Neovim.API.TH
+                      , Neovim.RPC.Common
+                      , Neovim.RPC.EventHandler
+                      , Neovim.RPC.SocketReader
   -- other-extensions:
   build-depends:        base ==4.*
                       , bytestring
@@ -26,17 +30,25 @@ library
                       , conduit
                       , conduit-extra
                       , containers
+                      , data-default
+                      , directory
                       , dyre
+                      , filepath
                       , messagepack >= 0.3
+                      , monad-control
                       , network
                       , lifted-base
                       , mtl
                       , optparse-applicative
                       , parsec ==3.*
                       , process
+                      , resourcet
                       , stm
+                      , streaming-commons
                       , template-haskell
                       , text
+                      , time
+                      , transformers
                       , transformers-base
                       , utf8-string
   hs-source-dirs:       library
@@ -55,6 +67,29 @@ test-suite hspec
                       , hspec ==2.*
                       , hspec-discover
                       , QuickCheck >=2.6
+
+                      , bytestring
+                      , cereal
+                      , conduit
+                      , conduit-extra
+                      , containers
+                      , data-default
+                      , directory
+                      , filepath
+                      , lifted-base
+                      , messagepack >= 0.3
+                      , mtl
+                      , network
+                      , parsec
+                      , process
+                      , resourcet
+                      , stm
+                      , streaming-commons
+                      , text
+                      , template-haskell
+                      , time
+                      , transformers
+                      , utf8-string
 
   ghc-options:          -threaded -rtsopts -with-rtsopts=-N
 

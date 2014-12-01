@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {- |
 Module      :  Neovim.API.Context
 Description :  The neovim context
@@ -13,64 +14,90 @@ module Neovim.API.Context (
     Message(..),
     Neovim(..),
     InternalEnvironment(..),
+    newInternalEnvironment,
+    runNeovim,
     acall,
-    acallVoid,
+    acall',
     scall,
-    atomically'
+    scall',
+    atomically',
+
+    module Control.Monad.IO.Class
     ) where
 
 import Neovim.API.Classes
 
 import Control.Applicative
 import Control.Monad.Reader
+import Data.Map (Map)
+import Control.Monad.IO.Class
 import Control.Concurrent.STM
 import Data.MessagePack
+import Data.Monoid
+import Data.Time
 
 data InternalEnvironment = InternalEnvironment
-                         { eventQueue :: TQueue Message }
+    { eventQueue :: TQueue Message
+    , recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
+    }
 
-data Message = AsyncCall String Object (TMVar Object)
-             | SyncCall  String Object (TMVar Object)
-             | AsyncVoidFunctionCall String Object
+newInternalEnvironment :: (Applicative io, MonadIO io)
+                       => io InternalEnvironment
+newInternalEnvironment = InternalEnvironment
+    <$> liftIO newTQueueIO
+    <*> liftIO (newTVarIO mempty)
 
-newtype Neovim a = Neovim { runNeovim :: ReaderT InternalEnvironment IO a }
-    deriving (Monad, Functor, Applicative, MonadReader InternalEnvironment, MonadIO)
+data Message = FunctionCall String Object (TMVar (Either Object Object)) UTCTime
+
+newtype Neovim a = Neovim (ReaderT InternalEnvironment IO a)
+    deriving ( Functor, Applicative, Monad, MonadReader InternalEnvironment
+             , MonadIO)
+
+-- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
+runNeovim :: InternalEnvironment -> Neovim a -> IO a
+runNeovim env (Neovim a) = runReaderT a env
+
+unexpectedException :: String -> err -> a
+unexpectedException fn _ = error $
+    "Function threw an exception even though it was declared not to throw one: "
+    <> fn
+
+withIgnoredException :: (Functor f, NvimInstance result)
+                     => String -- ^ Function name for better error messages
+                     -> f (Either err result)
+                     -> f result
+withIgnoredException fn = fmap (either (unexpectedException fn) id)
 
 -- | Helper function that concurrently puts a 'Message' in the event queue
 -- and returns an 'STM' action that returns the result.
-call :: (NvimInstance result)
-     => (String -> Object -> TMVar Object -> Message)
-     -> String
+acall :: (NvimInstance result)
+     => String
      -> [Object]
-     -> Neovim (STM result)
-call msgType fn parameters = do
+     -> Neovim (STM (Either Object result))
+acall fn parameters = do
     q <- asks eventQueue
     mv <- liftIO newEmptyTMVarIO
-    atomically' . writeTQueue q $ msgType fn (ObjectArray parameters) mv
-    return $ fromObject <$> readTMVar mv
+    timestamp <- liftIO getCurrentTime
+    atomically' . writeTQueue q $ FunctionCall fn (ObjectArray parameters) mv timestamp
+    return $ either (Left . fromObject) (Right . fromObject) <$> readTMVar mv
 
--- | Call a neovim function asynchronously. If you need the value, you can call
--- 'atomically'' on the returned 'STMVar'.
-acall :: (NvimInstance result)
-      => String              -- ^ Function name
-      -> [Object]            -- ^ Parameters in an 'Object' array
-      -> Neovim (STM result) -- ^ 'STM' action that will return the result
-acall = call AsyncCall
+acall' :: (NvimInstance result)
+       => String
+       -> [Object]
+       -> Neovim (STM result)
+acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 
 -- | Call a neovim function synchronously. This function blocks until the
 -- result is available.
 scall :: (NvimInstance result)
       => String        -- ^ Function name
       -> [Object]      -- ^ Parameters in an 'Object' array
-      -> Neovim result -- ^ result value of the call
-scall fn parameters =
-    call SyncCall fn parameters >>= atomically'
+      -> Neovim (Either Object result)
+      -- ^ result value of the call or the thrown exception
+scall fn parameters = acall fn parameters >>= atomically'
 
--- | Asynchronous remote function call without a return value.
-acallVoid :: String -> [Object] -> Neovim ()
-acallVoid fn parameters = do
-    q <- asks eventQueue
-    atomically' . writeTQueue q $ AsyncVoidFunctionCall fn (ObjectArray parameters)
+scall' :: NvimInstance result => String -> [Object] -> Neovim result
+scall' fn = withIgnoredException fn . scall fn
 
 -- | Lifted variant of 'atomically'.
 atomically' :: (MonadIO io) => STM result -> io result

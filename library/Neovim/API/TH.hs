@@ -60,17 +60,18 @@ defaultAPITypeToHaskellTypeMap = Map.fromList
     , ("Integer", [t|Int64|])
     , ("Float"  , [t|Double|])
     , ("Array"  , [t|Object|])
+    , ("void"   , [t|()|])
     ]
 
-apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Maybe (Q Type)
+apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> (Q Type)
 apiTypeToHaskellType typeMap at = case at of
-    Void -> Nothing
+    Void -> [t|()|]
     NestedType t Nothing ->
-        appT listT <$> apiTypeToHaskellType typeMap t
+        appT listT $ apiTypeToHaskellType typeMap t
     NestedType t (Just n) ->
-        foldl appT (tupleT n) . replicate n <$> apiTypeToHaskellType typeMap t
+        foldl appT (tupleT n) . replicate n $ apiTypeToHaskellType typeMap t
     SimpleType t ->
-        return . fromMaybe ((conT . mkName) t) $ Map.lookup t typeMap
+        fromMaybe ((conT . mkName) t) $ Map.lookup t typeMap
 
 -- | This function will create a wrapper function with neovim's function name
 -- as its name.
@@ -99,24 +100,23 @@ apiTypeToHaskellType typeMap at = case at of
 --
 createFunction :: Map String (Q Type) -> NeovimFunction -> Q [Dec]
 createFunction typeMap nf = do
-    let resultMod | deferred nf = appT [t|STM|]
-                  | otherwise   = id
+    let withDeferred | deferred nf = appT [t|STM|]
+                     | otherwise   = id
+        withException | canFail nf = appT [t|Either Object|]
+                      | otherwise  = id
 
-        callFn | returnType nf == Void = [|acallVoid|]
-               | deferred nf           = [|acall|]
-               | otherwise             = [|scall|]
+        callFn | deferred nf && canFail nf = [|acall|]
+               | deferred nf               = [|acall'|]
+               | canFail nf                = [|scall|]
+               | otherwise                 = [|scall'|]
 
         functionName = (mkName . name) nf
         toObjVar v = [|toObject $(varE v)|]
 
-    ret <- [t|Neovim|]
-        `appT` case (apiTypeToHaskellType typeMap . returnType) nf of
-            Nothing -> [t|()|]
-            Just t -> resultMod t
+    ret <- appT [t|Neovim|] . withDeferred . withException
+            . apiTypeToHaskellType typeMap $ returnType nf
 
-    -- fromJust should be safe here as void parameters do not make a lot of
-    -- sense and probably are an error in the API
-    vars <- mapM (\(t,n) -> (,) <$> (fromJust . apiTypeToHaskellType typeMap) t
+    vars <- mapM (\(t,n) -> (,) <$> apiTypeToHaskellType typeMap t
                                 <*> newName n)
             $ parameters nf
     sequence
