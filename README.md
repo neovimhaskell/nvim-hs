@@ -5,6 +5,7 @@ Neovim API for Haskell plugins as well as the plugin provider
 # What has been done so far?
 
 * The code can be generated, although the generated code may change if the need arises.
+* The msgpack-rpc is partly implemented. It is possible to send requests to a neovim instance and receive the corresponding reply.
 
 # Coordinate your work
 
