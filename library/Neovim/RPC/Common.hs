@@ -15,6 +15,7 @@ import           Control.Monad.IO.Class
 import           Data.Streaming.Network
 import           Data.String
 import           Network.Socket         as N hiding (SocketType)
+import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode,
                                          hClose, hSetBuffering)
 
@@ -32,7 +33,7 @@ data SocketType = Stdout Handle
                 -- second is the host name.
 
 -- | Create a 'Source' from the given socket description.
-createHandle :: (MonadIO io)
+createHandle :: (Functor io, MonadIO io)
              => IOMode
              -> SocketType
              -> io Handle
@@ -52,11 +53,17 @@ createHandle ioMode socketType = case socketType of
     createUnixSocketHandle f =
         liftIO $ getSocketUnix f >>= flip socketToHandle ioMode
 
-    createTCPSocketHandle :: (MonadIO io) => Int -> String -> io Handle
+    createTCPSocketHandle :: (Functor io, MonadIO io) => Int -> String -> io Handle
     createTCPSocketHandle p h = liftIO $ getSocketTCP (fromString h) p
         >>= flip socketToHandle ioMode . fst
 
-    createSocketHandleFromEnvironment = undefined
+    createSocketHandleFromEnvironment = do
+        listenAddress <- liftIO (getEnv "NVIM_LISTEN_ADDRESS")
+        case words listenAddress of
+            [unixSocket] -> createHandle ioMode (UnixSocket unixSocket)
+            [h,p] -> createHandle ioMode (TCP (read p) h)
+            _  -> error $ "Unhandled socket type from environment variable: "
+                            ++ listenAddress
 
 cleanUpHandle :: (MonadIO io) => Handle -> Bool -> io ()
 cleanUpHandle h completed = liftIO $ hClose h
