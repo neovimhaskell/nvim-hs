@@ -13,6 +13,12 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
+executable nvim-hs
+  main-is:              Main.hs
+  hs-source-dirs:       executable
+  default-language:     Haskell2010
+  build-depends:        base ==4.*, nvim-hs, data-default
+
 library
   exposed-modules:      Neovim
   other-modules:        Neovim.API.String
@@ -20,6 +26,8 @@ library
                       , Neovim.API.Context
                       , Neovim.API.Parser
                       , Neovim.API.TH
+                      , Neovim.Config
+                      , Neovim.Main
                       , Neovim.RPC.Common
                       , Neovim.RPC.EventHandler
                       , Neovim.RPC.SocketReader
@@ -75,11 +83,13 @@ test-suite hspec
                       , containers
                       , data-default
                       , directory
+                      , dyre
                       , filepath
                       , lifted-base
                       , messagepack >= 0.3
                       , mtl
                       , network
+                      , optparse-applicative
                       , parsec
                       , process
                       , resourcet
