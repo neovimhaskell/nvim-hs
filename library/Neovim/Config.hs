@@ -20,7 +20,7 @@ import Data.Default (Default(def))
 import System.Log (Priority(..))
 
 data NeovimConfig = Config
-    { plugins      :: [Neovim ()]
+    { plugins      :: [Neovim ()] -- TODO saep 2014-12-03
     , errorMessage :: Maybe String
     -- ^ Used by "Dyre" for storing compilation errors.
     , logOptions   :: Maybe (FilePath, Priority)

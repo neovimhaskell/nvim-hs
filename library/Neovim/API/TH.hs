@@ -39,6 +39,13 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 
+-- | Generate the API types and functions provided by @nvim --api-info@.
+--
+-- The provided map allows the use of different Haskell types for the types
+-- defined in the API. The types must be an instance of 'NvimInstance' and they
+-- must form an isomorphism with the sent messages types. Currently, it
+-- proviedes a Convenient way to replace the String@ type with 'Text',
+-- 'ByteString' or 'String'.
 generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
     api <- either fail return =<< runIO parseAPI
@@ -54,6 +61,7 @@ generateAPI typeMap = do
         , fmap join . mapM (createFunction typeMap) $ functions api
         ]
 
+-- | Default type mappings for the requested API.
 defaultAPITypeToHaskellTypeMap :: Map String (Q Type)
 defaultAPITypeToHaskellTypeMap = Map.fromList
     [ ("Boolean", [t|Bool|])
@@ -63,7 +71,7 @@ defaultAPITypeToHaskellTypeMap = Map.fromList
     , ("void"   , [t|()|])
     ]
 
-apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> (Q Type)
+apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Q Type
 apiTypeToHaskellType typeMap at = case at of
     Void -> [t|()|]
     NestedType t Nothing ->

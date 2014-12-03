@@ -37,6 +37,8 @@ data NeovimType = SimpleType String
                 | Void
                 deriving (Show, Eq)
 
+-- | This data type contains simple information about a function as received
+-- throudh the @nvim --api-info@ command.
 data NeovimFunction
     = NeovimFunction
     { name       :: String
@@ -44,26 +46,28 @@ data NeovimFunction
     , parameters :: [(NeovimType, String)]
     -- ^ A list of type name and variable name.
     , canFail    :: Bool
-    -- ^ Indicator whether the function can fail/throws error.
-    -- TODO Investigate exact meaning.
+    -- ^ Indicator whether the function can fail/throws exceptions.
     , deferred   :: Bool
-    -- ^ Indicator whether the this function is asynchronous?.
-    -- TODO Is that true?
+    -- ^ Indicator whether the this function is asynchronous.
     , returnType :: NeovimType
     -- ^ Functions return type.
     }
     deriving (Show)
 
+-- | This data type represents the top-level structure of the @nvim --api-info@
+-- output.
 data NeovimAPI
     = NeovimAPI
     { errorTypes  :: [(String, Int64)]
     -- ^ The error types are defined by a name and an identifier.
     , customTypes :: [(String, Int64)]
+    -- ^ Extension types defined by neovim.
     , functions   :: [NeovimFunction]
     -- ^ The remotely executable functions provided by the neovim api.
     }
     deriving (Show)
 
+-- | Run @nvim --api-info@ and parse its output.
 parseAPI :: IO (Either String NeovimAPI)
 parseAPI = join . fmap (runExcept . extractAPI) <$> runExceptT decodeAPI
 

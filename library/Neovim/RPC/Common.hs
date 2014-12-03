@@ -11,6 +11,8 @@ Stability   :  experimental
 module Neovim.RPC.Common
     where
 
+import           Control.Monad
+import Data.Monoid
 import           Control.Monad.IO.Class
 import           Data.Streaming.Network
 import           Data.String
@@ -18,6 +20,7 @@ import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode,
                                          hClose, hSetBuffering)
+import           System.Log.Logger
 
 -- | Simple data type defining the kind of socket the socket reader should use.
 data SocketType = Stdout Handle
@@ -62,9 +65,17 @@ createHandle ioMode socketType = case socketType of
         case words listenAddress of
             [unixSocket] -> createHandle ioMode (UnixSocket unixSocket)
             [h,p] -> createHandle ioMode (TCP (read p) h)
-            _  -> error $ "Unhandled socket type from environment variable: "
-                            ++ listenAddress
+            _  -> do
+                let errMsg = unlines
+                        [ "Unhandled socket type from environment variable: "
+                        , "\t" <> listenAddress
+                        ]
+                liftIO $ errorM "createHandle" errMsg
+                error errMsg
+
 
 cleanUpHandle :: (MonadIO io) => Handle -> Bool -> io ()
-cleanUpHandle h completed = liftIO $ hClose h
--- TODO saep 2014-12-02 | otherwise = log warning ...
+cleanUpHandle h completed = liftIO $ do
+    hClose h
+    unless completed $
+        warningM "cleanUpHandle" "Cleanup called on uncompleted handle."

@@ -21,12 +21,17 @@ import           Control.Concurrent.STM
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit                 as C
+import           Data.Conduit.Binary
 import           Data.Int                     (Int64)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
+import           Data.Monoid
 import           Data.Serialize
-import Data.Conduit.Binary
 import           System.IO                    (IOMode (ReadMode))
+import           System.Log.Logger
+
+logger :: String
+logger = "Socket Reader"
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
@@ -51,32 +56,36 @@ runSocketHandler env (SocketHandler a) = runReaderT (runResourceT a) env
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
 messageHandlerSink :: Sink (Either String Object) SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
-    Left err -> error err
+    Left err -> liftIO $ errorM logger $
+        "Error parsing rpc message: " <> err
     Right (ObjectArray [ObjectInt msgType, ObjectInt i, err, result]) ->
         handleResponseOrRequest msgType i err result
     Right (ObjectArray [ObjectInt msgType, ObjectBinary method, ObjectArray params]) ->
         handleNotification msgType method params
-    Right obj -> error $ show obj
+    Right obj -> liftIO $ errorM logger $
+        "Unhandled rpc message: " <> show obj
 
 handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
                         -> Sink a SocketHandler ()
 handleResponseOrRequest msgType
     | msgType == 1 = handleResponse
     | msgType == 0 = handleRequest
-    | otherwise = error "Not a respose or request"
+    | otherwise = \_ _ _ -> do
+        liftIO $ errorM logger $ "Invalid message type: " <> show msgType
+        return ()
 
 handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleResponse i err result = do
     answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
-        Nothing -> return () -- TODO saep 2014-12-01 log as warning
+        Nothing -> liftIO $ warningM logger
+            "Received response but could not find a matching recipient."
         Just (_,reply) -> do
             atomically' $ modifyTVar' answerMap $ Map.delete i
             atomically' . putTMVar reply $ case err of
                 ObjectNil -> Right result
                 _         -> Left err
-
 
 handleRequest = undefined
 handleNotification = undefined

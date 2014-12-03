@@ -88,7 +88,5 @@ runPluginProvider os = case (hostPort os, unix os) of
         pluginTids <- forM (plugins cfg) $ forkIO . runNeovim e
         runSocketReader sockreaderSocket e
         forM_ (ehTid:pluginTids) $ \tid ->
-            -- TODO saep 2014-12-02 Throw exceptions
-            -- e.g. to allow registerig of cleanup functions
-            return ()
+            liftIO $ debugM "TODO" $ "Killing thread" <> show tid
 
