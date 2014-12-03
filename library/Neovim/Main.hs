@@ -20,7 +20,9 @@ import Neovim.RPC.SocketReader
 import Neovim.RPC.EventHandler
 import Neovim.RPC.Common
 import Neovim.API.Context
+import Neovim.Debug
 import Control.Concurrent
+import Data.Maybe
 import Control.Monad
 
 data CommandLineOptions =
@@ -61,12 +63,15 @@ opts = info (helper <*> optParser)
 neovim :: NeovimConfig -> IO ()
 neovim = Dyre.wrapMain $ Dyre.defaultParams
     { Dyre.showError   = \cfg err -> cfg { errorMessage = Just err }
-    , Dyre.projectName = "nvim-hs"
+    , Dyre.projectName = "nvim"
     , Dyre.realMain    = realMain
+    , Dyre.statusOut   = debugM "Dyre"
     }
 
 realMain :: NeovimConfig -> IO ()
-realMain cfg = execParser opts >>= \os -> runPluginProvider os cfg
+realMain cfg = maybe disableLogger (uncurry withLogger) (logOptions cfg) $ do
+    os <- execParser opts
+    runPluginProvider os cfg
 
 runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
 runPluginProvider os = case (hostPort os, unix os) of

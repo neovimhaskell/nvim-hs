@@ -27,6 +27,7 @@ library
                       , Neovim.API.Parser
                       , Neovim.API.TH
                       , Neovim.Config
+                      , Neovim.Debug
                       , Neovim.Main
                       , Neovim.RPC.Common
                       , Neovim.RPC.EventHandler
@@ -42,6 +43,7 @@ library
                       , directory
                       , dyre
                       , filepath
+                      , hslogger
                       , messagepack >= 0.3
                       , monad-control
                       , network
@@ -85,6 +87,7 @@ test-suite hspec
                       , directory
                       , dyre
                       , filepath
+                      , hslogger
                       , lifted-base
                       , messagepack >= 0.3
                       , mtl

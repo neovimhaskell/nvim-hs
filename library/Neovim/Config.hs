@@ -10,21 +10,27 @@ Stability   :  experimental
 -}
 module Neovim.Config (
     NeovimConfig(..),
+    module Data.Default,
+    module System.Log,
     ) where
 
 import Neovim.API.Context (Neovim)
 
-import Data.Default
+import Data.Default (Default(def))
+import System.Log (Priority(..))
 
 data NeovimConfig = Config
-    { plugins :: [Neovim ()]
+    { plugins      :: [Neovim ()]
     , errorMessage :: Maybe String
     -- ^ Used by "Dyre" for storing compilation errors.
+    , logOptions   :: Maybe (FilePath, Priority)
+    -- ^ Set the general logging options.
     }
 
 instance Default NeovimConfig where
     def = Config
-            { plugins = []
+            { plugins      = []
             , errorMessage = Nothing
+            , logOptions   = Nothing
             }
 
