@@ -1,3 +1,0 @@
-[submodule "messagepack"]
-	path = messagepack
-	url = git@github.com:saep/messagepack.git
