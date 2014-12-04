@@ -22,8 +22,9 @@ module Neovim.API.Context (
     scall',
     atomically',
     wait,
+    wait',
 
-    module Control.Monad.IO.Class
+    module Control.Monad.IO.Class,
     ) where
 
 import Neovim.API.Classes
@@ -107,6 +108,10 @@ atomically' = liftIO . atomically
 -- | Wait for the result of the STM action.
 --
 -- This action possibly blocks as it is an alias for
--- @ liftIO . atomically@.
-wait :: (MonadIO io) => STM result -> io result
-wait = atomically'
+-- @ \ioSTM -> ioSTM >>= liftIO . atomically@.
+wait :: (MonadIO io) => io (STM result) -> io result
+wait = (=<<) atomically'
+
+-- | Variant of 'wait' that discards the result.
+wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
+wait' = void . (=<<) atomically'

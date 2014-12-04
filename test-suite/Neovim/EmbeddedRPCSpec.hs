@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Neovim.EmbeddedRPCSpec
     where
 
@@ -14,10 +15,16 @@ import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Reader
+import           Data.Data (Typeable)
 import qualified Data.Map                as Map
 import           Data.Monoid
 import           System.Directory
 import           System.Process
+
+data InterruptThread = InterruptThread
+  deriving (Typeable, Show)
+
+instance Exception InterruptThread
 
 withNeovimEmbedded :: Maybe FilePath -> Neovim () -> IO ()
 withNeovimEmbedded file test = bracket
@@ -46,8 +53,14 @@ withNeovimEmbedded file test = bracket
         return (hin, hout, ph, e)
 
     killNvim (_, _, ph, _) = do
-        threadDelay $ 1000 * 1000 -- wait for a second
-        terminateProcess ph
+        terminatorTid <- forkIO $
+            handle handleInterrupt $ do
+                threadDelay $ 3 * 1000 * 1000 -- wait for 3 seconds
+                terminateProcess ph
+        _ <- waitForProcess ph
+        throwTo terminatorTid InterruptThread
+
+    handleInterrupt InterruptThread = return ()
 
     runTest = do test
                  void $ vim_command "quit!"
@@ -70,7 +83,7 @@ spec = parallel $ do
         liftIO $ length bs `shouldBe` 1
 
         let testContent = "Test on empty buffer"
-        _ <- atomically' =<< vim_set_current_line testContent
+        wait' $ vim_set_current_line testContent
         cl1 <- vim_get_current_line
         liftIO $ cl1 `shouldBe` Right testContent
         recs <- atomically' . readTVar =<< asks recipients
@@ -79,10 +92,10 @@ spec = parallel $ do
     it "should create a new buffer" $ withNeovimEmbedded Nothing $ do
         bs0 <- vim_get_buffers
         liftIO $ length bs0 `shouldBe` 1
-        _ <- atomically' =<< vim_command "new"
+        wait' $ vim_command "new"
         bs1 <- vim_get_buffers
         liftIO $ length bs1 `shouldBe` 2
-        _ <- atomically' =<< vim_command "new"
+        wait' $ vim_command "new"
         bs2 <- vim_get_buffers
         liftIO $ length bs2 `shouldBe` 3
 

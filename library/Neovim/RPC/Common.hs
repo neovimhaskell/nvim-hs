@@ -36,6 +36,8 @@ data SocketType = Stdout Handle
                 -- second is the host name.
 
 -- | Create a 'Source' from the given socket description.
+--
+-- The handle is not automatically closed.
 createHandle :: (Functor io, MonadIO io)
              => IOMode
              -> SocketType
