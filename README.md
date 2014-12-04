@@ -28,17 +28,15 @@ message.
 3. Initialize the sandbox with `cabal sandbox init`
 4. Install to the sandbox `cabal install`
 5. Create this script
+  ```bash
+  #!/bin/sh
 
-```bash
-#!/bin/sh
-
-sandbox_directory=$HOME/sandboxes/nvim-hs
-old_pwd="`pwd`"
-cd "$sandbox_directory"
-env CABAL_SANDBOX_CONFIG="$sandbox_directory"/cabal.sandbox.config cabal \
-    exec "$sandbox_directory/.cabal-sandbox/bin/nvim-hs" -- "$@"
-cd "$old_pwd"
-```
-
+  sandbox_directory=$HOME/sandboxes/nvim-hs
+  old_pwd="`pwd`"
+  cd "$sandbox_directory"
+  env CABAL_SANDBOX_CONFIG="$sandbox_directory"/cabal.sandbox.config cabal \
+      exec "$sandbox_directory/.cabal-sandbox/bin/nvim-hs" -- "$@"
+  cd "$old_pwd"
+  ```
 6. Make the script executable and available from your $PATH
 
