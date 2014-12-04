@@ -42,7 +42,7 @@ import           Data.Monoid
 -- | Generate the API types and functions provided by @nvim --api-info@.
 --
 -- The provided map allows the use of different Haskell types for the types
--- defined in the API. The types must be an instance of 'NvimInstance' and they
+-- defined in the API. The types must be an instance of 'NvimObject' and they
 -- must form an isomorphism with the sent messages types. Currently, it
 -- proviedes a Convenient way to replace the String@ type with 'Text',
 -- 'ByteString' or 'String'.
@@ -121,7 +121,10 @@ createFunction typeMap nf = do
         functionName = (mkName . name) nf
         toObjVar v = [|toObject $(varE v)|]
 
-    ret <- appT [t|Neovim|] . withDeferred . withException
+
+    ret <- let (r,st) = ((mkName "r"), (mkName "st"))
+           in forallT [PlainTV r, PlainTV st] (return []) $ appT ([t|Neovim $(varT r) $(varT st) |])
+            . withDeferred . withException
             . apiTypeToHaskellType typeMap $ returnType nf
 
     vars <- mapM (\(t,n) -> (,) <$> apiTypeToHaskellType typeMap t
@@ -173,23 +176,26 @@ exceptionInstance exceptionName = return <$>
 -- instance Serializable Foo where
 --     toObject (Bar bs) = ObjectExt 1 bs
 --     toObject (Quz bs) = ObjectExt 2 bs
---     fromObject (ObjectExt 1 bs) = Bar bs
---     fromObject (ObjectExt 2 bs) = Quz bs
+--     fromObject (ObjectExt 1 bs) = return $ Bar bs
+--     fromObject (ObjectExt 2 bs) = return $ Quz bs
+--     fromObject o = Left $ "Object is not convertible to: Foo Recived: " <> show o
 -- @
 customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
 customTypeInstance typeName nis =
-    let patTilde = case nis of
-                       [_] -> tildeP
-                       _   -> id
-
-        fromObjectClause :: Name -> Int64 -> Q Clause
+    let fromObjectClause :: Name -> Int64 -> Q Clause
         fromObjectClause n i = newName "bs" >>= \bs -> clause
-            [ patTilde
-                (conP (mkName "ObjectExt")
-                    [(litP . integerL . fromIntegral) i,varP bs])
+            [ (conP (mkName "ObjectExt")
+                [(litP . integerL . fromIntegral) i,varP bs])
             ]
-            (normalB [|$(conE n) $(varE bs)|])
+            (normalB [|return $ $(conE n) $(varE bs)|])
             []
+        fromObjectErrorClause :: Q Clause
+        fromObjectErrorClause = do
+            o <- newName "o"
+            let n = nameBase typeName
+            clause [ varP o ]
+                (normalB [|Left $ "Object is not convertible to: " <> n <> " Recived: " <> show $(varE o)|])
+                []
 
         toObjectClause n i = newName "bs" >>= \bs -> clause
             [conP n [varP bs]]
@@ -198,9 +204,11 @@ customTypeInstance typeName nis =
 
     in return <$> instanceD
         (return [])
-        ([t|NvimInstance|] `appT` conT typeName)
+        ([t|NvimObject|] `appT` conT typeName)
         [ funD (mkName "toObject") $ map (uncurry toObjectClause) nis
-        , funD (mkName "fromObject") $ map (uncurry fromObjectClause) nis
+        , funD (mkName "fromObject")
+            $ map (uncurry fromObjectClause) nis
+            <> [fromObjectErrorClause]
         ]
 
 

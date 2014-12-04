@@ -35,7 +35,7 @@ logger = "Socket Reader"
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
-runSocketReader :: SocketType -> InternalEnvironment -> IO ()
+runSocketReader :: SocketType -> InternalEnvironment () -> IO ()
 runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
     runSocketHandler env $ do
@@ -45,12 +45,12 @@ runSocketReader socketType env = do
 
 -- | Convenient transformer stack for the socket reader.
 newtype SocketHandler a =
-    SocketHandler (ResourceT (ReaderT InternalEnvironment IO) a)
-    deriving ( Functor, Applicative, Monad, MonadReader InternalEnvironment
-             , MonadIO)
+    SocketHandler (ResourceT (Neovim () ()) a)
+    deriving ( Functor, Applicative, Monad , MonadIO
+             , MonadReader (InternalEnvironment()) )
 
-runSocketHandler :: InternalEnvironment -> SocketHandler a -> IO a
-runSocketHandler env (SocketHandler a) = runReaderT (runResourceT a) env
+runSocketHandler :: InternalEnvironment () -> SocketHandler a -> IO a
+runSocketHandler r (SocketHandler a) = fst <$> runNeovim r () (runResourceT a)
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>

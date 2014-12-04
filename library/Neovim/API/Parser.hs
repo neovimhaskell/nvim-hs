@@ -16,6 +16,8 @@ module Neovim.API.Parser
     , parseAPI
     ) where
 
+import           Neovim.API.Classes
+
 import           Control.Applicative
 import           Control.Exception.Lifted
 import           Control.Monad.Except

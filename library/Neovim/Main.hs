@@ -83,9 +83,10 @@ runPluginProvider os = case (hostPort os, unix os) of
 
   where
     run evHandlerSocket sockreaderSocket cfg = do
-        e <- newInternalEnvironment
+        e <- newInternalEnvironment ()
         ehTid <- forkIO $ runEventHandler evHandlerSocket e
-        pluginTids <- forM (plugins cfg) $ forkIO . runNeovim e
+        {-pluginTids <- forM (plugins cfg) $ forkIO . runNeovim e ()-}
+        let pluginTids = []
         runSocketReader sockreaderSocket e
         forM_ (ehTid:pluginTids) $ \tid ->
             liftIO $ debugM "TODO" $ "Killing thread" <> show tid

@@ -10,6 +10,7 @@ import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 
+import           Control.Applicative
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Exception
@@ -26,11 +27,11 @@ data InterruptThread = InterruptThread
 
 instance Exception InterruptThread
 
-withNeovimEmbedded :: Maybe FilePath -> Neovim () -> IO ()
+withNeovimEmbedded :: Maybe FilePath -> Neovim () () a -> IO ()
 withNeovimEmbedded file test = bracket
     startNvim
     killNvim
-    (\(_, _, _, e) -> runNeovim e runTest)
+    (\(_, _, _, e) -> fst <$> runNeovim e () runTest)
   where
     startNvim = do
         args <- case file of
@@ -46,7 +47,7 @@ withNeovimEmbedded file test = bracket
                 , std_out = CreatePipe
                 }
 
-        e <- newInternalEnvironment
+        e <- newInternalEnvironment ()
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 
@@ -62,7 +63,7 @@ withNeovimEmbedded file test = bracket
 
     handleInterrupt InterruptThread = return ()
 
-    runTest = do test
+    runTest = do _ <- test
                  void $ vim_command "quit!"
 
 spec :: Spec

@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {- |
 Module      :  Neovim.API.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
@@ -12,17 +12,20 @@ Stability   :  experimental
 
 -}
 module Neovim.API.Classes
-    ( NvimInstance(..)
+    ( NvimObject(..)
     , module Data.Int
     ) where
 
+import           Control.Applicative
 import           Control.Arrow
 import           Data.ByteString      (ByteString)
-import           Data.Int             (Int64,Int8)
+import           Data.Int             (Int64, Int8)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.MessagePack
-import           Data.Text            (Text)
+import           Data.Monoid
+import           Data.Text            as Text (Text, unpack)
+import           Data.Traversable
 
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
 import qualified Data.ByteString.UTF8 as U (fromString, toString)
@@ -31,111 +34,157 @@ import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
 
 -- | Conversion from 'Object' files to Haskell types and back with respect
 -- to neovim's interpretation.
-class NvimInstance o where
+class NvimObject o where
     toObject :: o -> Object
-    fromObject :: Object -> o
+    fromObjectUnsafe :: Object -> o
+    fromObjectUnsafe o = either
+        (error ("Not the expected object" <> show o))
+        id
+        (fromObject o)
+    fromObject :: Object -> Either String o
+    fromObject = return . fromObjectUnsafe
 
-instance NvimInstance () where
-    toObject _ = ObjectNil
-    fromObject ~ObjectNil = ()
+instance NvimObject () where
+    toObject _           = ObjectNil
+    fromObject ObjectNil = return ()
+    fromObject o         = Left $ "Expected ObjectNil, but got " <> show o
 
-instance NvimInstance Bool where
-    toObject = ObjectBool
-    fromObject ~(ObjectBool o) = o
+instance NvimObject Bool where
+    toObject                  = ObjectBool
+    fromObject (ObjectBool o) = return o
+    fromObject o              = Left $ "Expected ObjectBool, but got " <> show o
 
-instance NvimInstance Double where
-    toObject = ObjectDouble
-    fromObject ~(ObjectDouble o) = o
+instance NvimObject Double where
+    toObject                    = ObjectDouble
+    fromObject (ObjectDouble o) = return o
+    fromObject o                = Left $ "Expected ObjectDouble, but got " <> show o
 
-instance NvimInstance Int64 where
-    toObject = ObjectInt
-    fromObject ~(ObjectInt o) = o
+instance NvimObject Int64 where
+    toObject                 = ObjectInt
+    fromObject (ObjectInt o) = return o
+    fromObject o             = Left $ "Expected ObjectInt, but got " <> show o
 
-instance NvimInstance [Char] where
-    toObject = ObjectBinary . U.fromString
-    fromObject ~(ObjectBinary o) = U.toString o
+instance NvimObject [Char] where
+    toObject                    = ObjectBinary . U.fromString
+    fromObject (ObjectBinary o) = return $ U.toString o
+    fromObject (ObjectString o) = return $ Text.unpack o
+    fromObject o                = Left $ "Expected ObjectBinary, but got " <> show o
 
-instance NvimInstance o => NvimInstance [o] where
-    toObject = ObjectArray . map toObject
-    fromObject ~(ObjectArray os) = map fromObject os
+instance NvimObject o => NvimObject [o] where
+    toObject                    = ObjectArray . map toObject
+    fromObject (ObjectArray os) = return $ map fromObjectUnsafe os
+    fromObject o                = Left $ "Expected ObjectArray, but got " <> show o
 
-instance (Ord key, NvimInstance key, NvimInstance val)
-        => NvimInstance (Map key val) where
+instance (Ord key, NvimObject key, NvimObject val)
+        => NvimObject (Map key val) where
     toObject = ObjectMap
         . Map.fromList . map (toObject *** toObject) . Map.toList
-    fromObject ~(ObjectMap om) = Map.fromList
-        . map (fromObject *** fromObject) $ Map.toList om
+    fromObject (ObjectMap om) = Map.fromList <$>
+        (sequenceA
+            . map (uncurry (liftA2 (,))
+                    . (fromObject *** fromObject))
+                . Map.toList) om
 
-instance NvimInstance Text where
-    toObject = ObjectBinary . encodeUtf8
-    fromObject ~(ObjectBinary o) = decodeUtf8 o
+    fromObject o = Left $ "Expected ObjectMap, but got " <> show o
 
-instance NvimInstance ByteString where
-    toObject = ObjectBinary
-    fromObject ~(ObjectBinary o) = o
+instance NvimObject Text where
+    toObject                    = ObjectBinary . encodeUtf8
+    fromObject (ObjectBinary o) = return $ decodeUtf8 o
+    fromObject (ObjectString o) = return o
+    fromObject o                = Left $ "Expected ObjectBinary, but got " <> show o
 
-instance NvimInstance Object where
+instance NvimObject ByteString where
+    toObject                    = ObjectBinary
+    fromObject (ObjectBinary o) = return o
+    fromObject o                = Left $ "Expected ObjectBinary, but got " <> show o
+
+instance NvimObject Object where
     toObject = id
-    fromObject = id
+    fromObject = return
+    fromObjectUnsafe = id
 
 -- By the magic of vim, i will create these.
-instance NvimInstance o => NvimInstance (o, o) where
-    toObject ~(o1, o2) = ObjectArray $ map toObject [o1, o2]
-    fromObject ~(ObjectArray [o1, o2]) = (fromObject o1, fromObject o2)
+instance NvimObject o => NvimObject (o, o) where
+    toObject (o1, o2) = ObjectArray $ map toObject [o1, o2]
+    fromObject (ObjectArray [o1, o2]) = (,)
+        <$> fromObject o1
+        <*> fromObject o2
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o) where
-    toObject ~(o1, o2, o3) = ObjectArray $ map toObject [o1, o2, o3]
-    fromObject ~(ObjectArray [o1, o2, o3]) = (fromObject o1, fromObject o2, fromObject o3)
+instance NvimObject o => NvimObject (o, o, o) where
+    toObject (o1, o2, o3) = ObjectArray $ map toObject [o1, o2, o3]
+    fromObject (ObjectArray [o1, o2, o3]) = (,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o) where
-    toObject ~(o1, o2, o3, o4) = ObjectArray $ map toObject [o1, o2, o3, o4]
-    fromObject ~(ObjectArray [o1, o2, o3, o4]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4)
+instance NvimObject o => NvimObject (o, o, o, o) where
+    toObject (o1, o2, o3, o4) = ObjectArray $ map toObject [o1, o2, o3, o4]
+    fromObject (ObjectArray [o1, o2, o3, o4]) = (,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5) = ObjectArray $ map toObject [o1, o2, o3, o4, o5]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5)
+instance NvimObject o => NvimObject (o, o, o, o, o) where
+    toObject (o1, o2, o3, o4, o5) = ObjectArray $ map toObject [o1, o2, o3, o4, o5]
+    fromObject (ObjectArray [o1, o2, o3, o4, o5]) = (,,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+        <*> fromObject o5
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6)
+instance NvimObject o => NvimObject (o, o, o, o, o, o) where
+    toObject (o1, o2, o3, o4, o5, o6) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6]
+    fromObject (ObjectArray [o1, o2, o3, o4, o5, o6]) = (,,,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+        <*> fromObject o5
+        <*> fromObject o6
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7)
+instance NvimObject o => NvimObject (o, o, o, o, o, o, o) where
+    toObject (o1, o2, o3, o4, o5, o6, o7) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7]
+    fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7]) = (,,,,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+        <*> fromObject o5
+        <*> fromObject o6
+        <*> fromObject o7
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8)
+instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o) where
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8]
+    fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8]) = (,,,,,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+        <*> fromObject o5
+        <*> fromObject o6
+        <*> fromObject o7
+        <*> fromObject o8
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11, fromObject o12)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11, fromObject o12, fromObject o13)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11, fromObject o12, fromObject o13, fromObject o14)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11, fromObject o12, fromObject o13, fromObject o14, fromObject o15)
-
-instance NvimInstance o => NvimInstance (o, o, o, o, o, o, o, o, o, o, o, o, o, o, o, o) where
-    toObject ~(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16]
-    fromObject ~(ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16]) = (fromObject o1, fromObject o2, fromObject o3, fromObject o4, fromObject o5, fromObject o6, fromObject o7, fromObject o8, fromObject o9, fromObject o10, fromObject o11, fromObject o12, fromObject o13, fromObject o14, fromObject o15, fromObject o16)
+instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o, o) where
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9]
+    fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9]) = (,,,,,,,,)
+        <$> fromObject o1
+        <*> fromObject o2
+        <*> fromObject o3
+        <*> fromObject o4
+        <*> fromObject o5
+        <*> fromObject o6
+        <*> fromObject o7
+        <*> fromObject o8
+        <*> fromObject o9
+    fromObject o = Left $ "Expected ObjectArray, but got " <> show o
 

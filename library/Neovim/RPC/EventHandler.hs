@@ -33,7 +33,7 @@ import           System.IO                    (IOMode (WriteMode))
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
 runEventHandler :: SocketType
-                -> InternalEnvironment
+                -> InternalEnvironment ()
                 -> IO ()
 runEventHandler socketType env =
     runEventHandlerContext env $ do
@@ -44,11 +44,11 @@ runEventHandler socketType env =
 
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a =
-    EventHandler (ResourceT (ReaderT InternalEnvironment (StateT Int64 IO)) a)
+    EventHandler (ResourceT (ReaderT (InternalEnvironment ()) (StateT Int64 IO)) a)
     deriving ( Functor, Applicative, Monad, MonadState Int64, MonadIO
-             , MonadReader InternalEnvironment)
+             , MonadReader (InternalEnvironment ()))
 
-runEventHandlerContext :: InternalEnvironment -> EventHandler a -> IO a
+runEventHandlerContext :: InternalEnvironment () -> EventHandler a -> IO a
 runEventHandlerContext env (EventHandler a) =
     evalStateT (runReaderT (runResourceT a) env) 1
 

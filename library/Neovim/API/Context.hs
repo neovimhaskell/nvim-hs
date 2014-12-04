@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {- |
 Module      :  Neovim.API.Context
 Description :  The neovim context
@@ -12,7 +10,7 @@ Stability   :  experimental
 -}
 module Neovim.API.Context (
     Message(..),
-    Neovim(..),
+    Neovim,
     InternalEnvironment(..),
     newInternalEnvironment,
     runNeovim,
@@ -31,6 +29,7 @@ import Neovim.API.Classes
 
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.Map (Map)
 import Control.Monad.IO.Class
 import Control.Concurrent.STM
@@ -38,33 +37,39 @@ import Data.MessagePack
 import Data.Monoid
 import Data.Time
 
-data InternalEnvironment = InternalEnvironment
+data InternalEnvironment a = InternalEnvironment
     { eventQueue :: TQueue Message
     , recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
+    , custom     :: a
     }
 
 newInternalEnvironment :: (Applicative io, MonadIO io)
-                       => io InternalEnvironment
-newInternalEnvironment = InternalEnvironment
+                       => a -> io (InternalEnvironment a)
+newInternalEnvironment a = InternalEnvironment
     <$> liftIO newTQueueIO
     <*> liftIO (newTVarIO mempty)
+    <*> pure a
 
 data Message = FunctionCall String Object (TMVar (Either Object Object)) UTCTime
 
-newtype Neovim a = Neovim (ReaderT InternalEnvironment IO a)
-    deriving ( Functor, Applicative, Monad, MonadReader InternalEnvironment
-             , MonadIO)
+type Neovim cfg state = StateT state (ReaderT (InternalEnvironment cfg) IO)
+    --deriving ( Functor, Applicative, Monad , MonadIO
+             --, MonadReader (InternalEnvironment cfg), MonadState state)
+
+--instance MonadBase IO (Neovim r st) where
+    --liftBase = liftIO
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
-runNeovim :: InternalEnvironment -> Neovim a -> IO a
-runNeovim env (Neovim a) = runReaderT a env
+runNeovim :: InternalEnvironment r -> st -> Neovim r st a -> IO (a, st)
+runNeovim r st a = runReaderT (runStateT a st) r
+
 
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $
     "Function threw an exception even though it was declared not to throw one: "
     <> fn
 
-withIgnoredException :: (Functor f, NvimInstance result)
+withIgnoredException :: (Functor f, NvimObject result)
                      => String -- ^ Function name for better error messages
                      -> f (Either err result)
                      -> f result
@@ -72,33 +77,33 @@ withIgnoredException fn = fmap (either (unexpectedException fn) id)
 
 -- | Helper function that concurrently puts a 'Message' in the event queue
 -- and returns an 'STM' action that returns the result.
-acall :: (NvimInstance result)
+acall :: (NvimObject result)
      => String
      -> [Object]
-     -> Neovim (STM (Either Object result))
+     -> Neovim r st (STM (Either Object result))
 acall fn parameters = do
     q <- asks eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
     atomically' . writeTQueue q $ FunctionCall fn (ObjectArray parameters) mv timestamp
-    return $ either (Left . fromObject) (Right . fromObject) <$> readTMVar mv
+    return $ either Left (Right . fromObjectUnsafe) <$> readTMVar mv
 
-acall' :: (NvimInstance result)
+acall' :: (NvimObject result)
        => String
        -> [Object]
-       -> Neovim (STM result)
+       -> Neovim r st (STM result)
 acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 
 -- | Call a neovim function synchronously. This function blocks until the
 -- result is available.
-scall :: (NvimInstance result)
+scall :: (NvimObject result)
       => String        -- ^ Function name
       -> [Object]      -- ^ Parameters in an 'Object' array
-      -> Neovim (Either Object result)
+      -> Neovim r st (Either Object result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
 
-scall' :: NvimInstance result => String -> [Object] -> Neovim result
+scall' :: NvimObject result => String -> [Object] -> Neovim r st result
 scall' fn = withIgnoredException fn . scall fn
 
 -- | Lifted variant of 'atomically'.
