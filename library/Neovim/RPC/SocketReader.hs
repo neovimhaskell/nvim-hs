@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- |
 Module      :  Neovim.RPC.SocketReader
@@ -13,20 +14,25 @@ module Neovim.RPC.SocketReader (
     runSocketReader,
     ) where
 
+import           Neovim.API.Classes
 import           Neovim.API.Context
+import           Neovim.API.IPC
 import           Neovim.RPC.Common
+import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative
+import           Control.Concurrent           (forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit                 as C
 import           Data.Conduit.Binary
-import           Data.Int                     (Int64)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Serialize
+import           Data.Text                    (unpack)
+import           Data.Time
+import           Data.Word                    (Word32)
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
 
@@ -38,7 +44,7 @@ logger = "Socket Reader"
 runSocketReader :: SocketType -> InternalEnvironment () -> IO ()
 runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
-    runSocketHandler env $ do
+    runSocketHandler env $
         addCleanup (cleanUpHandle h) (sourceHandle h)
             $= awaitForever (yield . decode)
             $$ messageHandlerSink
@@ -58,14 +64,14 @@ messageHandlerSink :: Sink (Either String Object) SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
     Left err -> liftIO $ errorM logger $
         "Error parsing rpc message: " <> err
-    Right (ObjectArray [ObjectInt msgType, ObjectInt i, err, result]) ->
-        handleResponseOrRequest msgType i err result
-    Right (ObjectArray [ObjectInt msgType, ObjectBinary method, ObjectArray params]) ->
-        handleNotification msgType method params
+    Right (ObjectArray [ObjectFixInt msgType, ObjectFixInt fi, err, result]) ->
+        handleResponseOrRequest (integralValue msgType) (integralValue fi) err result
+    Right (ObjectArray [ObjectFixInt msgType, method, params]) ->
+        handleNotification (integralValue msgType) method params
     Right obj -> liftIO $ errorM logger $
         "Unhandled rpc message: " <> show obj
 
-handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
+handleResponseOrRequest :: Int64 -> Word32 -> Object -> Object
                         -> Sink a SocketHandler ()
 handleResponseOrRequest msgType
     | msgType == 1 = handleResponse
@@ -74,7 +80,7 @@ handleResponseOrRequest msgType
         liftIO $ errorM logger $ "Invalid message type: " <> show msgType
         return ()
 
-handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
+handleResponse :: Word32 -> Object -> Object -> Sink a SocketHandler ()
 handleResponse i err result = do
     answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
@@ -87,6 +93,33 @@ handleResponse i err result = do
                 ObjectNil -> Right result
                 _         -> Left err
 
-handleRequest = undefined
-handleNotification = undefined
+handleRequest :: Word32 -> Object -> Object -> Sink a SocketHandler ()
+handleRequest i method params = case fromObject method of
+    Left err -> liftIO . errorM logger $ show err
+    Right m -> ask >>= \e -> void . liftIO . forkIO $
+        case Map.lookup m (providers e) of
+            Nothing -> debugM logger $ "No provider for: " <> unpack m
+            Just (Left f) -> do
+                res <- f params
+                atomically' . writeTQueue (eventQueue e) . SomeMessage
+                    . uncurry (Response i) $ writeErrorResponse res
+            Just (Right c) -> do
+                now <- liftIO getCurrentTime
+                reply <- liftIO newEmptyTMVarIO
+                let q = recipients e
+                atomically' . modifyTVar q $ Map.insert i (now, reply)
+                atomically' . writeTQueue c . SomeMessage
+                    $ FunctionCall m params reply now
+  where
+    writeErrorResponse (Left !err) = (err, ObjectNil)
+    writeErrorResponse (Right !res) = (ObjectNil, res)
+
+handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()
+handleNotification msgType fn params
+    | msgType /= 2 = liftIO . errorM logger $
+        "Message is not a noticiation. Received msgType: " <> show msgType
+        <> " The expected value was 2. The following arguments were given: "
+        <> show fn <> " and " <> show params
+
+    | otherwise = error "TODO handle notification"
 

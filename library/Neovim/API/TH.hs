@@ -22,6 +22,7 @@ module Neovim.API.TH
 import           Neovim.API.Classes
 import           Neovim.API.Context
 import           Neovim.API.Parser
+import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
 
@@ -38,6 +39,7 @@ import qualified Data.Map                 as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
+import           Data.Text                (pack)
 
 -- | Generate the API types and functions provided by @nvim --api-info@.
 --
@@ -137,7 +139,7 @@ createFunction typeMap nf = do
             [ clause
                 (map (varP . snd) vars)
                 (normalB (callFn
-                    `appE` (litE . stringL . name) nf
+                    `appE` ([| pack |] `appE` (litE . stringL . name) nf)
                     `appE` listE (map (toObjVar . snd) vars)))
                 []
             ]

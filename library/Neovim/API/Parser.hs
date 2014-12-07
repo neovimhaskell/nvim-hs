@@ -23,12 +23,10 @@ import           Control.Exception.Lifted
 import           Control.Monad.Except
 import qualified Data.ByteString          as B
 import qualified Data.ByteString.UTF8     as U
-import           Data.Int                 (Int64)
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Serialize
 import qualified Data.Text                as T
 import           System.IO                (hClose)
 import           System.Process
@@ -118,10 +116,10 @@ oToString o = case o of
 
 -- | Extract an 'Int64' from an @Object@.
 --
--- Only works on @ObjnectInt@ constructor.
 oInt :: Object -> Except String Int64
 oInt o = case o of
-    ObjectInt i -> return i
+    ObjectFixInt fi -> return $ integralValue fi
+    ObjectInt    i  -> return i
     _           -> throwError $ show o <> " is not an Int64."
 
 oArr :: Object -> Except String [Object]

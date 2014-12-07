@@ -7,6 +7,7 @@ import           Test.Hspec
 import           Neovim
 import           Neovim.API.Context
 import           Neovim.RPC.Common
+import           Neovim.RPC.FunctionCall
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 

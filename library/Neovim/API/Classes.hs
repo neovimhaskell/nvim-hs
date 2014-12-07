@@ -59,10 +59,17 @@ instance NvimObject Double where
     fromObject (ObjectDouble o) = return o
     fromObject o                = Left $ "Expected ObjectDouble, but got " <> show o
 
-instance NvimObject Int64 where
-    toObject                 = ObjectInt
-    fromObject (ObjectInt o) = return o
+instance NvimObject Integer where
+    toObject                 = ObjectInt . fromIntegral
+    fromObject (ObjectInt o) = return $ toInteger o
     fromObject o             = Left $ "Expected ObjectInt, but got " <> show o
+
+instance NvimObject Int64 where
+    toObject                 = ObjectFixInt . FixInt64
+    fromObject (ObjectFixInt (FixInt64 i)) = return i
+    fromObject (ObjectFixInt fi) = return $ integralValue fi
+    fromObject (ObjectInt i) = return i
+    fromObject o             = Left $ "Expected any Integer value, but got " <> show o
 
 instance NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString

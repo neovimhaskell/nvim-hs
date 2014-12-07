@@ -1,6 +1,6 @@
 {- |
 Module      :  Neovim.API.Context
-Description :  The neovim context
+Description :  The Neovim context
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
 
@@ -9,38 +9,45 @@ Stability   :  experimental
 
 -}
 module Neovim.API.Context (
+    myConf,
+
     Message(..),
     Neovim,
     InternalEnvironment(..),
     newInternalEnvironment,
     runNeovim,
-    acall,
-    acall',
-    scall,
-    scall',
-    atomically',
-    wait,
-    wait',
 
     module Control.Monad.IO.Class,
     ) where
 
-import Neovim.API.Classes
+import           Neovim.API.IPC
 
-import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Map (Map)
-import Control.Monad.IO.Class
-import Control.Concurrent.STM
-import Data.MessagePack
-import Data.Monoid
-import Data.Time
+import           Control.Applicative
+import           Control.Concurrent.STM
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Data.Map               (Map)
+import           Data.MessagePack
+import           Data.Monoid
+import           Data.Text
+import           Data.Time
+import           Data.Word
 
 data InternalEnvironment a = InternalEnvironment
-    { eventQueue :: TQueue Message
-    , recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
-    , custom     :: a
+    { eventQueue   :: TQueue SomeMessage
+    -- ^ A queue of messages that the event handler will propagate to
+    -- appropriate threads and handlers.
+    , recipients   :: TVar (Map Word32 (UTCTime, TMVar (Either Object Object)))
+    -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
+    -- timestamp and a 'TMVar' that is used to communicate the result back to
+    -- the calling thread.
+    , providers    :: Map Text (Either (Object -> IO (Either Object Object)) (TQueue SomeMessage))
+    -- ^ A map that contains the function names which are registered to this
+    -- plugin manager.
+    , customConfig :: a
+    -- ^ Plugin author supplyable custom configuration. It can be queried via
+    -- 'myConf'.
     }
 
 newInternalEnvironment :: (Applicative io, MonadIO io)
@@ -48,75 +55,17 @@ newInternalEnvironment :: (Applicative io, MonadIO io)
 newInternalEnvironment a = InternalEnvironment
     <$> liftIO newTQueueIO
     <*> liftIO (newTVarIO mempty)
+    <*> pure mempty
     <*> pure a
 
-data Message = FunctionCall String Object (TMVar (Either Object Object)) UTCTime
-
 type Neovim cfg state = StateT state (ReaderT (InternalEnvironment cfg) IO)
-    --deriving ( Functor, Applicative, Monad , MonadIO
-             --, MonadReader (InternalEnvironment cfg), MonadState state)
-
---instance MonadBase IO (Neovim r st) where
-    --liftBase = liftIO
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: InternalEnvironment r -> st -> Neovim r st a -> IO (a, st)
 runNeovim r st a = runReaderT (runStateT a st) r
 
+-- | Retrieve the Cunfiguration (i.e. read-only state) from the 'Neovim'
+-- context.
+myConf :: Neovim config state config
+myConf = asks customConfig
 
-unexpectedException :: String -> err -> a
-unexpectedException fn _ = error $
-    "Function threw an exception even though it was declared not to throw one: "
-    <> fn
-
-withIgnoredException :: (Functor f, NvimObject result)
-                     => String -- ^ Function name for better error messages
-                     -> f (Either err result)
-                     -> f result
-withIgnoredException fn = fmap (either (unexpectedException fn) id)
-
--- | Helper function that concurrently puts a 'Message' in the event queue
--- and returns an 'STM' action that returns the result.
-acall :: (NvimObject result)
-     => String
-     -> [Object]
-     -> Neovim r st (STM (Either Object result))
-acall fn parameters = do
-    q <- asks eventQueue
-    mv <- liftIO newEmptyTMVarIO
-    timestamp <- liftIO getCurrentTime
-    atomically' . writeTQueue q $ FunctionCall fn (ObjectArray parameters) mv timestamp
-    return $ either Left (Right . fromObjectUnsafe) <$> readTMVar mv
-
-acall' :: (NvimObject result)
-       => String
-       -> [Object]
-       -> Neovim r st (STM result)
-acall' fn parameters = withIgnoredException fn <$> acall fn parameters
-
--- | Call a neovim function synchronously. This function blocks until the
--- result is available.
-scall :: (NvimObject result)
-      => String        -- ^ Function name
-      -> [Object]      -- ^ Parameters in an 'Object' array
-      -> Neovim r st (Either Object result)
-      -- ^ result value of the call or the thrown exception
-scall fn parameters = acall fn parameters >>= atomically'
-
-scall' :: NvimObject result => String -> [Object] -> Neovim r st result
-scall' fn = withIgnoredException fn . scall fn
-
--- | Lifted variant of 'atomically'.
-atomically' :: (MonadIO io) => STM result -> io result
-atomically' = liftIO . atomically
-
--- | Wait for the result of the STM action.
---
--- This action possibly blocks as it is an alias for
--- @ \ioSTM -> ioSTM >>= liftIO . atomically@.
-wait :: (MonadIO io) => io (STM result) -> io result
-wait = (=<<) atomically'
-
--- | Variant of 'wait' that discards the result.
-wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
-wait' = void . (=<<) atomically'

@@ -21,16 +21,18 @@ executable nvim-hs
 
 library
   exposed-modules:      Neovim
-  other-modules:        Neovim.API.String
+                      , Neovim.API.String
                       , Neovim.API.Classes
                       , Neovim.API.Context
                       , Neovim.API.Parser
+                      , Neovim.API.IPC
                       , Neovim.API.TH
                       , Neovim.Config
                       , Neovim.Debug
                       , Neovim.Main
                       , Neovim.RPC.Common
                       , Neovim.RPC.EventHandler
+                      , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
   -- other-extensions:
   build-depends:        base ==4.*
