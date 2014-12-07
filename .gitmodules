@@ -1,0 +1,3 @@
+[submodule "messagepack"]
+	path = messagepack
+	url = https://github.com/saep/messagepack

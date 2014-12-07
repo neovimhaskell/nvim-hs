@@ -89,7 +89,7 @@ test-suite hspec
                       , filepath
                       , hslogger
                       , lifted-base
-                      , messagepack >= 0.3
+                      , messagepack >= 0.4
                       , mtl
                       , network
                       , optparse-applicative
