@@ -10,8 +10,14 @@ Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 
 -}
-module Neovim.API.IPC
-    where
+module Neovim.API.IPC (
+    SomeMessage(..),
+    RPCMessage(..),
+    Request(..),
+    fromMessage,
+
+    module Data.Word,
+    ) where
 
 import           Control.Concurrent.STM
 import           Data.MessagePack
@@ -31,14 +37,24 @@ class Typeable message => Message message where
     fromMessage :: (Message message) => SomeMessage -> Maybe message
     fromMessage (SomeMessage message) = cast message
 
-data RPCMessage = FunctionCall Text Object (TMVar (Either Object Object)) UTCTime
+data RPCMessage = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
                 -- ^ Method name, parameters, callback, timestamp
                 | Response !Word32 Object Object
-                -- ^ Requust for a function evaluation.
+                -- ^ Responese sent to indicate the result of a function call.
                 --
                 -- * identfier of the message as 'Word32'
-                -- * function name as 'Text'
-                -- * paramaters inside an 'ObjectArray'
+                -- * Error value
+                -- * Result value
     deriving (Typeable)
 
 instance Message RPCMessage
+
+data Request = Request
+    { reqMethod :: Text
+    , reqId     :: !Word32
+    , reqArgs   :: [Object]
+    }
+    deriving (Typeable)
+
+instance Message Request
+

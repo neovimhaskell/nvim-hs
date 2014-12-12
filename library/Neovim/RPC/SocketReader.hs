@@ -23,6 +23,7 @@ import           Neovim.RPC.FunctionCall
 import           Control.Applicative
 import           Control.Concurrent           (forkIO)
 import           Control.Concurrent.STM
+import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit                 as C
@@ -32,7 +33,6 @@ import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                    (unpack)
 import           Data.Time
-import           Data.Word                    (Word32)
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
 
@@ -94,13 +94,13 @@ handleResponse i err result = do
                 _         -> Left err
 
 handleRequest :: Word32 -> Object -> Object -> Sink a SocketHandler ()
-handleRequest i method params = case fromObject method of
+handleRequest i method (ObjectArray params) = case fromObject method of
     Left err -> liftIO . errorM logger $ show err
     Right m -> ask >>= \e -> void . liftIO . forkIO $
-        case Map.lookup m ((providers .customConfig) e) of
+        case Map.lookup m ((functions . customConfig) e) of
             Nothing -> debugM logger $ "No provider for: " <> unpack m
             Just (Left f) -> do
-                res <- f params
+                res <- runExceptT $ f params
                 atomically' . writeTQueue (_eventQueue e) . SomeMessage
                     . uncurry (Response i) $ writeErrorResponse res
             Just (Right c) -> do
@@ -111,8 +111,11 @@ handleRequest i method params = case fromObject method of
                 atomically' . writeTQueue c . SomeMessage
                     $ FunctionCall m params reply now
   where
-    writeErrorResponse (Left !err) = (err, ObjectNil)
+    writeErrorResponse (Left !err) = (toObject err, ObjectNil)
     writeErrorResponse (Right !res) = (ObjectNil, res)
+
+handleRequest _ _ params = liftIO . errorM logger $
+    "Parmaeters in request are not in an object array: " <> show params
 
 handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleNotification msgType fn params

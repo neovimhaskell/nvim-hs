@@ -16,6 +16,7 @@ module Neovim.RPC.FunctionCall (
     atomically',
     wait,
     wait',
+    respond,
     ) where
 
 import Neovim.API.Context
@@ -51,7 +52,7 @@ acall fn parameters = do
     q <- eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
-    atomically' . writeTQueue q . SomeMessage $ FunctionCall fn (ObjectArray parameters) mv timestamp
+    atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
     return $ either Left (Right . fromObjectUnsafe) <$> readTMVar mv
 
 acall' :: (NvimObject result)
@@ -86,3 +87,15 @@ wait = (=<<) atomically'
 -- | Variant of 'wait' that discards the result.
 wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
 wait' = void . (=<<) atomically'
+
+-- | Send the result back to the neovim instance.
+respond :: (NvimObject result) => Word32 -> Either String result -> Neovim r st ()
+respond msgId result = do
+    q <- eventQueue
+    atomically' . writeTQueue q . SomeMessage
+        . uncurry (Response msgId) $ toResult result
+
+  where
+    toResult (Left err) = (toObject err, toObject ())
+    toResult (Right r)  = (toObject (), toObject r)
+

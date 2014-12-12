@@ -25,6 +25,7 @@ library
                       , Neovim.API.Classes
                       , Neovim.API.Context
                       , Neovim.API.Parser
+                      , Neovim.API.Plugin
                       , Neovim.API.IPC
                       , Neovim.API.TH
                       , Neovim.Config

@@ -12,38 +12,31 @@ This module describes how a Haksell plugin can be plugged into Neovim.
 -}
 module Neovim.API.Plugin (
     Plugin(..),
+    Request(..),
+    awaitRequest,
 
     ) where
 
-import Neovim.API.Context
-import Neovim.API.Classes
-import Data.MessagePack
-import Control.Concurrent.STM
-import Data.Text
+import           Neovim.API.Context
+import           Neovim.API.IPC         (Request (..), SomeMessage, fromMessage)
+
+import           Control.Concurrent.STM
+import           Control.Monad.Except
+import           Data.MessagePack
+import           Data.Text
 
 -- | This data type contains meta information for the plugin manager.
 --
-data Plugin config state =
-    SimplePlugin
-        { name             :: String
-        -- ^ The name of the plugin.
-        , functions        :: forall result. (NvimObject result) =>
-                                [(Text, Function config state result)]
-        -- ^ Functions provided by this plugin.
-        --
-        -- The type may be look suspicious, but the plan is to create this list
-        -- from existing functions via template haskell.
-        -- @
-        -- export ['function1, 'foo, 'bar]
-        -- @
-        -- This is still just an idea and I don't know if this exact syntax is
-        -- possible.
-        }
-    | Service
-        { name             :: String
-        -- ^ The name of the plugin.
-        , initialConfig    :: config
-        , initialState     :: state
-        , serviceThread    :: TChan Message -> Neovim config state ()
-        }
+data Plugin = Plugin
+    { name              :: String
+    , functions         :: [(Text, [Object] -> ExceptT String IO Object)]
+    , statefulFunctions ::[(Text, TQueue SomeMessage)]
+    }
+
+awaitRequest :: (MonadIO io) => TQueue SomeMessage -> io Request
+awaitRequest q = do
+    msg <- liftIO . atomically $ readTQueue q
+    case fromMessage msg of
+        Nothing -> awaitRequest q
+        Just r@(Request{}) -> return r
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {- |
 Module      :  Neovim.RPC.Common
 Description :  Common functons for the RPC module
@@ -14,7 +15,7 @@ module Neovim.RPC.Common
 import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad
-import           Control.Monad.IO.Class
+import           Control.Monad.Except
 import           Data.Map
 import           Data.MessagePack
 import           Data.Monoid
@@ -22,7 +23,6 @@ import           Data.Streaming.Network
 import           Data.String
 import           Data.Text              (Text)
 import           Data.Time
-import           Data.Word              (Word32)
 import           Neovim.API.IPC
 import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
@@ -36,12 +36,13 @@ data RPCConfig = RPCConfig
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.
-    , providers  :: Map Text (Either (Object -> IO (Either Object Object)) (TQueue SomeMessage))
+    , functions  :: Map Text
+        (Either ([Object] -> ExceptT String IO Object) (TQueue SomeMessage))
     -- ^ A map that contains the function names which are registered to this
     -- plugin manager.
     }
 
-newRPCConfig :: (MonadIO io, Applicative io) => io RPCConfig
+newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
 newRPCConfig = RPCConfig
     <$> liftIO (newTVarIO mempty)
     <*> pure mempty
