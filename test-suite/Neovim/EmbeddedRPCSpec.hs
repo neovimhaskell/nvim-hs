@@ -55,12 +55,14 @@ withNeovimEmbedded file test = bracket
         return (hin, hout, ph, e)
 
     killNvim (_, _, ph, _) = do
+        killNvim <- newTVarIO True
         terminatorTid <- forkIO $
             handle handleInterrupt $ do
                 threadDelay $ 3 * 1000 * 1000 -- wait for 3 seconds
-                terminateProcess ph
+                shouldKill <- atomically' $ readTVar killNvim
+                when shouldKill $ terminateProcess ph
         _ <- waitForProcess ph
-        throwTo terminatorTid InterruptThread
+        atomically' $ writeTVar killNvim False
 
     handleInterrupt InterruptThread = return ()
 
