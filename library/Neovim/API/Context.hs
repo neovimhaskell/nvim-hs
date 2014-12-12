@@ -9,63 +9,67 @@ Stability   :  experimental
 
 -}
 module Neovim.API.Context (
-    myConf,
+    asks,
+    ask,
+    eventQueue,
 
-    Message(..),
     Neovim,
-    InternalEnvironment(..),
-    newInternalEnvironment,
+    ConfigWrapper(..),
+    wrapConfig,
     runNeovim,
 
+    throwError,
     module Control.Monad.IO.Class,
     ) where
 
-import           Neovim.API.IPC
 
 import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad.IO.Class
-import           Control.Monad.Reader
+import           Control.Monad.Reader hiding (asks, ask)
+import qualified Control.Monad.Reader as R
 import           Control.Monad.State
-import           Data.Map               (Map)
-import           Data.MessagePack
-import           Data.Monoid
-import           Data.Text
-import           Data.Time
-import           Data.Word
+import           Control.Monad.Except
 
-data InternalEnvironment a = InternalEnvironment
-    { eventQueue   :: TQueue SomeMessage
+import Neovim.API.IPC (SomeMessage)
+
+-- | A wrapper for a reader value that contains extra fields required to
+-- communicate with the messagepack-rpc components.
+data ConfigWrapper a = ConfigWrapper
+    { _eventQueue   :: TQueue SomeMessage
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
-    , recipients   :: TVar (Map Word32 (UTCTime, TMVar (Either Object Object)))
-    -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
-    -- timestamp and a 'TMVar' that is used to communicate the result back to
-    -- the calling thread.
-    , providers    :: Map Text (Either (Object -> IO (Either Object Object)) (TQueue SomeMessage))
-    -- ^ A map that contains the function names which are registered to this
-    -- plugin manager.
     , customConfig :: a
     -- ^ Plugin author supplyable custom configuration. It can be queried via
     -- 'myConf'.
     }
 
-newInternalEnvironment :: (Applicative io, MonadIO io)
-                       => a -> io (InternalEnvironment a)
-newInternalEnvironment a = InternalEnvironment
+eventQueue :: Neovim r st (TQueue SomeMessage)
+eventQueue = R.asks _eventQueue
+
+wrapConfig :: (Applicative io, MonadIO io)
+           => a -> io (ConfigWrapper a)
+wrapConfig a = ConfigWrapper
     <$> liftIO newTQueueIO
-    <*> liftIO (newTVarIO mempty)
-    <*> pure mempty
     <*> pure a
 
-type Neovim cfg state = StateT state (ReaderT (InternalEnvironment cfg) IO)
+type Neovim cfg state =
+    ExceptT String (StateT state (ReaderT (ConfigWrapper cfg) IO))
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
-runNeovim :: InternalEnvironment r -> st -> Neovim r st a -> IO (a, st)
-runNeovim r st a = runReaderT (runStateT a st) r
+runNeovim :: ConfigWrapper r
+          -> st
+          -> Neovim r st a
+          -> IO (Either String a, st)
+runNeovim r st a = runReaderT (runStateT (runExceptT a) st) r
+
+-- | Retrieve something from the configuration with respect to the first
+-- function. Works exactly like 'R.asks'.
+asks :: (config -> a) -> Neovim config state a
+asks q = R.asks (q . customConfig)
 
 -- | Retrieve the Cunfiguration (i.e. read-only state) from the 'Neovim'
 -- context.
-myConf :: Neovim config state config
-myConf = asks customConfig
+ask :: Neovim config state config
+ask = R.asks customConfig
 

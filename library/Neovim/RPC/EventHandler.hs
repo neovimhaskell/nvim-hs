@@ -14,7 +14,7 @@ module Neovim.RPC.EventHandler (
     ) where
 
 import           Neovim.API.Classes
-import           Neovim.API.Context
+import           Neovim.API.Context hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -35,7 +35,7 @@ import           System.IO                    (IOMode (WriteMode))
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
 runEventHandler :: SocketType
-                -> InternalEnvironment ()
+                -> ConfigWrapper RPCConfig
                 -> IO ()
 runEventHandler socketType env =
     runEventHandlerContext env $ do
@@ -46,16 +46,16 @@ runEventHandler socketType env =
 
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a =
-    EventHandler (ResourceT (ReaderT (InternalEnvironment ()) (StateT Word32 IO)) a)
+    EventHandler (ResourceT (ReaderT (ConfigWrapper RPCConfig) (StateT Word32 IO)) a)
     deriving ( Functor, Applicative, Monad, MonadState Word32, MonadIO
-             , MonadReader (InternalEnvironment ()))
+             , MonadReader (ConfigWrapper RPCConfig))
 
-runEventHandlerContext :: InternalEnvironment () -> EventHandler a -> IO a
+runEventHandlerContext :: ConfigWrapper RPCConfig -> EventHandler a -> IO a
 runEventHandlerContext env (EventHandler a) =
     evalStateT (runReaderT (runResourceT a) env) 1
 
 eventHandlerSource :: Source EventHandler SomeMessage
-eventHandlerSource = asks eventQueue >>= \q ->
+eventHandlerSource = asks _eventQueue >>= \q ->
     forever $ yield =<< atomically' (readTQueue q)
 
 eventHandler :: SomeMessage -> ConduitM SomeMessage ByteString EventHandler ()
@@ -63,7 +63,7 @@ eventHandler message = case fromMessage message of
     Just (FunctionCall fn params reply time) -> do
         i <- get
         modify succ
-        rec <- asks recipients
+        rec <- asks (recipients . customConfig)
         atomically' . modifyTVar rec $ Map.insert i (time, reply)
         yield . encode $ ObjectArray
             [ toObject (0 :: Int64)

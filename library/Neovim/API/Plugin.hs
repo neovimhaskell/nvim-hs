@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 {- |
 Module      :  Neovim.API.Plugin
 Description :  Plugin author documentation
@@ -15,6 +16,7 @@ module Neovim.API.Plugin (
     ) where
 
 import Neovim.API.Context
+import Neovim.API.Classes
 import Data.MessagePack
 import Control.Concurrent.STM
 import Data.Text
@@ -25,7 +27,8 @@ data Plugin config state =
     SimplePlugin
         { name             :: String
         -- ^ The name of the plugin.
-        , functions        :: [(Text, Object -> Object)]
+        , functions        :: forall result. (NvimObject result) =>
+                                [(Text, Function config state result)]
         -- ^ Functions provided by this plugin.
         --
         -- The type may be look suspicious, but the plan is to create this list

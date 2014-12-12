@@ -11,16 +11,40 @@ Stability   :  experimental
 module Neovim.RPC.Common
     where
 
+import           Control.Applicative
+import           Control.Concurrent.STM
 import           Control.Monad
-import Data.Monoid
 import           Control.Monad.IO.Class
+import           Data.Map
+import           Data.MessagePack
+import           Data.Monoid
 import           Data.Streaming.Network
 import           Data.String
+import           Data.Text              (Text)
+import           Data.Time
+import           Data.Word              (Word32)
+import           Neovim.API.IPC
 import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode,
                                          hClose, hSetBuffering)
 import           System.Log.Logger
+
+-- | Things shared between the socket reader and the event handler.
+data RPCConfig = RPCConfig
+    { recipients :: TVar (Map Word32 (UTCTime, TMVar (Either Object Object)))
+    -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
+    -- timestamp and a 'TMVar' that is used to communicate the result back to
+    -- the calling thread.
+    , providers  :: Map Text (Either (Object -> IO (Either Object Object)) (TQueue SomeMessage))
+    -- ^ A map that contains the function names which are registered to this
+    -- plugin manager.
+    }
+
+newRPCConfig :: (MonadIO io, Applicative io) => io RPCConfig
+newRPCConfig = RPCConfig
+    <$> liftIO (newTVarIO mempty)
+    <*> pure mempty
 
 -- | Simple data type defining the kind of socket the socket reader should use.
 data SocketType = Stdout Handle

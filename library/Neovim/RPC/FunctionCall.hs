@@ -23,13 +23,12 @@ import Neovim.API.Classes
 import Neovim.API.IPC
 
 import Control.Applicative
-import Control.Monad.Reader
+import Control.Monad.Reader as R
 import Data.Monoid
 import Data.Text
 import Data.Time
 import Data.MessagePack
 import Control.Concurrent.STM
-
 
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $
@@ -49,7 +48,7 @@ acall :: (NvimObject result)
      -> [Object]
      -> Neovim r st (STM (Either Object result))
 acall fn parameters = do
-    q <- asks eventQueue
+    q <- eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
     atomically' . writeTQueue q . SomeMessage $ FunctionCall fn (ObjectArray parameters) mv timestamp

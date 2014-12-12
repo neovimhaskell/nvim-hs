@@ -42,6 +42,3 @@ data RPCMessage = FunctionCall Text Object (TMVar (Either Object Object)) UTCTim
     deriving (Typeable)
 
 instance Message RPCMessage
-
-
-

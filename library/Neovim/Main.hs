@@ -83,7 +83,7 @@ runPluginProvider os = case (hostPort os, unix os) of
 
   where
     run evHandlerSocket sockreaderSocket cfg = do
-        e <- newInternalEnvironment ()
+        e <- wrapConfig =<< newRPCConfig
         ehTid <- forkIO $ runEventHandler evHandlerSocket e
         {-pluginTids <- forM (plugins cfg) $ forkIO . runNeovim e ()-}
         let pluginTids = []

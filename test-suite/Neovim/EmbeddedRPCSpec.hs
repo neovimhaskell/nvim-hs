@@ -7,17 +7,15 @@ import           Test.Hspec
 import           Neovim
 import           Neovim.API.Context
 import           Neovim.RPC.Common
-import           Neovim.RPC.FunctionCall
 import           Neovim.RPC.EventHandler
+import           Neovim.RPC.FunctionCall
 import           Neovim.RPC.SocketReader
 
-import           Control.Applicative
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.Reader
-import           Data.Data (Typeable)
+import           Data.Data               (Typeable)
 import qualified Data.Map                as Map
 import           Data.Monoid
 import           System.Directory
@@ -28,11 +26,11 @@ data InterruptThread = InterruptThread
 
 instance Exception InterruptThread
 
-withNeovimEmbedded :: Maybe FilePath -> Neovim () () a -> IO ()
+withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> IO ()
 withNeovimEmbedded file test = bracket
     startNvim
     killNvim
-    (\(_, _, _, e) -> fst <$> runNeovim e () runTest)
+    (\(_, _, _, e) -> void $ runNeovim e () runTest)
   where
     startNvim = do
         args <- case file of
@@ -48,21 +46,21 @@ withNeovimEmbedded file test = bracket
                 , std_out = CreatePipe
                 }
 
-        e <- newInternalEnvironment ()
+        e <- wrapConfig =<< newRPCConfig
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 
         return (hin, hout, ph, e)
 
     killNvim (_, _, ph, _) = do
-        killNvim <- newTVarIO True
-        terminatorTid <- forkIO $
+        shouldKillNvim <- newTVarIO True
+        _ <- forkIO $
             handle handleInterrupt $ do
                 threadDelay $ 3 * 1000 * 1000 -- wait for 3 seconds
-                shouldKill <- atomically' $ readTVar killNvim
+                shouldKill <- atomically' $ readTVar shouldKillNvim
                 when shouldKill $ terminateProcess ph
         _ <- waitForProcess ph
-        atomically' $ writeTVar killNvim False
+        atomically' $ writeTVar shouldKillNvim False
 
     handleInterrupt InterruptThread = return ()
 

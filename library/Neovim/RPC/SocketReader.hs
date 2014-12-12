@@ -15,7 +15,7 @@ module Neovim.RPC.SocketReader (
     ) where
 
 import           Neovim.API.Classes
-import           Neovim.API.Context
+import           Neovim.API.Context hiding (ask,asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -41,7 +41,7 @@ logger = "Socket Reader"
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
-runSocketReader :: SocketType -> InternalEnvironment () -> IO ()
+runSocketReader :: SocketType -> ConfigWrapper RPCConfig -> IO ()
 runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
     runSocketHandler env $
@@ -51,12 +51,12 @@ runSocketReader socketType env = do
 
 -- | Convenient transformer stack for the socket reader.
 newtype SocketHandler a =
-    SocketHandler (ResourceT (Neovim () ()) a)
+    SocketHandler (ResourceT (Neovim RPCConfig ()) a)
     deriving ( Functor, Applicative, Monad , MonadIO
-             , MonadReader (InternalEnvironment()) )
+             , MonadReader (ConfigWrapper RPCConfig))
 
-runSocketHandler :: InternalEnvironment () -> SocketHandler a -> IO a
-runSocketHandler r (SocketHandler a) = fst <$> runNeovim r () (runResourceT a)
+runSocketHandler :: ConfigWrapper RPCConfig -> SocketHandler a -> IO ()
+runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
@@ -82,7 +82,7 @@ handleResponseOrRequest msgType
 
 handleResponse :: Word32 -> Object -> Object -> Sink a SocketHandler ()
 handleResponse i err result = do
-    answerMap <- asks recipients
+    answerMap <- asks (recipients . customConfig)
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
         Nothing -> liftIO $ warningM logger
@@ -97,16 +97,16 @@ handleRequest :: Word32 -> Object -> Object -> Sink a SocketHandler ()
 handleRequest i method params = case fromObject method of
     Left err -> liftIO . errorM logger $ show err
     Right m -> ask >>= \e -> void . liftIO . forkIO $
-        case Map.lookup m (providers e) of
+        case Map.lookup m ((providers .customConfig) e) of
             Nothing -> debugM logger $ "No provider for: " <> unpack m
             Just (Left f) -> do
                 res <- f params
-                atomically' . writeTQueue (eventQueue e) . SomeMessage
+                atomically' . writeTQueue (_eventQueue e) . SomeMessage
                     . uncurry (Response i) $ writeErrorResponse res
             Just (Right c) -> do
                 now <- liftIO getCurrentTime
                 reply <- liftIO newEmptyTMVarIO
-                let q = recipients e
+                let q = (recipients . customConfig) e
                 atomically' . modifyTVar q $ Map.insert i (now, reply)
                 atomically' . writeTQueue c . SomeMessage
                     $ FunctionCall m params reply now
