@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {- |
 Module      :  Neovim.Main
 Description :  Wrapper for the actual main function
@@ -11,24 +13,30 @@ Stability   :  experimental
 module Neovim.Main
     where
 
-import Neovim.Config
+import           Neovim.API.Plugin as P
+import           Neovim.Config
+import           Neovim.API.IPC
+import           Neovim.RPC.Common as RPC
 
-import qualified Config.Dyre as Dyre
-import Options.Applicative
-import System.IO (stdin, stdout)
-import Neovim.RPC.SocketReader
-import Neovim.RPC.EventHandler
-import Neovim.RPC.Common
-import Neovim.API.Context
-import Neovim.Debug
-import Control.Concurrent
-import Data.Maybe
-import Control.Monad
+import qualified Config.Dyre             as Dyre
+import           Control.Concurrent
+import           Control.Concurrent.STM
+import           Control.Monad
+import           Data.Maybe
+import           Data.Monoid
+import           Neovim.API.Context
+import           Neovim.Debug
+import qualified Data.Map as Map
+import           Neovim.RPC.Common
+import           Neovim.RPC.EventHandler
+import           Neovim.RPC.SocketReader
+import           Options.Applicative
+import           System.IO               (stdin, stdout)
 
 data CommandLineOptions =
-    Opt { hostPort   :: Maybe (String, Int)
-        , unix       :: Maybe (FilePath)
-        , env        :: Bool
+    Opt { hostPort :: Maybe (String, Int)
+        , unix     :: Maybe (FilePath)
+        , env      :: Bool
         }
 
 optParser :: Parser CommandLineOptions
@@ -83,11 +91,27 @@ runPluginProvider os = case (hostPort os, unix os) of
 
   where
     run evHandlerSocket sockreaderSocket cfg = do
-        e <- wrapConfig =<< newRPCConfig
-        ehTid <- forkIO $ runEventHandler evHandlerSocket e
-        {-pluginTids <- forM (plugins cfg) $ forkIO . runNeovim e ()-}
-        let pluginTids = []
-        runSocketReader sockreaderSocket e
+        rpcConfig <- newRPCConfig
+        q <- newTQueueIO
+        (pluginThreads, funMap) <- startPluginServices q (plugins cfg)
+        let rpcEnv = ConfigWrapper q $ rpcConfig { RPC.functions = funMap }
+        ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
+        pluginTids <- mapM forkIO pluginThreads
+        runSocketReader sockreaderSocket rpcEnv
         forM_ (ehTid:pluginTids) $ \tid ->
             liftIO $ debugM "TODO" $ "Killing thread" <> show tid
+
+startPluginServices :: forall r st. TQueue SomeMessage
+                    ->[IO (Plugin r st)] -> IO ([IO ()], FunctionMap)
+startPluginServices evq = foldM go ([], mempty)
+  where
+    go :: ([IO ()], FunctionMap) -> IO (Plugin r' st') -> IO ([IO ()], FunctionMap)
+    go (services', m) iop = do
+        p <- iop
+        let mWithSF = foldr (\(n,q) -> Map.insert n (Right q)) m (statefulFunctions p)
+        let newServices = map (\(r,st,s) -> void (runNeovim (ConfigWrapper evq r) st s)) $ services p
+        return (newServices <> services', mWithSF)
+
+
+
 

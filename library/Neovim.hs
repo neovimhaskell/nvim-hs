@@ -12,12 +12,32 @@ useful for plugin developement for neovim.
 -}
 module Neovim (
     module Neovim.API.Classes,
+    module Neovim.API.Context,
     module Neovim.API.String,
-    module Neovim.Main,
     module Neovim.Config,
+    module Neovim.Main,
+    module Neovim.RPC.FunctionCall,
+
+    module Control.Monad,
+    module Control.Applicative,
+    module Data.Monoid,
+
+    module System.Log,
+    module Control.Concurrent,
+    module Control.Concurrent.STM,
     ) where
 
-import Neovim.Main (neovim)
-import Neovim.API.String
-import Neovim.API.Classes
-import Neovim.Config
+import           Neovim.API.Classes
+import           Neovim.API.Context
+import           Neovim.API.String
+import           Neovim.Config
+import           Neovim.Main             (neovim)
+import           Neovim.RPC.FunctionCall (atomically', respond, wait, wait')
+
+import           Control.Concurrent      (forkIO)
+import           Control.Concurrent.STM
+import           System.Log
+
+import           Control.Applicative
+import           Control.Monad
+import           Data.Monoid

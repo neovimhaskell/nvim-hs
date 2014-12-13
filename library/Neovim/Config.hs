@@ -15,13 +15,13 @@ module Neovim.Config (
     module System.Log,
     ) where
 
-import Neovim.API.Context (Neovim)
+import           Neovim.API.Plugin
 
-import Data.Default (Default(def))
-import System.Log (Priority(..))
+import           Data.Default      (Default (def))
+import           System.Log        (Priority (..))
 
 data NeovimConfig = Config
-    { plugins      :: forall r st. [Neovim r st ()] -- TODO saep 2014-12-03
+    { plugins      :: forall r st. [IO (Plugin r st)]
     , errorMessage :: Maybe String
     -- ^ Used by "Dyre" for storing compilation errors.
     , logOptions   :: Maybe (FilePath, Priority)

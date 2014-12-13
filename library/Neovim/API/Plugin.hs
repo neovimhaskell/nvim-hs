@@ -15,6 +15,8 @@ module Neovim.API.Plugin (
     Request(..),
     awaitRequest,
 
+    SomeMessage,
+    fromMessage,
     ) where
 
 import           Neovim.API.Context
@@ -27,10 +29,11 @@ import           Data.Text
 
 -- | This data type contains meta information for the plugin manager.
 --
-data Plugin = Plugin
+data Plugin r st = Plugin
     { name              :: String
     , functions         :: [(Text, [Object] -> ExceptT String IO Object)]
-    , statefulFunctions ::[(Text, TQueue SomeMessage)]
+    , statefulFunctions :: [(Text, TQueue SomeMessage)]
+    , services          :: [(r, st, Neovim r st ())]
     }
 
 awaitRequest :: (MonadIO io) => TQueue SomeMessage -> io Request

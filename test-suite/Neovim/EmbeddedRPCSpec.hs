@@ -5,19 +5,14 @@ module Neovim.EmbeddedRPCSpec
 import           Test.Hspec
 
 import           Neovim
-import           Neovim.API.Context
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
-import           Neovim.RPC.FunctionCall
 import           Neovim.RPC.SocketReader
 
 import           Control.Concurrent
-import           Control.Concurrent.STM
 import           Control.Exception
-import           Control.Monad
 import           Data.Data               (Typeable)
 import qualified Data.Map                as Map
-import           Data.Monoid
 import           System.Directory
 import           System.Process
 
@@ -46,7 +41,8 @@ withNeovimEmbedded file test = bracket
                 , std_out = CreatePipe
                 }
 
-        e <- wrapConfig =<< newRPCConfig
+        q <- newTQueueIO
+        e <- ConfigWrapper q <$> newRPCConfig
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 

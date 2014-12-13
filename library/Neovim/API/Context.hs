@@ -13,9 +13,13 @@ module Neovim.API.Context (
     ask,
     eventQueue,
 
+    get,
+    put,
+    modify,
+    gets,
+
     Neovim,
     ConfigWrapper(..),
-    wrapConfig,
     runNeovim,
 
     throwError,
@@ -23,7 +27,6 @@ module Neovim.API.Context (
     ) where
 
 
-import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader hiding (asks, ask)
@@ -46,12 +49,6 @@ data ConfigWrapper a = ConfigWrapper
 
 eventQueue :: Neovim r st (TQueue SomeMessage)
 eventQueue = R.asks _eventQueue
-
-wrapConfig :: (Applicative io, MonadIO io)
-           => a -> io (ConfigWrapper a)
-wrapConfig a = ConfigWrapper
-    <$> liftIO newTQueueIO
-    <*> pure a
 
 type Neovim cfg state =
     ExceptT String (StateT state (ReaderT (ConfigWrapper cfg) IO))

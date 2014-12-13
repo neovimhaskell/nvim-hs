@@ -30,14 +30,17 @@ import           System.IO              (BufferMode (..), Handle, IOMode,
                                          hClose, hSetBuffering)
 import           System.Log.Logger
 
+type FunctionMap =
+    Map Text (Either ([Object] -> ExceptT String IO Object) (TQueue SomeMessage))
+
+
 -- | Things shared between the socket reader and the event handler.
 data RPCConfig = RPCConfig
     { recipients :: TVar (Map Word32 (UTCTime, TMVar (Either Object Object)))
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.
-    , functions  :: Map Text
-        (Either ([Object] -> ExceptT String IO Object) (TQueue SomeMessage))
+    , functions  :: FunctionMap
     -- ^ A map that contains the function names which are registered to this
     -- plugin manager.
     }
