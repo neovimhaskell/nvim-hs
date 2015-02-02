@@ -14,7 +14,7 @@ module Neovim.RPC.EventHandler (
     ) where
 
 import           Neovim.API.Classes
-import           Neovim.API.Context hiding (ask, asks)
+import           Neovim.API.Context           hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -29,6 +29,7 @@ import           Data.Conduit                 as C
 import           Data.Conduit.Binary          (sinkHandle)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
+import           Data.Serialize               (decode, encode)
 import           System.IO                    (IOMode (WriteMode))
 
 -- | This function will establish a connection to the given socket and write
@@ -45,8 +46,8 @@ runEventHandler socketType env =
 
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a =
-    EventHandler (ResourceT (ReaderT (ConfigWrapper RPCConfig) (StateT Word32 IO)) a)
-    deriving ( Functor, Applicative, Monad, MonadState Word32, MonadIO
+    EventHandler (ResourceT (ReaderT (ConfigWrapper RPCConfig) (StateT Int64 IO)) a)
+    deriving ( Functor, Applicative, Monad, MonadState Int64, MonadIO
              , MonadReader (ConfigWrapper RPCConfig))
 
 runEventHandlerContext :: ConfigWrapper RPCConfig -> EventHandler a -> IO a
@@ -66,14 +67,14 @@ eventHandler message = case fromMessage message of
         atomically' . modifyTVar rec $ Map.insert i (time, reply)
         yield . encode $ ObjectArray
             [ toObject (0 :: Int64)
-            , ObjectFixInt (PosFixInt32 i)
+            , ObjectInt i
             , toObject fn
             , toObject params
             ]
     Just (Response i err res) ->
         yield . encode $ ObjectArray
             [ toObject (1 :: Int64)
-            , ObjectFixInt (PosFixInt32 i)
+            , ObjectInt i
             , toObject err
             , toObject res
             ]

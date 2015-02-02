@@ -92,15 +92,12 @@ instance NvimObject Integer where
     fromObject o             = throwError $ "Expected ObjectInt, but got " <> show o
 
 instance NvimObject Int64 where
-    toObject                 = ObjectFixInt . FixInt64
-    fromObject (ObjectFixInt (FixInt64 i)) = return i
-    fromObject (ObjectFixInt fi) = return $ integralValue fi
+    toObject                 = ObjectInt
     fromObject (ObjectInt i) = return i
     fromObject o             = throwError $ "Expected any Integer value, but got " <> show o
 
 instance NvimObject Int where
     toObject                 = ObjectInt . fromIntegral
-    fromObject (ObjectFixInt fi) = return $ integralValue fi
     fromObject (ObjectInt i) = return $ fromIntegral i
     fromObject o             = throwError $ "Expected any Integer value, but got " <> show o
 

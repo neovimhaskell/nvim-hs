@@ -89,7 +89,7 @@ wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
 wait' = void . (=<<) atomically'
 
 -- | Send the result back to the neovim instance.
-respond :: (NvimObject result) => Word32 -> Either String result -> Neovim r st ()
+respond :: (NvimObject result) => Int64 -> Either String result -> Neovim r st ()
 respond msgId result = do
     q <- eventQueue
     atomically' . writeTQueue q . SomeMessage

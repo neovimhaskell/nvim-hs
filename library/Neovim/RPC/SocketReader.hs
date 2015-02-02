@@ -15,7 +15,7 @@ module Neovim.RPC.SocketReader (
     ) where
 
 import           Neovim.API.Classes
-import           Neovim.API.Context hiding (ask,asks)
+import           Neovim.API.Context           hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -31,6 +31,7 @@ import           Data.Conduit.Binary
 import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
+import           Data.Serialize               (decode)
 import           Data.Text                    (unpack)
 import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
@@ -64,14 +65,14 @@ messageHandlerSink :: Sink (Either String Object) SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
     Left err -> liftIO $ errorM logger $
         "Error parsing rpc message: " <> err
-    Right (ObjectArray [ObjectFixInt msgType, ObjectFixInt fi, err, result]) ->
-        handleResponseOrRequest (integralValue msgType) (integralValue fi) err result
-    Right (ObjectArray [ObjectFixInt msgType, method, params]) ->
-        handleNotification (integralValue msgType) method params
+    Right (ObjectArray [ObjectInt msgType, ObjectInt fi, err, result]) ->
+        handleResponseOrRequest msgType fi err result
+    Right (ObjectArray [ObjectInt msgType, method, params]) ->
+        handleNotification msgType method params
     Right obj -> liftIO $ errorM logger $
         "Unhandled rpc message: " <> show obj
 
-handleResponseOrRequest :: Int64 -> Word32 -> Object -> Object
+handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
                         -> Sink a SocketHandler ()
 handleResponseOrRequest msgType
     | msgType == 1 = handleResponse
@@ -80,7 +81,7 @@ handleResponseOrRequest msgType
         liftIO $ errorM logger $ "Invalid message type: " <> show msgType
         return ()
 
-handleResponse :: Word32 -> Object -> Object -> Sink a SocketHandler ()
+handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleResponse i err result = do
     answerMap <- asks (recipients . customConfig)
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
@@ -93,7 +94,7 @@ handleResponse i err result = do
                 ObjectNil -> Right result
                 _         -> Left err
 
-handleRequest :: Word32 -> Object -> Object -> Sink a SocketHandler ()
+handleRequest :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleRequest i method (ObjectArray params) = case fromObject method of
     Left err -> liftIO . errorM logger $ show err
     Right m -> ask >>= \e -> void . liftIO . forkIO $
