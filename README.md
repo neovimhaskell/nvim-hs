@@ -11,15 +11,14 @@ Neovim API for Haskell plugins as well as the plugin provider
 
 # Coordinate your work
 
-Currently I am still all alone on this project. If you want to work on
-something or if you have any questions, contact me. You can create a pull
-request/issue with what you want to do and I will (usually) comment within a
-day. I'm also on IRC (e.g. #neovim, #haskell on freenode) with the nick
-_saep_. When I'm actually online (i.e. I am connected to my bouncer), I
-should respond within 5 minutes if you highlight me or write a personal
-message.
+Talk to osa1 or saep on #neovim on freenode!
+
+You can also just create an issue here on github.
 
 # Installation
+
+As this is still very much a prototype and changes are most certainly
+necessary, the only recommended way to install this is within a sandbox.
 
 ## Sandbox
 
