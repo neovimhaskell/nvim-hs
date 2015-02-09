@@ -46,7 +46,7 @@ import           Data.Text                (pack)
 -- The provided map allows the use of different Haskell types for the types
 -- defined in the API. The types must be an instance of 'NvimObject' and they
 -- must form an isomorphism with the sent messages types. Currently, it
--- proviedes a Convenient way to replace the String@ type with 'Text',
+-- provides a Convenient way to replace the String@ type with 'Text',
 -- 'ByteString' or 'String'.
 generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
@@ -180,7 +180,7 @@ exceptionInstance exceptionName = return <$>
 --     toObject (Quz bs) = ObjectExt 2 bs
 --     fromObject (ObjectExt 1 bs) = return $ Bar bs
 --     fromObject (ObjectExt 2 bs) = return $ Quz bs
---     fromObject o = Left $ "Object is not convertible to: Foo Recived: " <> show o
+--     fromObject o = Left $ "Object is not convertible to: Foo Received: " <> show o
 -- @
 customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
 customTypeInstance typeName nis =
@@ -196,7 +196,7 @@ customTypeInstance typeName nis =
             o <- newName "o"
             let n = nameBase typeName
             clause [ varP o ]
-                (normalB [|Left $ "Object is not convertible to: " <> n <> " Recived: " <> show $(varE o)|])
+                (normalB [|Left $ "Object is not convertible to: " <> n <> " Received: " <> show $(varE o)|])
                 []
 
         toObjectClause n i = newName "bs" >>= \bs -> clause
