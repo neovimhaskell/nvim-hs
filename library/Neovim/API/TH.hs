@@ -66,11 +66,12 @@ generateAPI typeMap = do
 -- | Default type mappings for the requested API.
 defaultAPITypeToHaskellTypeMap :: Map String (Q Type)
 defaultAPITypeToHaskellTypeMap = Map.fromList
-    [ ("Boolean", [t|Bool|])
-    , ("Integer", [t|Int64|])
-    , ("Float"  , [t|Double|])
-    , ("Array"  , [t|Object|])
-    , ("void"   , [t|()|])
+    [ ("Boolean"   , [t|Bool|])
+    , ("Integer"   , [t|Int64|])
+    , ("Float"     , [t|Double|])
+    , ("Array"     , [t|Object|])
+    , ("Dictionary", [t|Map Object Object|])
+    , ("void"      , [t|()|])
     ]
 
 apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Q Type
