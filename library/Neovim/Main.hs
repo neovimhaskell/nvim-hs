@@ -78,6 +78,7 @@ neovim = Dyre.wrapMain $ Dyre.defaultParams
 
 realMain :: NeovimConfig -> IO ()
 realMain cfg = maybe disableLogger (uncurry withLogger) (logOptions cfg) $ do
+    logM "Neovim.Main" DEBUG "Starting up neovim haskell plguin provider"
     os <- execParser opts
     runPluginProvider os cfg
 
@@ -99,7 +100,8 @@ runPluginProvider os = case (hostPort os, unix os) of
         pluginTids <- mapM forkIO pluginThreads
         runSocketReader sockreaderSocket rpcEnv
         forM_ (ehTid:pluginTids) $ \tid ->
-            liftIO $ debugM "TODO" $ "Killing thread" <> show tid
+            -- TODO actuall kill those threads in a reasonable way
+            liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
 
 startPluginServices :: forall r st. TQueue SomeMessage
                     ->[IO (Plugin r st)] -> IO ([IO ()], FunctionMap)
