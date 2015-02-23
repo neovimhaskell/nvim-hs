@@ -36,11 +36,19 @@ withLogger :: FilePath -> Priority -> IO a -> IO a
 withLogger fp p action = bracket
     setupRootLogger
     (\fh -> closeFunc fh (privData fh))
-    (\_ -> disableLogger action)
+    (const action)
   where
     setupRootLogger = do
+        -- We shouldn't log to stderr or stdout as it is not unlikely that our
+        -- messagepack communication is handled via those channels.
+        disableLogger (return ())
+        -- Log to the given file instead
         fh <- fileHandler fp p
-        updateGlobalLogger rootLoggerName (addHandler fh)
+        -- Adjust the log level as well
+        updateGlobalLogger rootLoggerName (setLevel p . addHandler fh)
+        -- For good measure, log some debug information
+        logM "Neovim.Debug" DEBUG $
+            unwords ["Initialized root looger with priority", show p, "and file: ", fp]
         return fh
 
 
