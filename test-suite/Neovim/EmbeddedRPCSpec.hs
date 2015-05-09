@@ -68,9 +68,9 @@ spec = parallel $ do
   let helloFile = "test-files/hello"
   describe "Read hello test file" $
     it "should match 'Hello, World!'" $ withNeovimEmbedded (Just helloFile) $ do
+        bs <- vim_get_buffers
         l <- vim_get_current_line
         liftIO $ l `shouldBe` Right "Hello, World!"
-        bs <- vim_get_buffers
         liftIO $ length bs `shouldBe` 1
 
   describe "New empty buffer test" $ do
