@@ -44,14 +44,14 @@ optParser = Opt
     <$> optional ((,)
             <$> (strOption
                 (long "host"
-                <> short 'h'
+                <> short 'a'
                 <> metavar "HOSTNAME"
                 <> help "Connect to the specified host. (requires -p)"))
             <*> (option auto
                 (long "port"
                 <> short 'p'
                 <> metavar "PORT"
-                <> help "Connect to the specified port. (requires -h)")))
+                <> help "Connect to the specified port. (requires -a)")))
     <*> optional (strOption
         (long "unix"
         <> short 'u'

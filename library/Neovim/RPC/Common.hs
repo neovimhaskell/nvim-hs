@@ -36,7 +36,7 @@ type FunctionMap =
 
 -- | Things shared between the socket reader and the event handler.
 data RPCConfig = RPCConfig
-    { recipients :: TVar (Map Word32 (UTCTime, TMVar (Either Object Object)))
+    { recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.

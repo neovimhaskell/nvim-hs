@@ -16,7 +16,7 @@ module Neovim.API.IPC (
     Request(..),
     fromMessage,
 
-    module Data.Word,
+    module Data.Int,
     ) where
 
 import           Control.Concurrent.STM
@@ -24,7 +24,7 @@ import           Data.MessagePack
 import           Data.Text              as Text
 import           Data.Time
 import           Data.Typeable          (Typeable, cast)
-import           Data.Word              (Word32)
+import           Data.Int               (Int64)
 
 
 -- | Taken from xmonad and based on ideas in /An Extensible Dynamically-Typed
@@ -39,7 +39,7 @@ class Typeable message => Message message where
 
 data RPCMessage = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
                 -- ^ Method name, parameters, callback, timestamp
-                | Response !Word32 Object Object
+                | Response !Int64 Object Object
                 -- ^ Responese sent to indicate the result of a function call.
                 --
                 -- * identfier of the message as 'Word32'
@@ -51,7 +51,7 @@ instance Message RPCMessage
 
 data Request = Request
     { reqMethod :: Text
-    , reqId     :: !Word32
+    , reqId     :: !Int64
     , reqArgs   :: [Object]
     }
     deriving (Typeable)

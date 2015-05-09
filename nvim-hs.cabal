@@ -47,7 +47,7 @@ library
                       , dyre
                       , filepath
                       , hslogger
-                      , messagepack >= 0.4
+                      , messagepack >= 0.3
                       , monad-control
                       , network
                       , lifted-base
@@ -92,8 +92,8 @@ test-suite hspec
                       , filepath
                       , hslogger
                       , lifted-base
-                      , messagepack >= 0.4
                       , mtl >= 2.2.1 && < 2.3
+                      , messagepack >= 0.3
                       , network
                       , optparse-applicative
                       , parsec
