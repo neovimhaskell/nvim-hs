@@ -1,5 +1,3 @@
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {- |
 Module      :  Neovim.Main
 Description :  Wrapper for the actual main function
@@ -103,13 +101,13 @@ runPluginProvider os = case (hostPort os, unix os) of
             -- TODO actuall kill those threads in a reasonable way
             liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
 
-startPluginServices :: forall r st. TQueue SomeMessage
-                    ->[IO (Plugin r st)] -> IO ([IO ()], FunctionMap)
+startPluginServices :: TQueue SomeMessage
+                    -> [IO SomePlugin] -> IO ([IO ()], FunctionMap)
 startPluginServices evq = foldM go ([], mempty)
   where
-    go :: ([IO ()], FunctionMap) -> IO (Plugin r' st') -> IO ([IO ()], FunctionMap)
+    go :: ([IO ()], FunctionMap) -> IO SomePlugin -> IO ([IO ()], FunctionMap)
     go (services', m) iop = do
-        p <- iop
+        SomePlugin p <- iop
         let mWithSF = foldr (\(n,q) -> Map.insert n (Right q)) m (statefulFunctions p)
         let newServices = map (\(r,st,s) -> void (runNeovim (ConfigWrapper evq r) st s)) $ services p
         return (newServices <> services', mWithSF)

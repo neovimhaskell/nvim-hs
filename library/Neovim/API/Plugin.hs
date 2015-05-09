@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {- |
 Module      :  Neovim.API.Plugin
 Description :  Plugin author documentation
@@ -12,6 +12,7 @@ This module describes how a Haksell plugin can be plugged into Neovim.
 -}
 module Neovim.API.Plugin (
     Plugin(..),
+    SomePlugin(..),
     Request(..),
     awaitRequest,
 
@@ -35,6 +36,8 @@ data Plugin r st = Plugin
     , statefulFunctions :: [(Text, TQueue SomeMessage)]
     , services          :: [(r, st, Neovim r st ())]
     }
+
+data SomePlugin = forall r st. SomePlugin (Plugin r st)
 
 awaitRequest :: (MonadIO io) => TQueue SomeMessage -> io Request
 awaitRequest q = do

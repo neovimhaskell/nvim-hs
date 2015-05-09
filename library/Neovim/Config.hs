@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 {- |
 Module      :  Neovim.Config
 Description :  The user editable and compilable configuration
@@ -21,7 +20,7 @@ import           Data.Default      (Default (def))
 import           System.Log        (Priority (..))
 
 data NeovimConfig = Config
-    { plugins      :: forall r st. [IO (Plugin r st)]
+    { plugins      :: [IO SomePlugin]
     , errorMessage :: Maybe String
     -- ^ Used by "Dyre" for storing compilation errors.
     , logOptions   :: Maybe (FilePath, Priority)
