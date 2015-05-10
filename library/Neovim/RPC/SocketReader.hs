@@ -108,8 +108,7 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 reply <- liftIO newEmptyTMVarIO
                 let q = (recipients . customConfig) e
                 atomically' . modifyTVar q $ Map.insert i (now, reply)
-                atomically' . writeTQueue c . SomeMessage
-                    $ FunctionCall m params reply now
+                atomically' . writeTQueue c . SomeMessage $ Request m i params
   where
     writeErrorResponse (Left !err) = (toObject err, ObjectNil)
     writeErrorResponse (Right !res) = (ObjectNil, res)
