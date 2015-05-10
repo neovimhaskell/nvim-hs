@@ -35,6 +35,7 @@ data CommandLineOptions =
     Opt { hostPort :: Maybe (String, Int)
         , unix     :: Maybe (FilePath)
         , env      :: Bool
+        , logOpts  :: Maybe (FilePath, Priority)
         }
 
 optParser :: Parser CommandLineOptions
@@ -58,6 +59,20 @@ optParser = Opt
         ( long "environment"
         <> short 'e'
         <> help "Read connection information from $NVIM_LISTEN_ADDRESS.")
+    <*> optional ((,)
+        <$> (strOption
+            (long "log-file"
+            <> short 'l'
+            <> help "File to log to."))
+        <*> (option auto
+            (long "log-level"
+            <> short 'v'
+            <> help ("Log level. Must be one of: " ++ (unwords . map show) logLevels))))
+  where
+    -- [minBound..maxBound] would have been nice here.
+    logLevels :: [Priority]
+    logLevels = [ DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY ]
+
 
 opts :: ParserInfo CommandLineOptions
 opts = info (helper <*> optParser)
@@ -75,10 +90,11 @@ neovim = Dyre.wrapMain $ Dyre.defaultParams
     }
 
 realMain :: NeovimConfig -> IO ()
-realMain cfg = maybe disableLogger (uncurry withLogger) (logOptions cfg) $ do
-    logM "Neovim.Main" DEBUG "Starting up neovim haskell plguin provider"
+realMain cfg = do
     os <- execParser opts
-    runPluginProvider os cfg
+    maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
+        logM "Neovim.Main" DEBUG "Starting up neovim haskell plguin provider"
+        runPluginProvider os cfg
 
 runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
 runPluginProvider os = case (hostPort os, unix os) of
