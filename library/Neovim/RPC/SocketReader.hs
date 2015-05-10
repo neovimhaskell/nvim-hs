@@ -28,10 +28,11 @@ import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.Conduit                 as C
 import           Data.Conduit.Binary
+import           Data.Conduit.Cereal
 import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Serialize               (decode)
+import qualified Data.Serialize               (get)
 import           Data.Text                    (unpack)
 import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
@@ -47,29 +48,27 @@ runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
     runSocketHandler env $
         addCleanup (cleanUpHandle h) (sourceHandle h)
-            $= awaitForever (yield . decode)
+            $= conduitGet Data.Serialize.get
             $$ messageHandlerSink
 
 -- | Convenient transformer stack for the socket reader.
 newtype SocketHandler a =
     SocketHandler (ResourceT (Neovim RPCConfig ()) a)
     deriving ( Functor, Applicative, Monad , MonadIO
-             , MonadReader (ConfigWrapper RPCConfig))
+             , MonadReader (ConfigWrapper RPCConfig), MonadThrow)
 
 runSocketHandler :: ConfigWrapper RPCConfig -> SocketHandler a -> IO ()
 runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
-messageHandlerSink :: Sink (Either String Object) SocketHandler ()
+messageHandlerSink :: Sink Object SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
-    Left err -> liftIO $ errorM logger $
-        "Error parsing rpc message: " <> err
-    Right (ObjectArray [ObjectInt msgType, ObjectInt fi, err, result]) ->
+    (ObjectArray [ObjectInt msgType, ObjectInt fi, err, result]) ->
         handleResponseOrRequest msgType fi err result
-    Right (ObjectArray [ObjectInt msgType, method, params]) ->
+    (ObjectArray [ObjectInt msgType, method, params]) ->
         handleNotification msgType method params
-    Right obj -> liftIO $ errorM logger $
+    obj -> liftIO $ errorM logger $
         "Unhandled rpc message: " <> show obj
 
 handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
@@ -109,8 +108,7 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 reply <- liftIO newEmptyTMVarIO
                 let q = (recipients . customConfig) e
                 atomically' . modifyTVar q $ Map.insert i (now, reply)
-                atomically' . writeTQueue c . SomeMessage
-                    $ FunctionCall m params reply now
+                atomically' . writeTQueue c . SomeMessage $ Request m i params
   where
     writeErrorResponse (Left !err) = (toObject err, ObjectNil)
     writeErrorResponse (Right !res) = (ObjectNil, res)
