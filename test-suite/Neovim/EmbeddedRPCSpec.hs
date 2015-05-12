@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
 module Neovim.EmbeddedRPCSpec
     where
 
 import           Test.Hspec
+import           Test.HUnit
 
 import           Neovim
 import           Neovim.RPC.Common
@@ -10,22 +11,18 @@ import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 
 import           Control.Concurrent
-import           Control.Exception
-import           Data.Data               (Typeable)
 import qualified Data.Map                as Map
 import           System.Directory
+import           System.Exit             (ExitCode (..))
 import           System.Process
 
-data InterruptThread = InterruptThread
-  deriving (Typeable, Show)
-
-instance Exception InterruptThread
-
-withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> IO ()
-withNeovimEmbedded file test = bracket
-    startNvim
-    killNvim
-    (\(_, _, _, e) -> void $ runNeovim e () runTest)
+withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> Assertion
+withNeovimEmbedded file test = do
+    (_, _, ph, e) <- startNvim
+    void $ runNeovim e () runTest
+    waitForProcess ph >>= \case
+      ExitFailure i -> assertFailure $ "Neovim returned " ++ show i
+      ExitSuccess   -> return ()
   where
     startNvim = do
         args <- case file of
@@ -46,22 +43,16 @@ withNeovimEmbedded file test = bracket
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 
+        -- We give the test 3 seconds
+        -- TODO: Maybe make timeout a function parameter
+        _ <- forkIO $ do
+               threadDelay $ 3 * 1000 * 1000
+               getProcessExitCode ph >>= maybe (terminateProcess ph) (const $ return ())
+
         return (hin, hout, ph, e)
 
-    killNvim (_, _, ph, _) = do
-        shouldKillNvim <- newTVarIO True
-        _ <- forkIO $
-            handle handleInterrupt $ do
-                threadDelay $ 3 * 1000 * 1000 -- wait for 3 seconds
-                shouldKill <- atomically' $ readTVar shouldKillNvim
-                when shouldKill $ terminateProcess ph
-        _ <- waitForProcess ph
-        atomically' $ writeTVar shouldKillNvim False
-
-    handleInterrupt InterruptThread = return ()
-
     runTest = do _ <- test
-                 void $ vim_command "quit!"
+                 void $ vim_command "qa!"
 
 spec :: Spec
 spec = parallel $ do
