@@ -15,9 +15,11 @@ module Neovim.Debug (
     module System.Log.Logger,
     ) where
 
-import System.Log.Logger
-import System.Log.Handler.Simple
-import Control.Exception
+import           Control.Exception
+import           System.Log.Formatter      (simpleLogFormatter)
+import           System.Log.Handler        (setFormatter)
+import           System.Log.Handler.Simple
+import           System.Log.Logger
 
 -- | Disable logging to stderr.
 disableLogger :: IO a -> IO a
@@ -44,11 +46,11 @@ withLogger fp p action = bracket
         disableLogger (return ())
         -- Log to the given file instead
         fh <- fileHandler fp p
+        -- Adjust logging format
+        let fh' = setFormatter fh (simpleLogFormatter "[$loggername : $prio] $msg")
         -- Adjust the log level as well
-        updateGlobalLogger rootLoggerName (setLevel p . addHandler fh)
+        updateGlobalLogger rootLoggerName (setLevel p . addHandler fh')
         -- For good measure, log some debug information
         logM "Neovim.Debug" DEBUG $
             unwords ["Initialized root looger with priority", show p, "and file: ", fp]
-        return fh
-
-
+        return fh'
