@@ -12,10 +12,11 @@ Stability   :  experimental
 module Neovim.RPC.Common
     where
 
+import           Neovim.API.Context
+
 import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad
-import           Control.Monad.Except
 import           Data.Map
 import           Data.MessagePack
 import           Data.Monoid
@@ -31,7 +32,7 @@ import           System.IO              (BufferMode (..), Handle, IOMode,
 import           System.Log.Logger
 
 type FunctionMap =
-    Map Text (Either ([Object] -> ExceptT String IO Object) (TQueue SomeMessage))
+    Map Text (Either ([Object] -> Neovim' Object) (TQueue SomeMessage))
 
 
 -- | Things shared between the socket reader and the event handler.

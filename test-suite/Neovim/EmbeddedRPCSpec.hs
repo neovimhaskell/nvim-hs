@@ -38,8 +38,7 @@ withNeovimEmbedded file test = do
                 , std_out = CreatePipe
                 }
 
-        q <- newTQueueIO
-        e <- ConfigWrapper q <$> newRPCConfig
+        e <- ConfigWrapper <$> newTQueueIO <*> newRPCConfig
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 

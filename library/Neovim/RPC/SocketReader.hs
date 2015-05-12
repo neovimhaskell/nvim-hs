@@ -64,9 +64,9 @@ runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
 messageHandlerSink :: Sink Object SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
-    (ObjectArray [ObjectInt msgType, ObjectInt fi, err, result]) ->
+    ObjectArray [ObjectInt msgType, ObjectInt fi, err, result] ->
         handleResponseOrRequest msgType fi err result
-    (ObjectArray [ObjectInt msgType, method, params]) ->
+    ObjectArray [ObjectInt msgType, method, params] ->
         handleNotification msgType method params
     obj -> liftIO $ errorM logger $
         "Unhandled rpc message: " <> show obj
@@ -100,7 +100,8 @@ handleRequest i method (ObjectArray params) = case fromObject method of
         case Map.lookup m ((functions . customConfig) e) of
             Nothing -> debugM logger $ "No provider for: " <> unpack m
             Just (Left f) -> do
-                res <- runExceptT $ f params
+                let r = ConfigWrapper (_eventQueue e) ()
+                (res,_) <- runNeovim r () $ f params
                 atomically' . writeTQueue (_eventQueue e) . SomeMessage
                     . uncurry (Response i) $ writeErrorResponse res
             Just (Right c) -> do

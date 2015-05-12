@@ -29,7 +29,7 @@ import           Data.Conduit                 as C
 import           Data.Conduit.Binary          (sinkHandle)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
-import           Data.Serialize               (decode, encode)
+import           Data.Serialize               (encode)
 import           System.IO                    (IOMode (WriteMode))
 
 -- | This function will establish a connection to the given socket and write

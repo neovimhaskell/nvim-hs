@@ -19,6 +19,7 @@ module Neovim.API.Context (
     gets,
 
     Neovim,
+    Neovim',
     ConfigWrapper(..),
     runNeovim,
 
@@ -52,6 +53,8 @@ eventQueue = R.asks _eventQueue
 
 type Neovim cfg state =
     ExceptT String (StateT state (ReaderT (ConfigWrapper cfg) IO))
+
+type Neovim' = Neovim () ()
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: ConfigWrapper r

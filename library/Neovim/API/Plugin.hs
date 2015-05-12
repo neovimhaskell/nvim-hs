@@ -24,7 +24,6 @@ import           Neovim.API.Context
 import           Neovim.API.IPC         (Request (..), SomeMessage, fromMessage)
 
 import           Control.Concurrent.STM
-import           Control.Monad.Except
 import           Data.MessagePack
 import           Data.Text
 
@@ -32,7 +31,7 @@ import           Data.Text
 --
 data Plugin r st = Plugin
     { name              :: String
-    , functions         :: [(Text, [Object] -> ExceptT String IO Object)]
+    , functions         :: [(Text, [Object] -> Neovim' Object)]
     , statefulFunctions :: [(Text, TQueue SomeMessage)]
     , services          :: [(r, st, Neovim r st ())]
     }
