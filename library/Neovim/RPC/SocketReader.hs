@@ -96,14 +96,23 @@ handleResponse i err result = do
 handleRequest :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleRequest i method (ObjectArray params) = case fromObject method of
     Left err -> liftIO . errorM logger $ show err
+    -- Fork everything so that we do not block.
+    --
+    -- XXX If the functions never return, we may end up with a lot of idle
+    -- threads. Maybe we should gather the ThreadIds and kill them after some
+    -- amount of time if they are still around. Maybe resourcet provides such a
+    -- facility for threads already.
     Right m -> ask >>= \e -> void . liftIO . forkIO $
         case Map.lookup m ((functions . customConfig) e) of
             Nothing -> debugM logger $ "No provider for: " <> unpack m
             Just (Left f) -> do
+                -- Stateless function: Create a boring state object for the
+                -- Neovim context.
                 let r = ConfigWrapper (_eventQueue e) ()
                 (res,_) <- runNeovim r () $ f params
+                -- Send the result to the event handler
                 atomically' . writeTQueue (_eventQueue e) . SomeMessage
-                    . uncurry (Response i) $ writeErrorResponse res
+                    . uncurry (Response i) $ responseResult res
             Just (Right c) -> do
                 now <- liftIO getCurrentTime
                 reply <- liftIO newEmptyTMVarIO
@@ -111,8 +120,8 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 atomically' . modifyTVar q $ Map.insert i (now, reply)
                 atomically' . writeTQueue c . SomeMessage $ Request m i params
   where
-    writeErrorResponse (Left !err) = (toObject err, ObjectNil)
-    writeErrorResponse (Right !res) = (ObjectNil, res)
+    responseResult (Left !err) = (toObject err, ObjectNil)
+    responseResult (Right !res) = (ObjectNil, res)
 
 handleRequest _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params
