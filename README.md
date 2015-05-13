@@ -1,6 +1,8 @@
 # nvim-hs
 
-Neovim API for Haskell plugins as well as the plugin provider
+Neovim API for Haskell plugins as well as a plugin provider.
+
+[![Build Status](https://travis-ci.org/saep/nvim-hs.svg?branch=master)](https://travis-ci.org/saep/nvim-hs)
 
 # What has been done so far?
 
