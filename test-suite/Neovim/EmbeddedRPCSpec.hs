@@ -14,12 +14,15 @@ import           Control.Concurrent
 import qualified Data.Map                as Map
 import           System.Directory
 import           System.Exit             (ExitCode (..))
+import           System.IO               (hClose)
 import           System.Process
 
 withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> Assertion
-withNeovimEmbedded file test = do
-    (_, _, ph, e) <- startNvim
+withNeovimEmbedded file testCase = do
+    (hin, hout, ph, e) <- startNvim
     void $ runNeovim e () runTest
+    hClose hin
+    hClose hout
     waitForProcess ph >>= \case
       ExitFailure i -> assertFailure $ "Neovim returned " ++ show i
       ExitSuccess   -> return ()
@@ -33,7 +36,7 @@ withNeovimEmbedded file test = do
                 return [f]
             Nothing -> return []
         (Just hin, Just hout, _, ph) <-
-            createProcess (proc "nvim" (["-u","NONE","--embed"] <> args))
+            createProcess (proc "nvim" (["-n","-u","NONE","--embed"] <> args))
                 { std_in = CreatePipe
                 , std_out = CreatePipe
                 }
@@ -50,7 +53,7 @@ withNeovimEmbedded file test = do
 
         return (hin, hout, ph, e)
 
-    runTest = do _ <- test
+    runTest = do _ <- testCase
                  void $ vim_command "qa!"
 
 spec :: Spec
