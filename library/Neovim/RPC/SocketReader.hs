@@ -104,7 +104,11 @@ handleRequest i method (ObjectArray params) = case fromObject method of
     -- facility for threads already.
     Right m -> ask >>= \e -> void . liftIO . forkIO $
         case Map.lookup m ((functions . customConfig) e) of
-            Nothing -> debugM logger $ "No provider for: " <> unpack m
+            Nothing -> do
+                let err = "No provider for: " <> unpack m
+                debugM logger err
+                atomically' . writeTQueue (_eventQueue e) . SomeMessage
+                    $ Response i (toObject err) ObjectNil
             Just (Left f) -> do
                 -- Stateless function: Create a boring state object for the
                 -- Neovim context.
