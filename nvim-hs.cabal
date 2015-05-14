@@ -16,10 +16,6 @@ source-repository head
     type:            git
     location:        https://github.com/saep/nvim-hs
 
-Flag debug
-    description:    Enable debugging features
-    default:        False
-
 executable nvim-hs
   main-is:              Main.hs
   hs-source-dirs:       executable
@@ -75,8 +71,7 @@ library
                       , utf8-string
   hs-source-dirs:       library
   default-language:     Haskell2010
-  if flag(debug)
-      ghc-options:          -ddump-splices
+  ghc-options:          -Wall
 
 
 test-suite hspec
