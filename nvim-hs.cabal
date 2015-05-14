@@ -1,17 +1,24 @@
 name:                nvim-hs
 version:             0.0.1
 synopsis:            Haskell plugin backend for neovim
--- description:
-homepage:            https://github.com/saep/neovim.hs
+description:         This package provides a plugin provider for neovim.
+homepage:            https://github.com/saep/nvim-hs
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Sebastian Witte
 maintainer:          woozletoff@gmail.com
 copyright:           Copyright (C) Sebastian Witte
--- category:
+category:            Editor
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
+source-repository head
+    type:            git
+    location:        https://github.com/saep/nvim-hs
+
+Flag debug
+    description:    Enable debugging features
+    default:        False
 
 executable nvim-hs
   main-is:              Main.hs
@@ -68,7 +75,8 @@ library
                       , utf8-string
   hs-source-dirs:       library
   default-language:     Haskell2010
-  ghc-options:          -ddump-splices
+  if flag(debug)
+      ghc-options:          -ddump-splices
 
 
 test-suite hspec
