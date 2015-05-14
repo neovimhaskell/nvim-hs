@@ -123,8 +123,9 @@ startPluginServices evq = foldM go ([], mempty)
     go (services', m) iop = do
         SomePlugin p <- iop
         let mWithSF = foldr (\(n,q) -> Map.insert n (Right q)) m (statefulFunctions p)
+        let mWithF  = foldr (\(n,f) -> Map.insert n (Left f)) mWithSF (P.functions p)
         let newServices = map (\(r,st,s) -> void (runNeovim (ConfigWrapper evq r) st s)) $ services p
-        return (newServices <> services', mWithSF)
+        return (newServices <> services', mWithF)
 
 
 
