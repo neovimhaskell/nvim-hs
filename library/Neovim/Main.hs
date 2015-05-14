@@ -11,21 +11,19 @@ Stability   :  experimental
 module Neovim.Main
     where
 
-import           Neovim.API.Plugin as P
-import           Neovim.Config
 import           Neovim.API.IPC
-import           Neovim.RPC.Common as RPC
+import           Neovim.API.Plugin       as P
+import           Neovim.Config
 
 import qualified Config.Dyre             as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad
-import           Data.Maybe
+import qualified Data.Map                as Map
 import           Data.Monoid
 import           Neovim.API.Context
 import           Neovim.Debug
-import qualified Data.Map as Map
-import           Neovim.RPC.Common
+import           Neovim.RPC.Common       as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 import           Options.Applicative
@@ -33,7 +31,7 @@ import           System.IO               (stdin, stdout)
 
 data CommandLineOptions =
     Opt { hostPort :: Maybe (String, Int)
-        , unix     :: Maybe (FilePath)
+        , unix     :: Maybe FilePath
         , env      :: Bool
         , logOpts  :: Maybe (FilePath, Priority)
         }
@@ -41,11 +39,11 @@ data CommandLineOptions =
 optParser :: Parser CommandLineOptions
 optParser = Opt
     <$> optional ((,)
-            <$> (strOption
+            <$> strOption
                 (long "host"
                 <> short 'a'
                 <> metavar "HOSTNAME"
-                <> help "Connect to the specified host. (requires -p)"))
+                <> help "Connect to the specified host. (requires -p)")
             <*> (option auto
                 (long "port"
                 <> short 'p'
@@ -60,10 +58,10 @@ optParser = Opt
         <> short 'e'
         <> help "Read connection information from $NVIM_LISTEN_ADDRESS.")
     <*> optional ((,)
-        <$> (strOption
+        <$> strOption
             (long "log-file"
             <> short 'l'
-            <> help "File to log to."))
+            <> help "File to log to.")
         <*> (option auto
             (long "log-level"
             <> short 'v'
