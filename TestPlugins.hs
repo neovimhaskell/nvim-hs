@@ -9,7 +9,6 @@ import           Neovim.API.Plugin
 
 import           Data.Int          (Int16)
 import           System.Log.Logger
-import           System.Random
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
@@ -21,25 +20,29 @@ main = realMain def
 randPlugin :: IO SomePlugin
 randPlugin = do
     q <- newTQueueIO
-    -- g <- newStdGen -- A real random number generator would do this
-    let g = mkStdGen 42
+    -- This plugin was intended to use a real random number generator, but
+    -- unfortunately a Travis build with other GHC versions failed to reproduce
+    -- the same numbers. So we just chose from these three numbers. You better
+    -- don't use this for cryptography!
+    let randomNumbers = cycle [42,17,-666] :: [Int16]
     return $ SomePlugin Plugin
       { name = "Random number generator"
       , functions = []
       , statefulFunctions = [("Random", q), ("Randoom", q)]
-      , services = [ ( (), g, nextRand q ) ]
+      , services = [ ( (), randomNumbers, nextRand q ) ]
       }
 
-nextRand :: RandomGen s => TQueue SomeMessage -> Neovim cfg s ()
+nextRand :: TQueue SomeMessage -> Neovim cfg [Int16] ()
 nextRand q = do
     liftIO $ debugM "Random" "nextRand is running"
     Request{..} <- awaitRequest q
     liftIO $ debugM "Random" "nextRand got a request"
+    -- We have registered two functions with the same TQueue, so we have to
+    -- dispatch the function calls ourselves here.
     if | reqMethod == "Random" -> do
-         (r,g) <- random <$> get
-         let r' = r :: Int16
-         put g
-         respond reqId (Right (fromIntegral r' :: Int64))
+         r <- gets head
+         modify tail
+         respond reqId (Right (fromIntegral r :: Int64))
        | otherwise ->
            -- XXX Type signature needed for the type of the 'Right' result.
            let result = Left "Unexpected request received." :: Either String Int64

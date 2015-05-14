@@ -10,11 +10,14 @@ maintainer:          woozletoff@gmail.com
 copyright:           Copyright (C) Sebastian Witte
 category:            Editor
 build-type:          Simple
--- extra-source-files:
 cabal-version:       >=1.10
+extra-source-files:    TestPlugins.vim
+                     , TestPlugins.hs
+                     , nvim-hs.sh
 source-repository head
     type:            git
     location:        https://github.com/saep/nvim-hs
+
 
 executable nvim-hs
   main-is:              Main.hs
@@ -113,9 +116,6 @@ test-suite hspec
                       , transformers
                       , utf8-string
                       , HUnit
-
-                      -- Required by the TestPlugins.hs case
-                      , random
 
   ghc-options:          -threaded -rtsopts -with-rtsopts=-N
 

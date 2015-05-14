@@ -3,13 +3,22 @@
 # Shell script that starts a plugin provider which is interpreted from the
 # TestPlugins.hs file inside this repository.
 
-# XXX Should we do more sanity checking here?
-# (e.g. test whether cabal is on the PATH)
+if ! type cabal > /dev/null 2>&1 ; then
+    echo "cabal not installed or on PATH"
+    echo $PATH
+    exit 1
+fi
+
+if ! type runghc > /dev/null 2>&1 ; then
+    echo "runghc not installed or on PATH"
+    echo $PATH
+    exit 1
+fi
 
 if [ -d ".cabal-sandbox/" ] ; then
     # Use `cabal exec` if we are in a sandbox
-    exec cabal exec runhaskell TestPlugins.hs
+    exec cabal exec runghc TestPlugins.hs
 else
-    exec runhaskell TestPlugins.hs
+    exec runghc TestPlugins.hs
 fi
 
