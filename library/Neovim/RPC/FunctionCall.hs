@@ -53,7 +53,8 @@ acall fn parameters = do
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
     atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
-    return $ either Left (Right . fromObjectUnsafe) <$> readTMVar mv
+    -- TODO Get rid of the 'Unsafe'-iness?
+    return $ fmap fromObjectUnsafe <$> readTMVar mv
 
 acall' :: (NvimObject result)
        => Text
