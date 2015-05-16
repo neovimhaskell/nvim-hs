@@ -113,7 +113,8 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 -- Stateless function: Create a boring state object for the
                 -- Neovim context.
                 let r = ConfigWrapper (_eventQueue e) ()
-                (res,_) <- runNeovim r () $ f params
+                -- drop the state of the result with (fmap fst <$>)
+                res <- fmap fst <$> runNeovim r () (f params)
                 -- Send the result to the event handler
                 atomically' . writeTQueue (_eventQueue e) . SomeMessage
                     . uncurry (Response i) $ responseResult res
@@ -125,7 +126,7 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 atomically' . writeTQueue c . SomeMessage $ Request m i params
   where
     responseResult (Left !err) = (toObject err, ObjectNil)
-    responseResult (Right !res) = (ObjectNil, res)
+    responseResult (Right !res) = (ObjectNil, toObject res)
 
 handleRequest _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params

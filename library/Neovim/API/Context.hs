@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.API.Context
 Description :  The Neovim context
@@ -29,18 +30,19 @@ module Neovim.API.Context (
 
 
 import           Control.Concurrent.STM
-import           Control.Monad.IO.Class
-import           Control.Monad.Reader hiding (asks, ask)
-import qualified Control.Monad.Reader as R
-import           Control.Monad.State
+import           Control.Exception
 import           Control.Monad.Except
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader   hiding (ask, asks)
+import qualified Control.Monad.Reader   as R
+import           Control.Monad.State
 
-import Neovim.API.IPC (SomeMessage)
+import           Neovim.API.IPC         (SomeMessage)
 
 -- | A wrapper for a reader value that contains extra fields required to
 -- communicate with the messagepack-rpc components.
 data ConfigWrapper a = ConfigWrapper
-    { _eventQueue   :: TQueue SomeMessage
+    { _eventQueue  :: TQueue SomeMessage
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
     , customConfig :: a
@@ -51,8 +53,7 @@ data ConfigWrapper a = ConfigWrapper
 eventQueue :: Neovim r st (TQueue SomeMessage)
 eventQueue = R.asks _eventQueue
 
-type Neovim cfg state =
-    ExceptT String (StateT state (ReaderT (ConfigWrapper cfg) IO))
+type Neovim cfg state = StateT state (ReaderT (ConfigWrapper cfg) IO)
 
 type Neovim' = Neovim () ()
 
@@ -60,8 +61,15 @@ type Neovim' = Neovim () ()
 runNeovim :: ConfigWrapper r
           -> st
           -> Neovim r st a
-          -> IO (Either String a, st)
-runNeovim r st a = runReaderT (runStateT (runExceptT a) st) r
+          -> IO (Either String (a, st))
+runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
+    Left err -> let err' = err :: SomeException
+                    -- We want to catch everything here as the plugin provider
+                    -- should not crash.  The error message is propagated to
+                    -- neovim this way. In the future, we may want to handle
+                    -- some kinds of exceptions here manually.
+                in return . Left $ show err'
+    Right res -> return $ Right res
 
 -- | Retrieve something from the configuration with respect to the first
 -- function. Works exactly like 'R.asks'.
