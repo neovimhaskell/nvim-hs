@@ -32,6 +32,8 @@ import           Data.MessagePack
 import           Data.Serialize               (encode)
 import           System.IO                    (IOMode (WriteMode))
 
+import           Prelude
+
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
 runEventHandler :: SocketType
@@ -71,11 +73,11 @@ eventHandler message = case fromMessage message of
             , toObject fn
             , toObject params
             ]
-    Just (Response i err res) ->
+    Just (Response i e res) ->
         yield . encode $ ObjectArray
             [ toObject (1 :: Int64)
             , ObjectInt i
-            , toObject err
+            , toObject e
             , toObject res
             ]
     Nothing -> return ()

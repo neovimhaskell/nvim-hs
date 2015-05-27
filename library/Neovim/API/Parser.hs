@@ -33,6 +33,8 @@ import           System.IO                (hClose)
 import           System.Process
 import           Text.Parsec              as P
 
+import           Prelude
+
 data NeovimType = SimpleType String
                 | NestedType NeovimType (Maybe Int)
                 | Void

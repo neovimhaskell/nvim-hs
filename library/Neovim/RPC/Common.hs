@@ -31,6 +31,8 @@ import           System.IO              (BufferMode (..), Handle, IOMode,
                                          hClose, hSetBuffering)
 import           System.Log.Logger
 
+import           Prelude
+
 type FunctionMap =
     Map Text (Either ([Object] -> Neovim' Object) (TQueue SomeMessage))
 

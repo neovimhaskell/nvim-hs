@@ -41,6 +41,8 @@ import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                (pack)
 
+import           Prelude
+
 -- | Generate the API types and functions provided by @nvim --api-info@.
 --
 -- The provided map allows the use of different Haskell types for the types

@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE RankNTypes                 #-}
 {- |
 Module      :  Neovim.API.Classes
@@ -16,9 +14,6 @@ Stability   :  experimental
 module Neovim.API.Classes
     ( NvimObject(..)
 
-    , NvimFunction
-    , Function
-
     , module Data.Int
     ) where
 
@@ -26,7 +21,6 @@ import           Neovim.API.Context
 
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Monad.Except
 import           Data.ByteString      (ByteString)
 import           Data.Int             (Int64)
 import           Data.Map             (Map)
@@ -35,6 +29,8 @@ import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text            as Text (Text, unpack)
 import           Data.Traversable
+
+import           Prelude
 
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
 import qualified Data.ByteString.UTF8 as U (fromString, toString)
@@ -46,28 +42,14 @@ import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
 class NvimObject o where
     toObject :: o -> Object
     fromObjectUnsafe :: Object -> o
-    fromObjectUnsafe o = either
-        (error ("Not the expected object" <> show o))
-        id
-        (fromObject o)
-    fromObject :: Object -> Either String o
+    fromObjectUnsafe o = case fromObject o of
+        Left e -> error $ unwords
+            [ "Not the expected object:"
+            , show o , "(", e, ")"
+            ]
+        Right obj -> obj
+    fromObject :: (NvimObject o) => Object -> Either String o
     fromObject = return . fromObjectUnsafe
-
-newtype Function a = Function { getF :: ExceptT String IO a }
-    deriving ( Monad, Functor, Applicative, MonadIO
-             , MonadError String)
-
-class NvimFunction f where
-    toRPCMethod :: f -> [Object] -> ExceptT String IO Object
-
-instance (NvimObject o) => NvimFunction (Function o) where
-    toRPCMethod f [] = toObject `liftM` getF f
-    toRPCMethod _ _  = error "Error in toRPCMethod"
-
-instance (NvimObject o, NvimFunction f) => NvimFunction (o -> f) where
-    toRPCMethod f ~(x:xs) = case fromObject x of
-        Right o -> toRPCMethod (f $! o) xs
-        Left err -> throwError err
 
 -- Instances for NvimObject {{{1
 instance NvimObject () where
@@ -83,24 +65,32 @@ instance NvimObject Bool where
 instance NvimObject Double where
     toObject                    = ObjectDouble
     fromObject (ObjectDouble o) = return o
+    fromObject (ObjectFloat o)  = return $ realToFrac o
+    fromObject (ObjectInt o)    = return $ fromIntegral o
     fromObject o                = throwError $ "Expected ObjectDouble, but got " <> show o
 
 instance NvimObject Integer where
-    toObject                 = ObjectInt . fromIntegral
-    fromObject (ObjectInt o) = return $ toInteger o
-    fromObject o             = throwError $ "Expected ObjectInt, but got " <> show o
+    toObject                    = ObjectInt . fromIntegral
+    fromObject (ObjectInt o)    = return $ toInteger o
+    fromObject (ObjectDouble o) = return $ round o
+    fromObject (ObjectFloat o)  = return $ round o
+    fromObject o                = throwError $ "Expected ObjectInt, but got " <> show o
 
 instance NvimObject Int64 where
-    toObject                 = ObjectInt
-    fromObject (ObjectInt i) = return i
-    fromObject o             = throwError $ "Expected any Integer value, but got " <> show o
+    toObject                    = ObjectInt
+    fromObject (ObjectInt i)    = return i
+    fromObject (ObjectDouble o) = return $ round o
+    fromObject (ObjectFloat o)  = return $ round o
+    fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
 
 instance NvimObject Int where
-    toObject                 = ObjectInt . fromIntegral
-    fromObject (ObjectInt i) = return $ fromIntegral i
-    fromObject o             = throwError $ "Expected any Integer value, but got " <> show o
+    toObject                    = ObjectInt . fromIntegral
+    fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectDouble o) = return $ round o
+    fromObject (ObjectFloat o)  = return $ round o
+    fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
 
-instance NvimObject [Char] where
+instance {-# OVERLAPS #-} NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString
     fromObject (ObjectBinary o) = return $ U.toString o
     fromObject (ObjectString o) = return $ Text.unpack o
@@ -111,6 +101,10 @@ instance NvimObject o => NvimObject [o] where
     fromObject (ObjectArray os) = return $ map fromObjectUnsafe os
     fromObject o                = throwError $ "Expected ObjectArray, but got " <> show o
 
+instance NvimObject o => NvimObject (Maybe o) where
+    toObject = maybe ObjectNil toObject
+    fromObject ObjectNil = return Nothing
+    fromObject o = either throwError (return . Just) $ fromObject o
 
 instance (Ord key, NvimObject key, NvimObject val)
         => NvimObject (Map key val) where

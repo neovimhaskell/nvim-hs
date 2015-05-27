@@ -44,11 +44,11 @@ optParser = Opt
                 <> short 'a'
                 <> metavar "HOSTNAME"
                 <> help "Connect to the specified host. (requires -p)")
-            <*> (option auto
+            <*> option auto
                 (long "port"
                 <> short 'p'
                 <> metavar "PORT"
-                <> help "Connect to the specified port. (requires -a)")))
+                <> help "Connect to the specified port. (requires -a)"))
     <*> optional (strOption
         (long "unix"
         <> short 'u'
@@ -62,10 +62,10 @@ optParser = Opt
             (long "log-file"
             <> short 'l'
             <> help "File to log to.")
-        <*> (option auto
+        <*> option auto
             (long "log-level"
             <> short 'v'
-            <> help ("Log level. Must be one of: " ++ (unwords . map show) logLevels))))
+            <> help ("Log level. Must be one of: " ++ (unwords . map show) logLevels)))
   where
     -- [minBound..maxBound] would have been nice here.
     logLevels :: [Priority]
@@ -81,7 +81,7 @@ opts = info (helper <*> optParser)
 
 neovim :: NeovimConfig -> IO ()
 neovim = Dyre.wrapMain $ Dyre.defaultParams
-    { Dyre.showError   = \cfg err -> cfg { errorMessage = Just err }
+    { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
     , Dyre.projectName = "nvim"
     , Dyre.realMain    = realMain
     , Dyre.statusOut   = debugM "Dyre"

@@ -19,17 +19,19 @@ module Neovim.RPC.FunctionCall (
     respond,
     ) where
 
-import Neovim.API.Context
-import Neovim.API.Classes
-import Neovim.API.IPC
+import           Neovim.API.Classes
+import           Neovim.API.Context
+import           Neovim.API.IPC
 
-import Control.Applicative
-import Control.Monad.Reader as R
-import Data.Monoid
-import Data.Text
-import Data.Time
-import Data.MessagePack
-import Control.Concurrent.STM
+import           Control.Applicative
+import           Control.Concurrent.STM
+import           Control.Monad.Reader   as R
+import           Data.MessagePack
+import           Data.Monoid
+import           Data.Text
+import           Data.Time
+
+import           Prelude
 
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $
@@ -97,6 +99,6 @@ respond msgId result = do
         . uncurry (Response msgId) $ toResult result
 
   where
-    toResult (Left err) = (toObject err, toObject ())
+    toResult (Left e) = (toObject e, toObject ())
     toResult (Right r)  = (toObject (), toObject r)
 
