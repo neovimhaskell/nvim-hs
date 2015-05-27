@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase         #-}
 {- |
 Module      :  Neovim.API.Context
 Description :  The Neovim context
@@ -23,6 +24,7 @@ module Neovim.API.Context (
     Neovim',
     ConfigWrapper(..),
     runNeovim,
+    err,
 
     throwError,
     module Control.Monad.IO.Class,
@@ -36,7 +38,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Reader   hiding (ask, asks)
 import qualified Control.Monad.Reader   as R
 import           Control.Monad.State
-
+import           Data.Data              (Typeable)
 import           Neovim.API.IPC         (SomeMessage)
 
 -- | A wrapper for a reader value that contains extra fields required to
@@ -70,6 +72,15 @@ runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
                     -- some kinds of exceptions here manually.
                 in return . Left $ show err'
     Right res -> return $ Right res
+
+data NeovimException = ErrorMessage String
+    deriving (Typeable, Show)
+
+instance Exception NeovimException
+
+-- | @throw . ErrorMessage@
+err :: String ->  Neovim r st a
+err = throw . ErrorMessage
 
 -- | Retrieve something from the configuration with respect to the first
 -- function. Works exactly like 'R.asks'.
