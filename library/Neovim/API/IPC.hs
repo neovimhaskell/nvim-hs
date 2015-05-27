@@ -34,7 +34,7 @@ import           Data.Int               (Int64)
 data SomeMessage = forall msg. Message msg => SomeMessage msg
 
 class Typeable message => Message message where
-    fromMessage :: (Message message) => SomeMessage -> Maybe message
+    fromMessage :: SomeMessage -> Maybe message
     fromMessage (SomeMessage message) = cast message
 
 data RPCMessage = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
