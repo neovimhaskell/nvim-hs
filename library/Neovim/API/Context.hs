@@ -65,12 +65,12 @@ runNeovim :: ConfigWrapper r
           -> Neovim r st a
           -> IO (Either String (a, st))
 runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
-    Left err -> let err' = err :: SomeException
-                    -- We want to catch everything here as the plugin provider
-                    -- should not crash.  The error message is propagated to
-                    -- neovim this way. In the future, we may want to handle
-                    -- some kinds of exceptions here manually.
-                in return . Left $ show err'
+    Left e -> let e' = e :: SomeException
+                  -- We want to catch everything here as the plugin provider
+                  -- should not crash.  The error message is propagated to
+                  -- neovim this way. In the future, we may want to handle
+                  -- some kinds of exceptions here manually.
+              in return . Left $ show e'
     Right res -> return $ Right res
 
 data NeovimException = ErrorMessage String

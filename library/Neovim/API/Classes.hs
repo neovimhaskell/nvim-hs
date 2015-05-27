@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE RankNTypes                 #-}
 {- |
 Module      :  Neovim.API.Classes
@@ -30,6 +29,8 @@ import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text            as Text (Text, unpack)
 import           Data.Traversable
+
+import           Prelude
 
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
 import qualified Data.ByteString.UTF8 as U (fromString, toString)
@@ -89,7 +90,7 @@ instance NvimObject Int where
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
 
-instance NvimObject [Char] where
+instance {-# OVERLAPS #-} NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString
     fromObject (ObjectBinary o) = return $ U.toString o
     fromObject (ObjectString o) = return $ Text.unpack o

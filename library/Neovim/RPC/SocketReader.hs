@@ -38,6 +38,8 @@ import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
 
+import           Prelude
+
 logger :: String
 logger = "Socket Reader"
 
@@ -64,8 +66,8 @@ runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
 messageHandlerSink :: Sink Object SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> case rpc of
-    ObjectArray [ObjectInt msgType, ObjectInt fi, err, result] ->
-        handleResponseOrRequest msgType fi err result
+    ObjectArray [ObjectInt msgType, ObjectInt fi, e, result] ->
+        handleResponseOrRequest msgType fi e result
     ObjectArray [ObjectInt msgType, method, params] ->
         handleNotification msgType method params
     obj -> liftIO $ errorM logger $
@@ -81,7 +83,7 @@ handleResponseOrRequest msgType
         return ()
 
 handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleResponse i err result = do
+handleResponse i e result = do
     answerMap <- asks (recipients . customConfig)
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
@@ -89,13 +91,13 @@ handleResponse i err result = do
             "Received response but could not find a matching recipient."
         Just (_,reply) -> do
             atomically' $ modifyTVar' answerMap $ Map.delete i
-            atomically' . putTMVar reply $ case err of
+            atomically' . putTMVar reply $ case e of
                 ObjectNil -> Right result
-                _         -> Left err
+                _         -> Left e
 
 handleRequest :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleRequest i method (ObjectArray params) = case fromObject method of
-    Left err -> liftIO . errorM logger $ show err
+    Left e -> liftIO . errorM logger $ show e
     -- Fork everything so that we do not block.
     --
     -- XXX If the functions never return, we may end up with a lot of idle
@@ -105,10 +107,10 @@ handleRequest i method (ObjectArray params) = case fromObject method of
     Right m -> ask >>= \e -> void . liftIO . forkIO $
         case Map.lookup m ((functions . customConfig) e) of
             Nothing -> do
-                let err = "No provider for: " <> unpack m
-                debugM logger err
+                let errM = "No provider for: " <> unpack m
+                debugM logger errM
                 atomically' . writeTQueue (_eventQueue e) . SomeMessage
-                    $ Response i (toObject err) ObjectNil
+                    $ Response i (toObject errM) ObjectNil
             Just (Left f) -> do
                 -- Stateless function: Create a boring state object for the
                 -- Neovim context.
@@ -125,7 +127,7 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 atomically' . modifyTVar q $ Map.insert i (now, reply)
                 atomically' . writeTQueue c . SomeMessage $ Request m i params
   where
-    responseResult (Left !err) = (toObject err, ObjectNil)
+    responseResult (Left !e) = (toObject e, ObjectNil)
     responseResult (Right !res) = (ObjectNil, toObject res)
 
 handleRequest _ _ params = liftIO . errorM logger $
