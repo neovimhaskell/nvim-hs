@@ -83,15 +83,6 @@ instance Exception NeovimException
 err :: String ->  Neovim r st a
 err = throw . ErrorMessage
 
-data NeovimException = ErrorMessage String
-    deriving (Typeable, Show)
-
-instance Exception NeovimException
-
--- | @throw . ErrorMessage@
-err :: String ->  Neovim r st a
-err = throw . ErrorMessage
-
 -- | Retrieve something from the configuration with respect to the first
 -- function. Works exactly like 'R.asks'.
 asks :: (config -> a) -> Neovim config state a
