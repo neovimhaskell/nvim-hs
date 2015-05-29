@@ -12,6 +12,7 @@ Stability   :  experimental
 -}
 module Neovim.API.TH
     ( generateAPI
+    , function
     , defaultAPITypeToHaskellTypeMap
     , module Control.Exception.Lifted
     , module Neovim.API.Classes
@@ -188,24 +189,28 @@ exceptionInstance exceptionName = return <$>
 customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
 customTypeInstance typeName nis =
     let fromObjectClause :: Name -> Int64 -> Q Clause
-        fromObjectClause n i = newName "bs" >>= \bs -> clause
-            [ (conP (mkName "ObjectExt")
-                [(litP . integerL . fromIntegral) i,varP bs])
-            ]
-            (normalB [|return $ $(conE n) $(varE bs)|])
-            []
+        fromObjectClause n i = newName "bs" >>= \bs ->
+            clause
+                [ conP (mkName "ObjectExt")
+                    [(litP . integerL . fromIntegral) i,varP bs]
+                ]
+                (normalB [|return $ $(conE n) $(varE bs)|])
+                []
         fromObjectErrorClause :: Q Clause
         fromObjectErrorClause = do
             o <- newName "o"
             let n = nameBase typeName
-            clause [ varP o ]
+            clause
+                [ varP o ]
                 (normalB [|Left $ "Object is not convertible to: " <> n <> " Received: " <> show $(varE o)|])
                 []
 
-        toObjectClause n i = newName "bs" >>= \bs -> clause
-            [conP n [varP bs]]
-            (normalB [|ObjectExt $((litE. integerL . fromIntegral) i) $(varE bs)|])
-            []
+        toObjectClause :: Name -> Int64 -> Q Clause
+        toObjectClause n i = newName "bs" >>= \bs ->
+            clause
+                [conP n [varP bs]]
+                (normalB [|ObjectExt $((litE . integerL . fromIntegral) i) $(varE bs)|])
+                []
 
     in return <$> instanceD
         (return [])
@@ -216,4 +221,70 @@ customTypeInstance typeName nis =
             <> [fromObjectErrorClause]
         ]
 
+-- | Generate a function of type @[Object] -> Neovim' Object@ from the argument
+-- function.
+--
+-- The function
+-- @
+-- add :: Int -> Int -> Int
+-- add = (+)
+-- @
+-- will be converted to
+-- @
+-- \args -> case args of
+--     [x,y] -> case pure add <*> fromObject x <*> fromObject y of
+--         Left e -> err $ "Wrong type of arguments for add: " ++ e
+--         Right action -> action
+--     _ -> err $ "Wrong number of arguments for add: " ++ show xs
+-- @
+--
+function :: Name -> Q Exp
+function functionName = do
+    fInfo <- reify functionName
+    -- We only need the number of arguments to generate the appropriate function
+    let nargs = case fInfo of
+            VarI _ functionType _ _ -> determineNumberOfArguments functionType
+            x -> error $ "Value given to function is (likely) not the name of a function.\n"
+                            <> show x
+    topLevelCase nargs
+
+  where
+
+    determineNumberOfArguments :: Type -> Int
+    determineNumberOfArguments ft = case ft of
+        AppT (AppT ArrowT _) r -> 1 + determineNumberOfArguments r
+        _ -> 0
+    -- \args -> case args of ...
+    topLevelCase :: Int -> Q Exp
+    topLevelCase n = newName "args" >>= \args ->
+        lamE [varP args] (caseE (varE args) [matchingCase n, errorCase])
+
+    -- _ -> err "Wrong number of arguments"
+    errorCase :: Q Match
+    errorCase = match wildP (normalB [|err "Wrong number of arguments."|]) []
+
+    -- [x,y] -> case pure add <*> fromObject x <*> fromObject y of ...
+    matchingCase :: Int -> Q Match
+    matchingCase n = mapM (\_ -> newName "x") [1..n] >>= \vars ->
+        match (listP (map varP vars))
+              (normalB
+                (caseE
+                    (foldl genArgumentCast [|pure $(varE functionName)|]
+                        (zip vars (repeat [|(<*>)|])))
+                  [successfulEvaluation, failedEvaluation]))
+              []
+
+    genArgumentCast :: Q Exp -> (Name, Q Exp) -> Q Exp
+    genArgumentCast e (v,op) = infixE (Just e) op (Just [|fromObject $(varE v)|])
+
+    successfulEvaluation :: Q Match
+    successfulEvaluation = newName "action" >>= \action ->
+        match (conP (mkName "Right") [varP action])
+              (normalB (varE action))
+              []
+    failedEvaluation :: Q Match
+    failedEvaluation = newName "e" >>= \e ->
+        match (conP (mkName "Left") [varP e])
+              (normalB [|err $(varE e)|])
+              []
 
