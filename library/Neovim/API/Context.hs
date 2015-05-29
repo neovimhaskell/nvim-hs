@@ -22,6 +22,7 @@ module Neovim.API.Context (
 
     Neovim,
     Neovim',
+    NeovimException(..),
     ConfigWrapper(..),
     runNeovim,
     err,
@@ -72,6 +73,15 @@ runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
                   -- some kinds of exceptions here manually.
               in return . Left $ show e'
     Right res -> return $ Right res
+
+data NeovimException = ErrorMessage String
+    deriving (Typeable, Show)
+
+instance Exception NeovimException
+
+-- | @throw . ErrorMessage@
+err :: String ->  Neovim r st a
+err = throw . ErrorMessage
 
 data NeovimException = ErrorMessage String
     deriving (Typeable, Show)

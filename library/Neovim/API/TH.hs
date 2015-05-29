@@ -53,7 +53,7 @@ import           Prelude
 generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
     api <- either fail return =<< runIO parseAPI
-    let exceptionName = mkName "NeovimException"
+    let exceptionName = mkName "NeovimExceptionGen"
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
         customTypesN = first mkName <$> customTypes api
     join <$> sequence
