@@ -234,7 +234,7 @@ customTypeInstance typeName nis =
 -- \args -> case args of
 --     [x,y] -> case pure add <*> fromObject x <*> fromObject y of
 --         Left e -> err $ "Wrong type of arguments for add: " ++ e
---         Right action -> action
+--         Right action -> toObject <$> action
 --     _ -> err $ "Wrong number of arguments for add: " ++ show xs
 -- @
 --
@@ -280,7 +280,7 @@ function functionName = do
     successfulEvaluation :: Q Match
     successfulEvaluation = newName "action" >>= \action ->
         match (conP (mkName "Right") [varP action])
-              (normalB (varE action))
+              (normalB [|toObject <$> $(varE action)|])
               []
     failedEvaluation :: Q Match
     failedEvaluation = newName "e" >>= \e ->
