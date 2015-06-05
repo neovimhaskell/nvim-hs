@@ -27,7 +27,7 @@ install:
 
 script:
   - cabal configure --enable-tests
-  - cabal build
+  - cabal install
   - cabal test
   - cabal check
   - cabal sdist

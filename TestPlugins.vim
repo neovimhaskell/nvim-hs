@@ -15,20 +15,24 @@ endif
 
 " The test plugin random number generator is initialized with a static seed
 let randomValue = rpcrequest(haskellChannel, "Random")
-if randomValue != 8741
-	echom 'Expected Value of 8741 but got: ' . randomValue
+if randomValue != 42
+	echom 'Expected Value of 42 but got: ' . randomValue
 	cq!
 endif
 let randomValue = rpcrequest(haskellChannel, "Random")
-if randomValue != 8101
-	echom 'Expected Value of 8101 but got: ' . randomValue
+if randomValue != 17
+	echom 'Expected Value of 17 but got: ' . randomValue
 	cq!
 endif
 let randomValue = rpcrequest(haskellChannel, "Random")
-if randomValue != -22565
-	echom 'Expected Value of -22565 but got: ' . randomValue
+if randomValue != -666
+	echom 'Expected Value of -666 but got: ' . randomValue
 	cq!
 endif
+
+" This call should throw an error, but it shouldn't cause any problems for
+" the execution.
+let randoomValue = rpcrequest(haskellChannel, "Randoom")
 
 " Everything works, exit normally
 q!
