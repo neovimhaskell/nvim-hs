@@ -34,7 +34,7 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let Function fname testFun = $(function 'testFunction0) "testFunction0"
+    let Function fname testFun = $(function  "testFunction0" 'testFunction0)
     it "should have the same name" $ do
         fname `shouldBe` "testFunction0"
     it "should return the consant value" $ do
@@ -42,8 +42,8 @@ spec = do
     it "should fail if supplied an argument" $ do
         call testFun [ObjectNil] `shouldThrow` isNeovimException
 
-  describe "calling testFunction" $ do
-    let Function fname testFun = $(function 'testFunction2) "testFunction2"
+  describe "calling testFunction with two arguments" $ do
+    let Function fname testFun = $(function' 'testFunction2)
     it "should have the same name" $ do
         fname `shouldBe` "testFunction2"
     it "should return 2 for proper arguments" $ do
@@ -55,8 +55,13 @@ spec = do
     it "should cast arguments to similar types" $ do
       call testFun [ObjectString "ignored", ObjectFloat 42] `shouldReturn` ObjectDouble 2
 
+  describe "generating a command from the two argument test function" $ do
+      let Command fname testFun = $(command' 'testFunction2)
+      it "should capitalize the first character" $ do
+        fname `shouldBe` "TestFunction2"
+
   describe "calling test function with a map argument" $ do
-      let Command cname testFun = $(command 'testFunctionMap) "testFunctionMap"
+      let Command cname testFun = $(command "TestFunctionMap" 'testFunctionMap)
       it "should capitalize the first letter" $ do
           cname `shouldBe` "TestFunctionMap"
       it "should fail for the wrong number of arguments" $ do

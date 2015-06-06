@@ -13,7 +13,9 @@ Stability   :  experimental
 module Neovim.API.TH
     ( generateAPI
     , function
+    , function'
     , command
+    , command'
     , autocmd
     , defaultAPITypeToHaskellTypeMap
     , module Control.Exception.Lifted
@@ -37,7 +39,7 @@ import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
 import           Data.ByteString          (ByteString)
-import           Data.Char                (toUpper)
+import           Data.Char                (toUpper, isUpper)
 import           Data.Data                (Data, Typeable)
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
@@ -45,7 +47,6 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                (pack)
-import qualified Data.Text                as Text
 
 import           Prelude
 
@@ -226,25 +227,24 @@ customTypeInstance typeName nis =
             <> [fromObjectErrorClause]
         ]
 
--- | Create an automatically gennerated function that requires a 'Text'
--- parameter to identify its name.
---
--- @
--- $(function 'myFunction) (pack "myFunctionsName")
--- @
--- or
--- @
--- $(function 'myFunction) "myFunctionsName"
--- @
--- if you have the OverloadedStrings extension activated.
---
-function :: Name -> Q Exp
-function functionName =
-    [|\n -> Function n $(functionImplementation functionName)|]
+function :: String -> Name -> Q Exp
+function customName functionName
+    | null customName = error "Empty names are not allowed for exported functions."
+    | otherwise = [|Function (pack $(litE (StringL customName))) $(functionImplementation functionName) |]
 
-command :: Name -> Q Exp
-command functionName =
-    [|\n -> Command (Text.cons ((toUpper . Text.head) n) (Text.tail n)) $(functionImplementation functionName)|]
+function' :: Name -> Q Exp
+function' functionName = function (nameBase functionName) functionName
+
+command :: String -> Name -> Q Exp
+command [] _ = error "Empty names are not allowed for exported commands."
+command customFunctionName@(c:_) functionName
+    | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
+    | otherwise = [|Command (pack $(litE (StringL customFunctionName))) $(functionImplementation functionName)|]
+
+command' :: Name -> Q Exp
+command' functionName =
+    let (c:cs) = nameBase functionName
+    in command (toUpper c:cs) functionName
 
 autocmd :: Name -> Q Exp
 autocmd functionName =
