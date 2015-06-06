@@ -8,6 +8,7 @@ import Neovim.API.THSpecFunctions
 import Neovim.API.Classes
 import Neovim.API.TH
 import Neovim.API.Context
+import Neovim.API.Plugin
 
 import qualified Data.Map as Map
 
@@ -33,14 +34,18 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let testFun = $(function 'testFunction0)
+    let Function fname testFun = $(function 'testFunction0) "testFunction0"
+    it "should have the same name" $ do
+        fname `shouldBe` "testFunction0"
     it "should return the consant value" $ do
       call testFun [] `shouldReturn` ObjectInt 42
     it "should fail if supplied an argument" $ do
         call testFun [ObjectNil] `shouldThrow` isNeovimException
 
   describe "calling testFunction" $ do
-    let testFun = $(function 'testFunction2)
+    let Function fname testFun = $(function 'testFunction2) "testFunction2"
+    it "should have the same name" $ do
+        fname `shouldBe` "testFunction2"
     it "should return 2 for proper arguments" $ do
       call testFun [ObjectBinary "ignored", ObjectInt 42] `shouldReturn` ObjectDouble 2
     it "should throw an exception for the wrong number of arguments" $ do
@@ -51,7 +56,9 @@ spec = do
       call testFun [ObjectString "ignored", ObjectFloat 42] `shouldReturn` ObjectDouble 2
 
   describe "calling test function with a map argument" $ do
-      let testFun = $(function 'testFunctionMap)
+      let Command cname testFun = $(command 'testFunctionMap) "testFunctionMap"
+      it "should capitalize the first letter" $ do
+          cname `shouldBe` "TestFunctionMap"
       it "should fail for the wrong number of arguments" $ do
         call testFun [] `shouldThrow` isNeovimException
       it "should fail for the wrong type of arguments" $ do

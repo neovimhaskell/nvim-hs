@@ -13,6 +13,8 @@ Stability   :  experimental
 module Neovim.API.TH
     ( generateAPI
     , function
+    , command
+    , autocmd
     , defaultAPITypeToHaskellTypeMap
     , module Control.Exception.Lifted
     , module Neovim.API.Classes
@@ -23,6 +25,7 @@ module Neovim.API.TH
 import           Neovim.API.Classes
 import           Neovim.API.Context
 import           Neovim.API.Parser
+import           Neovim.API.Plugin        (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
@@ -34,6 +37,7 @@ import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
 import           Data.ByteString          (ByteString)
+import           Data.Char                (toUpper)
 import           Data.Data                (Data, Typeable)
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map
@@ -41,6 +45,7 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                (pack)
+import qualified Data.Text                as Text
 
 import           Prelude
 
@@ -221,6 +226,30 @@ customTypeInstance typeName nis =
             <> [fromObjectErrorClause]
         ]
 
+-- | Create an automatically gennerated function that requires a 'Text'
+-- parameter to identify its name.
+--
+-- @
+-- $(function 'myFunction) (pack "myFunctionsName")
+-- @
+-- or
+-- @
+-- $(function 'myFunction) "myFunctionsName"
+-- @
+-- if you have the OverloadedStrings extension activated.
+--
+function :: Name -> Q Exp
+function functionName =
+    [|\n -> Function n $(functionImplementation functionName)|]
+
+command :: Name -> Q Exp
+command functionName =
+    [|\n -> Command (Text.cons ((toUpper . Text.head) n) (Text.tail n)) $(functionImplementation functionName)|]
+
+autocmd :: Name -> Q Exp
+autocmd functionName =
+    [|\t f -> AutoCmd t f $(functionImplementation functionName)|]
+
 -- | Generate a function of type @[Object] -> Neovim' Object@ from the argument
 -- function.
 --
@@ -238,8 +267,8 @@ customTypeInstance typeName nis =
 --     _ -> err $ "Wrong number of arguments for add: " ++ show xs
 -- @
 --
-function :: Name -> Q Exp
-function functionName = do
+functionImplementation :: Name -> Q Exp
+functionImplementation functionName = do
     fInfo <- reify functionName
     -- We only need the number of arguments to generate the appropriate function
     let nargs = case fInfo of

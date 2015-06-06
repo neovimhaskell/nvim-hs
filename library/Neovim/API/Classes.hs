@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE OverlappingInstances       #-}
 {- |
 Module      :  Neovim.API.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
