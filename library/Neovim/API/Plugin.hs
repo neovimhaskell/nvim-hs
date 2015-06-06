@@ -52,7 +52,7 @@ data ExportedFunctionality
 --
 data Plugin r st = Plugin
     { name              :: String
-    , functions         :: [(Text, [Object] -> Neovim' Object)]
+    , functions         :: [ExportedFunctionality]
     , statefulFunctions :: [(Text, TQueue SomeMessage)]
     , services          :: [(r, st, Neovim r st ())]
     }

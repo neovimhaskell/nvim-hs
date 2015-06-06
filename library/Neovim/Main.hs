@@ -123,10 +123,20 @@ startPluginServices evq = foldM go ([], mempty)
     go (services', m) iop = do
         SomePlugin p <- iop
         let mWithSF = foldr (\(n,q) -> Map.insert n (Right q)) m (statefulFunctions p)
-        let mWithF  = foldr (\(n,f) -> Map.insert n (Left f)) mWithSF (P.functions p)
+        let mWithF  = foldr registerFunction mWithSF (P.functions p)
         let newServices = map (\(r,st,s) -> void (runNeovim (ConfigWrapper evq r) st s)) $ services p
         return (newServices <> services', mWithF)
 
+    -- XXX This also registers autocmd and commands, so this probably needs some
+    -- renaming
+    registerFunction fun = case fun of
+        Function n f -> Map.insert n (Left f)
+        -- TODO verify
+        -- A command is essentially just a wrapped function, so it can be
+        -- treated the same
+        Command  n f -> Map.insert n (Left f)
+        -- FIXME 2015-06-06
+        AutoCmd _ _ _ -> error "TODO determine how to register autocmds properly"
 
 
 
