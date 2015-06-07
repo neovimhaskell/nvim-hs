@@ -6,10 +6,16 @@ Neovim API for Haskell plugins as well as a plugin provider.
 
 # What has been done so far?
 
-* The code can be generated, although the generated code may change if the
-  need arises.
-* The msgpack-rpc is partly implemented. It is possible to send requests to
-  a neovim instance and receive the corresponding reply.
+* The API offered by [neovim](https://github.com/neovim/neovim) 
+  can be used from haskell. The functions are generated via 
+  Template Haskell, are named with a `vim_` prefix and its 
+  types can be queried inside ghci.
+* The msgpack-rpc part is mostly implemented. The purpose 
+  of *notifications* is still not clear to us 
+  (and they have no yet been encountered yet).
+* A sample configuration which tests new features and helps 
+  finding issues in our API is hosted here: 
+  https://github.com/saep/nvim-hs-config-example
 
 # Coordinate your work
 
@@ -21,6 +27,8 @@ You can also just create an issue here on github.
 
 As this is still very much a prototype and changes are most certainly
 necessary, the only recommended way to install this is within a sandbox.
+If you encounter any issues while following these steps, please let us
+know!
 
 ## Sandbox
 
@@ -40,4 +48,3 @@ necessary, the only recommended way to install this is within a sandbox.
   cd "$old_pwd"
   ```
 6. Make the script executable and available from your $PATH
-
