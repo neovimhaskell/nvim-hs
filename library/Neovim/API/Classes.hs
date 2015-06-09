@@ -23,7 +23,7 @@ import           Neovim.API.Context
 import           Control.Applicative
 import           Control.Arrow
 import           Data.ByteString      (ByteString)
-import           Data.Int             (Int64)
+import           Data.Int             (Int16, Int32, Int64)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.MessagePack
@@ -80,6 +80,20 @@ instance NvimObject Integer where
 instance NvimObject Int64 where
     toObject                    = ObjectInt
     fromObject (ObjectInt i)    = return i
+    fromObject (ObjectDouble o) = return $ round o
+    fromObject (ObjectFloat o)  = return $ round o
+    fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
+
+instance NvimObject Int32 where
+    toObject                    = ObjectInt . fromIntegral
+    fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectDouble o) = return $ round o
+    fromObject (ObjectFloat o)  = return $ round o
+    fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
+
+instance NvimObject Int16 where
+    toObject                    = ObjectInt . fromIntegral
+    fromObject (ObjectInt i)    = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
