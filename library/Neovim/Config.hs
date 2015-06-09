@@ -21,6 +21,9 @@ import           System.Log        (Priority (..))
 
 data NeovimConfig = Config
     { plugins      :: [IO SomePlugin]
+    -- ^ The list of plugins. The IO type inside the list allows the plugin
+    -- author to run some arbitrary startup code before creating a value of
+    -- type 'SomePlugin'.
     , errorMessage :: Maybe String
     -- ^ Used by "Dyre" for storing compilation errors.
     , logOptions   :: Maybe (FilePath, Priority)

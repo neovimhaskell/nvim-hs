@@ -19,7 +19,6 @@ import qualified Config.Dyre             as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad
-import qualified Data.Map                as Map
 import           Data.Monoid
 import           Neovim.API.Context
 import           Neovim.Debug
@@ -106,37 +105,24 @@ runPluginProvider os = case (hostPort os, unix os) of
     run evHandlerSocket sockreaderSocket cfg = do
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
-        (pluginThreads, funMap) <- startPluginServices q (plugins cfg)
+        (pluginTids, funMap) <- startPluginServices q (plugins cfg)
         let rpcEnv = ConfigWrapper q $ rpcConfig { RPC.functions = funMap }
         ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-        pluginTids <- mapM forkIO pluginThreads
         runSocketReader sockreaderSocket rpcEnv
         forM_ (ehTid:pluginTids) $ \tid ->
             -- TODO actuall kill those threads in a reasonable way
             liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
 
 startPluginServices :: TQueue SomeMessage
-                    -> [IO SomePlugin] -> IO ([IO ()], FunctionMap)
+                    -> [IO SomePlugin] -> IO ([ThreadId], FunctionMap)
 startPluginServices evq = foldM go ([], mempty)
   where
-    go :: ([IO ()], FunctionMap) -> IO SomePlugin -> IO ([IO ()], FunctionMap)
-    go (services', m) iop = do
+    go :: ([ThreadId], FunctionMap) -> IO SomePlugin -> IO ([ThreadId], FunctionMap)
+    go (pluginThreads, m) iop = do
         SomePlugin p <- iop
-        let mWithSF = foldr (\(n,q) -> Map.insert n (Right q)) m (statefulFunctions p)
-        let mWithF  = foldr registerFunction mWithSF (P.functions p)
-        let newServices = map (\(r,st,s) -> void (runNeovim (ConfigWrapper evq r) st s)) $ services p
-        return (newServices <> services', mWithF)
-
-    -- XXX This also registers autocmd and commands, so this probably needs some
-    -- renaming
-    registerFunction fun = case fun of
-        Function n f -> Map.insert n (Left f)
-        -- TODO verify
-        -- A command is essentially just a wrapped function, so it can be
-        -- treated the same
-        Command  n f -> Map.insert n (Left f)
-        -- FIXME 2015-06-06
-        AutoCmd _ _ _ -> error "TODO determine how to register autocmds properly"
+        (tids, mWithSF) <- registerStatefulFunctionalities evq m (statefulExports p)
+        mWithF <- updateFunctionMap evq mWithSF (exports p)
+        return (tids ++ pluginThreads, mWithF)
 
 
 
