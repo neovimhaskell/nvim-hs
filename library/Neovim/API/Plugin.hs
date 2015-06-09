@@ -124,7 +124,7 @@ registerStatefulFunctionality evq m (r, st, fs) = do
                     Left e -> let e' = e :: SomeException
                               in return . Left $ show e'
                     Right res -> return $ Right res
-                respond (reqId req) res
+                respond req res
             Nothing -> return ()
         listeningThread q
 
