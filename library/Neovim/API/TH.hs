@@ -281,6 +281,7 @@ functionImplementation functionName = do
 
     determineNumberOfArguments :: Type -> Int
     determineNumberOfArguments ft = case ft of
+        ForallT _ _ t -> determineNumberOfArguments t
         AppT (AppT ArrowT _) r -> 1 + determineNumberOfArguments r
         _ -> 0
     -- \args -> case args of ...

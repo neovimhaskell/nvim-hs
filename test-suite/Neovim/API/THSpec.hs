@@ -13,6 +13,7 @@ import Neovim.API.Plugin
 import qualified Data.Map as Map
 
 import Test.Hspec
+import Test.QuickCheck
 
 import Control.Applicative
 import Control.Concurrent.STM
@@ -59,6 +60,13 @@ spec = do
       let Command fname testFun = $(command' 'testFunction2)
       it "should capitalize the first character" $ do
         fname `shouldBe` "TestFunction2"
+
+  describe "generating the test successor functions" $ do
+      let Function fname testFun = $(function' 'testSucc)
+      it "should be named testSucc" $ do
+          fname `shouldBe` "testSucc"
+      it "should return the old value + 1" $ property $ do
+          \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do
       let Command cname testFun = $(command "TestFunctionMap" 'testFunctionMap)
