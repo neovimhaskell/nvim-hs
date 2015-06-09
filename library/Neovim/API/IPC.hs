@@ -37,14 +37,16 @@ class Typeable message => Message message where
     fromMessage :: SomeMessage -> Maybe message
     fromMessage (SomeMessage message) = cast message
 
-data RPCMessage = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
-                -- ^ Method name, parameters, callback, timestamp
-                | Response !Int64 Object Object
-                -- ^ Responese sent to indicate the result of a function call.
-                --
-                -- * identfier of the message as 'Word32'
-                -- * Error value
-                -- * Result value
+-- | Haskell representation of supported Remote Procedure Call messages.
+data RPCMessage
+    = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
+    -- ^ Method name, parameters, callback, timestamp
+    | Response !Int64 Object Object
+    -- ^ Responese sent to indicate the result of a function call.
+    --
+    -- * identfier of the message as 'Word32'
+    -- * Error value
+    -- * Result value
     deriving (Typeable)
 
 instance Message RPCMessage

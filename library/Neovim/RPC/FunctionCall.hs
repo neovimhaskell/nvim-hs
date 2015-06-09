@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.RPC.FunctionCall
 Description :  Functions for calling functions
@@ -92,11 +93,11 @@ wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
 wait' = void . (=<<) atomically'
 
 -- | Send the result back to the neovim instance.
-respond :: (NvimObject result) => Int64 -> Either String result -> Neovim r st ()
-respond msgId result = do
+respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
+respond Request{..} result = do
     q <- eventQueue
     atomically' . writeTQueue q . SomeMessage
-        . uncurry (Response msgId) $ toResult result
+        . uncurry (Response reqId) $ toResult result
 
   where
     toResult (Left e) = (toObject e, toObject ())

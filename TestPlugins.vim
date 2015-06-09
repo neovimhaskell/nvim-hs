@@ -34,6 +34,12 @@ endif
 " the execution.
 let randoomValue = rpcrequest(haskellChannel, "Randoom")
 
+let notsorandomvalue = rpcrequest(haskellChannel, "const42")
+if notsorandomvalue != 42
+	echom 'Expected the ultimate answer, but got: ' . notsorandomvalue
+	cq!
+endif
+
 " Everything works, exit normally
 q!
 
