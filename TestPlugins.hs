@@ -25,7 +25,7 @@ randPlugin = do
     -- don't use this for cryptography!
     let randomNumbers = cycle [42,17,-666] :: [Int16]
     return $ SomePlugin Plugin
-      { exports = []
+      { exports = [Function "Randoom" randoom, Function "const42" const42]
       , statefulExports = [((), randomNumbers, [Function "Random" rf])]
       }
 
@@ -33,8 +33,10 @@ rf :: [Object] -> Neovim cfg [Int16] Object
 rf _ = do
     r <- gets head
     modify tail
-    return $ toObject (fromIntegral r :: Int64)
+    return $ ObjectInt (fromIntegral r)
 
 randoom :: [Object] -> Neovim cfg st Object
 randoom _ = err "Function not supported"
 
+const42 :: [Object] -> Neovim cfg st Object
+const42 _ = return $ ObjectInt 42
