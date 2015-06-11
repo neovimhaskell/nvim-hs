@@ -18,17 +18,19 @@ module Neovim.API.Plugin (
     Plugin(..),
     SomePlugin(..),
     Request(..),
+    Notification(..),
 
     SomeMessage,
     fromMessage,
     ) where
 
 import           Neovim.API.Context
-import           Neovim.API.IPC           (Request (..), SomeMessage,
-                                           fromMessage)
+import           Neovim.API.IPC           (Notification (..), Request (..),
+                                           SomeMessage, fromMessage)
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
+import           Control.Applicative
 import           Control.Concurrent       (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException (..), try)
@@ -133,9 +135,11 @@ registerStatefulFunctionality evq m (r, st, fs) = do
                 Right res -> return $ Right res
     listeningThread q = do
         msg <- liftIO . atomically $ readTQueue q
-        case fromMessage msg of
-            Just req@Request{..} ->
+        forM_ (fromMessage msg) $ \req@Request{..} ->
                 forM_ (Map.lookup reqMethod functionRoutes) $ \f ->
                     respond req =<< executeFunction f reqArgs
+        forM_ (fromMessage msg) $ \Notification{..} ->
+                forM_ (Map.lookup notMethod functionRoutes) $ \f ->
+                    void $ executeFunction f notArgs
         listeningThread q
 

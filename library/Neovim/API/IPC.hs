@@ -14,6 +14,7 @@ module Neovim.API.IPC (
     SomeMessage(..),
     RPCMessage(..),
     Request(..),
+    Notification(..),
     fromMessage,
 
     module Data.Int,
@@ -63,4 +64,17 @@ data Request = Request
     } deriving (Typeable)
 
 instance Message Request
+
+-- | A notification is similar to a 'Request'. It essentially does the same
+-- thing, but the function is only called for its side effects. This type of
+-- message is sent by neovim if the caller there does not care about the result
+-- of the computation.
+data Notification = Notification
+    { notMethod :: Text
+    -- ^ Name of the function to call.
+    , notArgs   :: [Object]
+    -- ^ Argumentse for the function.
+    } deriving (Typeable)
+
+instance Message Notification
 
