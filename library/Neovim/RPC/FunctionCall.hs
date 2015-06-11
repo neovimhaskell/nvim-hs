@@ -90,16 +90,16 @@ wait = (=<<) atomically'
 
 -- | Variant of 'wait' that discards the result.
 wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
-wait' = void . (=<<) atomically'
+wait' = void . wait
 
 -- | Send the result back to the neovim instance.
 respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
 respond Request{..} result = do
     q <- eventQueue
-    atomically' . writeTQueue q . SomeMessage
-        . uncurry (Response reqId) $ toResult result
+    atomically' . writeTQueue q . SomeMessage $ uncurry (Response reqId) oResult
 
   where
-    toResult (Left e) = (toObject e, toObject ())
-    toResult (Right r)  = (toObject (), toObject r)
+    oResult = case result of
+        Left e   -> (toObject e, toObject ())
+        Right r  -> (toObject (), toObject r)
 

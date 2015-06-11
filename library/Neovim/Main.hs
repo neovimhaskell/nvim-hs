@@ -100,29 +100,15 @@ runPluginProvider os = case (hostPort os, unix os) of
     _ | env os      -> run Environment Environment
     _               -> run (Stdout stdout) (Stdout stdin)
 
-
   where
     run evHandlerSocket sockreaderSocket cfg = do
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
-        (pluginTids, funMap) <- startPluginServices q (plugins cfg)
+        (pluginTids, funMap) <- register q (plugins cfg)
         let rpcEnv = ConfigWrapper q $ rpcConfig { RPC.functions = funMap }
         ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
         runSocketReader sockreaderSocket rpcEnv
         forM_ (ehTid:pluginTids) $ \tid ->
             -- TODO actuall kill those threads in a reasonable way
             liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
-
-startPluginServices :: TQueue SomeMessage
-                    -> [IO SomePlugin] -> IO ([ThreadId], FunctionMap)
-startPluginServices evq = foldM go ([], mempty)
-  where
-    go :: ([ThreadId], FunctionMap) -> IO SomePlugin -> IO ([ThreadId], FunctionMap)
-    go (pluginThreads, m) iop = do
-        SomePlugin p <- iop
-        (tids, mWithSF) <- registerStatefulFunctionalities evq m (statefulExports p)
-        mWithF <- updateFunctionMap evq mWithSF (exports p)
-        return (tids ++ pluginThreads, mWithF)
-
-
 

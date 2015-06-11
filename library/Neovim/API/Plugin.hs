@@ -13,12 +13,10 @@ This module describes how a Haksell plugin can be plugged into Neovim.
 -}
 module Neovim.API.Plugin (
     ExportedFunctionality(..),
-    registerStatefulFunctionalities,
-    updateFunctionMap,
+    register,
     Plugin(..),
     SomePlugin(..),
     Request(..),
-    awaitRequest,
 
     SomeMessage,
     fromMessage,
@@ -30,11 +28,11 @@ import           Neovim.API.IPC           (Request (..), SomeMessage,
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Applicative
 import           Control.Concurrent       (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException (..), try)
 import           Control.Monad            (foldM, void)
+import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
 import           Data.Text                (Text)
@@ -80,12 +78,25 @@ updateFunctionMap evq = foldM updateMap
         Command  n f  -> return $ Map.insert n (Left f) m
         AutoCmd _ _ _ -> error "TODO register autocmds"
 
+-- | Register the given list of plugins. The first argument is the
+-- communication channel to the internal mediators of remote procedure calls.
+-- The result is a list of thread identifiers started for plugins that carry
+-- state around and a 'FunctionMap'.
+register :: TQueue SomeMessage -> [IO SomePlugin] -> IO ([ThreadId], FunctionMap)
+register evq = foldM go ([], mempty)
+  where
+    go (pluginThreads, m) iop = do
+        SomePlugin p <- iop
+        (tids, m') <- registerStatefulFunctionalities evq (statefulExports p)
+            =<< updateFunctionMap evq m (exports p)
+        return (tids ++ pluginThreads, m')
+
 registerStatefulFunctionalities
     :: TQueue SomeMessage
-    -> FunctionMap
     -> [(r,st, [ExportedFunctionality r st])]
+    -> FunctionMap
     -> IO ([ThreadId], FunctionMap)
-registerStatefulFunctionalities evq funMap = foldM f ([], funMap)
+registerStatefulFunctionalities evq es funMap = foldM f ([], funMap) es
   where
     f (tids,m) e = (\(tid,m') -> (tid:tids,m'))
         <$> registerStatefulFunctionality evq m e
@@ -117,23 +128,12 @@ registerStatefulFunctionality evq m (r, st, fs) = do
         msg <- liftIO . atomically $ readTQueue q
         let funAndRequest = do req <- fromMessage msg
                                f <- Map.lookup (reqMethod req) functionRoutes
-                               return (f,req)
-        case funAndRequest of
-            Just (f,req) -> do
-                res <- (try . f . reqArgs) req >>= \case
-                    Left e -> let e' = e :: SomeException
-                              in return . Left $ show e'
-                    Right res -> return $ Right res
-                respond req res
-            Nothing -> return ()
+                               Just (f,req)
+        forM_ funAndRequest $ \(f,req) -> do
+            retVal <- (try . f . reqArgs) req >>= \case
+                Left e -> let e' = e :: SomeException
+                          in return . Left $ show e'
+                Right res -> return $ Right res
+            respond req retVal
         listeningThread q
-
-
-
-awaitRequest :: (MonadIO io) => TQueue SomeMessage -> io Request
-awaitRequest q = do
-    msg <- liftIO . atomically $ readTQueue q
-    case fromMessage msg of
-        Nothing -> awaitRequest q
-        Just r@(Request{}) -> return r
 
