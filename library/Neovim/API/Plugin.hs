@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE RecordWildCards           #-}
 {- |
 Module      :  Neovim.API.Plugin
 Description :  Plugin author documentation
@@ -124,16 +125,17 @@ registerStatefulFunctionality evq m (r, st, fs) = do
         Command  fn f -> Map.insert fn f
         AutoCmd _ _ _ -> error "Not implemented." -- FIXME
 
-    listeningThread q = do
-        msg <- liftIO . atomically $ readTQueue q
-        let funAndRequest = do req <- fromMessage msg
-                               f <- Map.lookup (reqMethod req) functionRoutes
-                               Just (f,req)
-        forM_ funAndRequest $ \(f,req) -> do
-            retVal <- (try . f . reqArgs) req >>= \case
+    executeFunction :: ([Object] -> Neovim r st Object) -> [Object] -> Neovim r st (Either String Object)
+    executeFunction f args =
+            try (f args) >>= \case
                 Left e -> let e' = e :: SomeException
                           in return . Left $ show e'
                 Right res -> return $ Right res
-            respond req retVal
+    listeningThread q = do
+        msg <- liftIO . atomically $ readTQueue q
+        case fromMessage msg of
+            Just req@Request{..} ->
+                forM_ (Map.lookup reqMethod functionRoutes) $ \f ->
+                    respond req =<< executeFunction f reqArgs
         listeningThread q
 
