@@ -48,6 +48,8 @@ data RPCMessage
     -- * identfier of the message as 'Word32'
     -- * Error value
     -- * Result value
+    | NotificationCall Text [Object]
+    -- ^ Method name and parameters.
     deriving (Typeable)
 
 instance Message RPCMessage

@@ -65,20 +65,22 @@ runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
 messageHandlerSink :: Sink Object SocketHandler ()
-messageHandlerSink = awaitForever $ \rpc -> case rpc of
-    ObjectArray [ObjectInt msgType, ObjectInt fi, e, result] ->
-        handleResponseOrRequest msgType fi e result
-    ObjectArray [ObjectInt msgType, method, params] ->
-        handleNotification msgType method params
-    obj -> liftIO $ errorM logger $
-        "Unhandled rpc message: " <> show obj
+messageHandlerSink = awaitForever $ \rpc -> do
+    liftIO . debugM logger $ "Received: " <> show rpc
+    case rpc of
+        ObjectArray [ObjectInt msgType, ObjectInt fi, e, result] ->
+            handleResponseOrRequest msgType fi e result
+        ObjectArray [ObjectInt msgType, method, params] ->
+            handleNotification msgType method params
+        obj -> liftIO $ errorM logger $
+            "Unhandled rpc message: " <> show obj
 
 handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
                         -> Sink a SocketHandler ()
-handleResponseOrRequest msgType
-    | msgType == 1 = handleResponse
-    | msgType == 0 = handleRequest
-    | otherwise = \_ _ _ -> do
+handleResponseOrRequest msgType i
+    | msgType == 1 = handleResponse i
+    | msgType == 0 = handleRequestOrNotification (Just i)
+    | otherwise = \_ _ -> do
         liftIO $ errorM logger $ "Invalid message type: " <> show msgType
         return ()
 
@@ -95,8 +97,12 @@ handleResponse i e result = do
                 ObjectNil -> Right result
                 _         -> Left e
 
-handleRequest :: Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleRequest i method (ObjectArray params) = case fromObject method of
+-- | Act upon the received request or notification. The main difference between
+-- the two is that a notification does not generate a reply. The distinction
+-- between those two cases is done via the first paramater which is 'Maybe' the
+-- function call identifier.
+handleRequestOrNotification :: (Maybe Int64) -> Object -> Object -> Sink a SocketHandler ()
+handleRequestOrNotification mi method (ObjectArray params) = case fromObject method of
     Left e -> liftIO . errorM logger $ show e
     -- Fork everything so that we do not block.
     --
@@ -109,8 +115,8 @@ handleRequest i method (ObjectArray params) = case fromObject method of
             Nothing -> do
                 let errM = "No provider for: " <> unpack m
                 debugM logger errM
-                atomically' . writeTQueue (_eventQueue e) . SomeMessage
-                    $ Response i (toObject errM) ObjectNil
+                forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue e)
+                    . SomeMessage $ Response i (toObject errM) ObjectNil
             Just (Left f) -> do
                 -- Stateless function: Create a boring state object for the
                 -- Neovim context.
@@ -118,27 +124,33 @@ handleRequest i method (ObjectArray params) = case fromObject method of
                 -- drop the state of the result with (fmap fst <$>)
                 res <- fmap fst <$> runNeovim r () (f params)
                 -- Send the result to the event handler
-                atomically' . writeTQueue (_eventQueue e) . SomeMessage
-                    . uncurry (Response i) $ responseResult res
+                forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue e)
+                    . SomeMessage . uncurry (Response i) $ responseResult res
             Just (Right c) -> do
                 now <- liftIO getCurrentTime
                 reply <- liftIO newEmptyTMVarIO
                 let q = (recipients . customConfig) e
-                atomically' . modifyTVar q $ Map.insert i (now, reply)
-                atomically' . writeTQueue c . SomeMessage $ Request m i params
+                liftIO . debugM logger $ "Executing stateful function with ID: " <> show mi
+                case mi of
+                    Just i -> do
+                        atomically' . modifyTVar q $ Map.insert i (now, reply)
+                        atomically' . writeTQueue c . SomeMessage $ Request m i params
+                    Nothing -> do
+                        atomically' . writeTQueue c . SomeMessage $ Notification m params
   where
     responseResult (Left !e) = (toObject e, ObjectNil)
     responseResult (Right !res) = (ObjectNil, toObject res)
 
-handleRequest _ _ params = liftIO . errorM logger $
+handleRequestOrNotification _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params
 
 handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleNotification msgType fn params
-    | msgType /= 2 = liftIO . errorM logger $
-        "Message is not a noticiation. Received msgType: " <> show msgType
-        <> " The expected value was 2. The following arguments were given: "
-        <> show fn <> " and " <> show params
+handleNotification 2 method params = do
+    liftIO . debugM logger $ "Received notification: " <> show method <> show params
+    handleRequestOrNotification Nothing method params
+handleNotification msgType fn params = liftIO . errorM logger $
+    "Message is not a noticiation. Received msgType: " <> show msgType
+    <> " The expected value was 2. The following arguments were given: "
+    <> show fn <> " and " <> show params
 
-    | otherwise = error "TODO handle notification"
 

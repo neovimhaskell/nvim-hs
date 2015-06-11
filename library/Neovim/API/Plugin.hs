@@ -38,7 +38,10 @@ import           Control.Monad            (foldM, void)
 import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
+import Data.Monoid
 import           Data.Text                (Text)
+
+import Neovim.Debug
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
@@ -128,13 +131,15 @@ registerStatefulFunctionality evq m (r, st, fs) = do
         AutoCmd _ _ _ -> error "Not implemented." -- FIXME
 
     executeFunction :: ([Object] -> Neovim r st Object) -> [Object] -> Neovim r st (Either String Object)
-    executeFunction f args =
+    executeFunction f args = do
+            liftIO . debugM "Plugin.hs" $ "Executing function with arguments: " <> show args
             try (f args) >>= \case
                 Left e -> let e' = e :: SomeException
                           in return . Left $ show e'
                 Right res -> return $ Right res
     listeningThread q = do
         msg <- liftIO . atomically $ readTQueue q
+        liftIO . debugM "Plugin.hs" $ "Running listeningThread"
         forM_ (fromMessage msg) $ \req@Request{..} ->
                 forM_ (Map.lookup reqMethod functionRoutes) $ \f ->
                     respond req =<< executeFunction f reqArgs

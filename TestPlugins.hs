@@ -4,6 +4,7 @@ import           Neovim.API.Plugin
 import           Neovim.Main       (realMain)
 
 import           Data.MessagePack
+import System.Log.Logger
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
@@ -21,7 +22,7 @@ randPlugin = do
     let randomNumbers = cycle [42,17,-666] :: [Int16]
     return $ SomePlugin Plugin
       { exports = [Function "Randoom" randoom, Function "const42" const42]
-      , statefulExports = [((), randomNumbers, [Function "Random" rf])]
+      , statefulExports = [((), randomNumbers, [Function "Random" rf, Function "InjectNumber" inj])]
       }
 
 rf :: [Object] -> Neovim cfg [Int16] Object
@@ -29,6 +30,17 @@ rf _ = do
     r <- gets head
     modify tail
     return $ ObjectInt (fromIntegral r)
+
+inj :: [Object] -> Neovim cfg [Int16] Object
+inj [x] = case fromObject x of
+    Right n -> do
+        liftIO . debugM "TestPlugins.hs" $ "updating map"
+        modify (n:)
+        startofints <- gets (take 10)
+        liftIO . debugM "TestPlugins.hs" $ "Updated map to: " <> show startofints
+        return ObjectNil
+    Left _  -> return ObjectNil
+inj _ = return ObjectNil
 
 randoom :: [Object] -> Neovim cfg st Object
 randoom _ = err "Function not supported"

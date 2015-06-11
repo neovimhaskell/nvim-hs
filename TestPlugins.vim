@@ -30,6 +30,15 @@ if randomValue != -666
 	cq!
 endif
 
+" Test notifications
+call rpcnotify(haskellChannel, "InjectNumber", 7)
+let randomValue = rpcrequest(haskellChannel, "Random")
+if randomValue != 7
+	echom 'Expected Value of 7 but got: ' . randomValue
+	cq!
+endif
+
+
 " This call should throw an error, but it shouldn't cause any problems for
 " the execution.
 let randoomValue = rpcrequest(haskellChannel, "Randoom")

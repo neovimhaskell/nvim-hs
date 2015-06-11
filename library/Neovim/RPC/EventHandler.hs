@@ -80,5 +80,11 @@ eventHandler message = case fromMessage message of
             , toObject e
             , toObject res
             ]
+    Just (NotificationCall fn params) ->
+        yield . encode $ ObjectArray
+            [ ObjectInt 2
+            , toObject fn
+            , toObject params
+            ]
     Nothing -> return ()
 
