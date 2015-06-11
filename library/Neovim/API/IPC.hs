@@ -42,7 +42,7 @@ data RPCMessage
     = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
     -- ^ Method name, parameters, callback, timestamp
     | Response !Int64 Object Object
-    -- ^ Responese sent to indicate the result of a function call.
+    -- ^ Response sent to indicate the result of a function call.
     --
     -- * identfier of the message as 'Word32'
     -- * Error value
@@ -51,12 +51,16 @@ data RPCMessage
 
 instance Message RPCMessage
 
+-- | A request is a data type containing the method to call, its arguments and
+-- an identifier used to map the result to the function that has been called.
 data Request = Request
     { reqMethod :: Text
+    -- ^ Name of the function to call.
     , reqId     :: !Int64
+    -- ^ Identifier to map the result to a function call invocation.
     , reqArgs   :: [Object]
-    }
-    deriving (Typeable)
+    -- ^ Arguments for the function.
+    } deriving (Typeable)
 
 instance Message Request
 

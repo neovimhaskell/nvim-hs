@@ -33,6 +33,17 @@ import           System.Log.Logger
 
 import           Prelude
 
+-- | A function map is a map containing the names of functions as keys and some
+-- context dependent value which contains all the necessary information to
+-- execute that function in the intended way.
+--
+-- This type is only used internally and handles two distinct cases. One case
+-- is a direct function call, wich is simply a function that accepts a list of
+-- 'Object' values and returns a result in the 'Neovim' context. The second
+-- case is calling a function that has a persistent state. This is mediated to
+-- a thread that reads from a 'TQueue'. (NB: persistent currently means, that
+-- state is stored for as long as the plugin provider is running and not
+-- restarted.)
 type FunctionMap =
     Map Text (Either ([Object] -> Neovim' Object) (TQueue SomeMessage))
 
@@ -48,6 +59,9 @@ data RPCConfig = RPCConfig
     -- plugin manager.
     }
 
+-- | Create a new basic configuration containing a communication channel for
+-- remote procedure call events and an empty lookup table for functions to
+-- mediate.
 newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
 newRPCConfig = RPCConfig
     <$> liftIO (newTVarIO mempty)
@@ -66,7 +80,7 @@ data SocketType = Stdout Handle
                 -- ^ Use an IP socket. First argument is the port and the
                 -- second is the host name.
 
--- | Create a 'Source' from the given socket description.
+-- | Create a 'Handle' from the given socket description.
 --
 -- The handle is not automatically closed.
 createHandle :: (Functor io, MonadIO io)

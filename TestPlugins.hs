@@ -1,14 +1,9 @@
-{-# LANGUAGE MultiWayIf        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE RecordWildCards   #-}
 import           Neovim
 import           Neovim.API.Plugin
 import           Neovim.Main       (realMain)
 
 import           Data.MessagePack
-
-import           Data.Int          (Int16)
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
