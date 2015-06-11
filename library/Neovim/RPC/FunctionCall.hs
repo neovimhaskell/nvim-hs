@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.RPC.FunctionCall
@@ -56,8 +57,14 @@ acall fn parameters = do
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
     atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
-    -- TODO Get rid of the 'Unsafe'-iness?
-    return $ fmap fromObjectUnsafe <$> readTMVar mv
+    return $ convertObject <$> readTMVar mv
+  where
+    convertObject = \case
+        Left e -> Left e
+        Right o -> case fromObject o of
+            Left e -> Left (toObject e)
+            Right r -> Right r
+
 
 acall' :: (NvimObject result)
        => Text
@@ -85,11 +92,11 @@ atomically' = liftIO . atomically
 --
 -- This action possibly blocks as it is an alias for
 -- @ \ioSTM -> ioSTM >>= liftIO . atomically@.
-wait :: (MonadIO io) => io (STM result) -> io result
+wait :: Neovim r st (STM result) -> Neovim r st result
 wait = (=<<) atomically'
 
 -- | Variant of 'wait' that discards the result.
-wait' :: (Functor io, MonadIO io) => io (STM result) -> io ()
+wait' :: Neovim r st (STM result) -> Neovim r st ()
 wait' = void . wait
 
 -- | Send the result back to the neovim instance.
