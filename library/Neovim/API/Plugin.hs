@@ -30,7 +30,6 @@ import           Neovim.API.IPC           (Notification (..), Request (..),
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Applicative
 import           Control.Concurrent       (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException (..), try)
@@ -38,26 +37,31 @@ import           Control.Monad            (foldM, void)
 import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
-import Data.Monoid
+import           Data.Monoid
 import           Data.Text                (Text)
 
-import Neovim.Debug
+import           Neovim.Debug
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
 data ExportedFunctionality r st
     = Function Text ([Object] -> Neovim r st Object)
-    -- ^
+    -- ^ Exported function. Callable via @call name(arg1,arg2)@.
     --
     -- * Name of the function (must start with an uppercase letter)
     -- * Function to call
     | Command  Text ([Object] -> Neovim r st Object)
-    -- ^
+    -- ^ Exported Command. Callable via @:Name arg1 arg2@.
     --
     -- * Name of the command (must start with an uppercase letter)
     -- * Function to call
     | AutoCmd  Text Text ([Object] -> Neovim r st Object)
-    -- ^
+    -- ^ Exported autocommand. Will call the given function if the type and
+    -- filter match.
+    --
+    -- NB: Since we are registering this on the Haskell side of things, the
+    -- number of accepted arguments should be 0.
+    -- TODO Should this be enforced somehow? Possibly via the TH generator.
     --
     -- * Type of autocmd (e.g. FileType)
     -- * Filter fo the autocmd type
