@@ -35,9 +35,9 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let Function fname testFun = $(function  "testFunction0" 'testFunction0)
-    it "should have the same name" $ do
-        fname `shouldBe` "testFunction0"
+    let Function fname testFun = $(function  "TestFunction0" 'testFunction0)
+    it "should have a capitalized prefix" $ do
+        fname `shouldBe` "TestFunction0"
     it "should return the consant value" $ do
       call testFun [] `shouldReturn` ObjectInt 42
     it "should fail if supplied an argument" $ do
@@ -45,8 +45,8 @@ spec = do
 
   describe "calling testFunction with two arguments" $ do
     let Function fname testFun = $(function' 'testFunction2)
-    it "should have the same name" $ do
-        fname `shouldBe` "testFunction2"
+    it "should have a capitalized prefix" $ do
+        fname `shouldBe` "TestFunction2"
     it "should return 2 for proper arguments" $ do
       call testFun [ObjectBinary "ignored", ObjectInt 42] `shouldReturn` ObjectDouble 2
     it "should throw an exception for the wrong number of arguments" $ do
@@ -63,8 +63,8 @@ spec = do
 
   describe "generating the test successor functions" $ do
       let Function fname testFun = $(function' 'testSucc)
-      it "should be named testSucc" $ do
-          fname `shouldBe` "testSucc"
+      it "should be named TestSucc" $ do
+          fname `shouldBe` "TestSucc"
       it "should return the old value + 1" $ property $ do
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 

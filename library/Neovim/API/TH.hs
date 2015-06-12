@@ -228,12 +228,15 @@ customTypeInstance typeName nis =
         ]
 
 function :: String -> Name -> Q Exp
-function customName functionName
-    | null customName = error "Empty names are not allowed for exported functions."
+function [] _ = error "Empty names are not allowed for exported functions."
+function customName@(c:_) functionName
+    | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
     | otherwise = [|Function (pack $(litE (StringL customName))) $(functionImplementation functionName) |]
 
 function' :: Name -> Q Exp
-function' functionName = function (nameBase functionName) functionName
+function' functionName =
+    let (c:cs) = nameBase functionName
+    in function (toUpper c:cs) functionName
 
 command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
