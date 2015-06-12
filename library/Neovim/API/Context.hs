@@ -25,6 +25,7 @@ module Neovim.API.Context (
     NeovimException(..),
     ConfigWrapper(..),
     runNeovim,
+    forkNeovim,
     err,
 
     throwError,
@@ -32,6 +33,7 @@ module Neovim.API.Context (
     ) where
 
 
+import           Control.Concurrent     (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad.Except
@@ -73,6 +75,14 @@ runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
                   -- some kinds of exceptions here manually.
               in return . Left $ show e'
     Right res -> return $ Right res
+
+-- | Fork a neovim thread with the given custom config value and a custom
+-- state. The result of the thread is discarded and only the 'ThreadId' is
+-- returend immediately.
+forkNeovim :: ir -> ist -> Neovim ir ist a -> Neovim r st ThreadId
+forkNeovim r st a = do
+    cfg <- R.ask
+    liftIO . forkIO . void $ runNeovim (cfg { customConfig = r }) st a
 
 data NeovimException = ErrorMessage String
     deriving (Typeable, Show)
