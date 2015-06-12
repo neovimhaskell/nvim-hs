@@ -8,7 +8,7 @@ import Neovim.API.THSpecFunctions
 import Neovim.API.Classes
 import Neovim.API.TH
 import Neovim.API.Context
-import Neovim.API.Plugin
+import Neovim.Plugin.Classes
 
 import qualified Data.Map as Map
 

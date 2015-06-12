@@ -27,7 +27,7 @@ module Neovim.API.TH
 import           Neovim.API.Classes
 import           Neovim.API.Context
 import           Neovim.API.Parser
-import           Neovim.API.Plugin        (ExportedFunctionality (..))
+import           Neovim.Plugin.Classes    (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
@@ -39,7 +39,7 @@ import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
 import           Data.ByteString          (ByteString)
-import           Data.Char                (toUpper, isUpper)
+import           Data.Char                (isUpper, toUpper)
 import           Data.Data                (Data, Typeable)
 import           Data.Map                 (Map)
 import qualified Data.Map                 as Map

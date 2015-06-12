@@ -14,7 +14,7 @@ module Neovim.Config (
     module System.Log,
     ) where
 
-import           Neovim.API.Plugin
+import           Neovim.Plugin.Classes
 
 import           Data.Default      (Default (def))
 import           System.Log        (Priority (..))

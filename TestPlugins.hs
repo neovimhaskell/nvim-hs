@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 import           Neovim
-import           Neovim.API.Plugin
-import           Neovim.Main       (realMain)
+import           Neovim.Main           (realMain)
+import           Neovim.Plugin.Classes
 
 import           Data.MessagePack
-import System.Log.Logger
+import           System.Log.Logger
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 

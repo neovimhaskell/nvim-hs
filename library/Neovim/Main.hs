@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Main
 Description :  Wrapper for the actual main function
@@ -11,8 +12,7 @@ Stability   :  experimental
 module Neovim.Main
     where
 
-import           Neovim.API.IPC
-import           Neovim.API.Plugin       as P
+import           Neovim.Plugin       as P
 import           Neovim.Config
 
 import qualified Config.Dyre             as Dyre
@@ -105,8 +105,7 @@ runPluginProvider os = case (hostPort os, unix os) of
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
         let conf = ConfigWrapper q ()
-        reg <- register conf (plugins cfg)
-        case reg of
+        register conf (plugins cfg) >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
             Right (pluginTids, funMap) -> do
                 let rpcEnv = conf { customConfig = rpcConfig
