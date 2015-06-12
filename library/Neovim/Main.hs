@@ -104,11 +104,16 @@ runPluginProvider os = case (hostPort os, unix os) of
     run evHandlerSocket sockreaderSocket cfg = do
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
-        (pluginTids, funMap) <- register q (plugins cfg)
-        let rpcEnv = ConfigWrapper q $ rpcConfig { RPC.functions = funMap }
-        ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-        runSocketReader sockreaderSocket rpcEnv
-        forM_ (ehTid:pluginTids) $ \tid ->
-            -- TODO actuall kill those threads in a reasonable way
-            liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
+        let conf = ConfigWrapper q ()
+        reg <- register conf (plugins cfg)
+        case reg of
+            Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
+            Right (pluginTids, funMap) -> do
+                let rpcEnv = conf { customConfig = rpcConfig
+                                        { RPC.functions = funMap } }
+                ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
+                runSocketReader sockreaderSocket rpcEnv
+                forM_ (ehTid:pluginTids) $ \tid ->
+                    -- TODO actuall kill those threads in a reasonable way
+                    liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
 

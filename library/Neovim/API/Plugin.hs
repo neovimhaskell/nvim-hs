@@ -34,6 +34,7 @@ import           Control.Concurrent       (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException (..), try)
 import           Control.Monad            (foldM, void)
+import qualified Control.Monad.Reader     as R
 import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
@@ -77,11 +78,10 @@ data Plugin r st = Plugin
 data SomePlugin = forall r st. SomePlugin (Plugin r st)
 
 updateFunctionMap
-    :: TQueue SomeMessage
-    -> FunctionMap
+    :: FunctionMap
     -> [ExportedFunctionality () ()]
-    -> IO FunctionMap
-updateFunctionMap evq = foldM updateMap
+    -> Neovim' FunctionMap
+updateFunctionMap = foldM updateMap
   where
     updateMap m = \case
         Function n f  -> return $ Map.insert n (Left f) m
@@ -92,35 +92,40 @@ updateFunctionMap evq = foldM updateMap
 -- communication channel to the internal mediators of remote procedure calls.
 -- The result is a list of thread identifiers started for plugins that carry
 -- state around and a 'FunctionMap'.
-register :: TQueue SomeMessage -> [IO SomePlugin] -> IO ([ThreadId], FunctionMap)
-register evq = foldM go ([], mempty)
+register :: ConfigWrapper ()
+         -> [IO SomePlugin]
+         -> IO (Either String ([ThreadId], FunctionMap))
+register cfg = fmap (fmap fst) . runNeovim cfg () . foldM go ([], mempty)
   where
+    go :: ([ThreadId], FunctionMap)
+       -> IO SomePlugin
+       -> Neovim' ([ThreadId], FunctionMap)
     go (pluginThreads, m) iop = do
-        SomePlugin p <- iop
-        (tids, m') <- registerStatefulFunctionalities evq (statefulExports p)
-            =<< updateFunctionMap evq m (exports p)
+        SomePlugin p <- liftIO iop
+        (tids, m') <- registerStatefulFunctionalities (statefulExports p)
+            =<< updateFunctionMap m (exports p)
         return (tids ++ pluginThreads, m')
 
 registerStatefulFunctionalities
-    :: TQueue SomeMessage
-    -> [(r,st, [ExportedFunctionality r st])]
+    :: [(r,st, [ExportedFunctionality r st])]
     -> FunctionMap
-    -> IO ([ThreadId], FunctionMap)
-registerStatefulFunctionalities evq es funMap = foldM f ([], funMap) es
+    -> Neovim' ([ThreadId], FunctionMap)
+registerStatefulFunctionalities es funMap = foldM f ([], funMap) es
   where
     f (tids,m) e = (\(tid,m') -> (tid:tids,m'))
-        <$> registerStatefulFunctionality evq m e
+        <$> registerStatefulFunctionality m e
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
-    :: TQueue SomeMessage -- ^ Global event queue
-    -> FunctionMap        -- ^ Function map to update
+    :: FunctionMap
     -> (r, st, [ExportedFunctionality r st])
-    -> IO (ThreadId, FunctionMap)
-registerStatefulFunctionality evq m (r, st, fs) = do
-    q <- newTQueueIO
-    tid <- forkIO . void $ runNeovim (ConfigWrapper evq r) st (listeningThread q)
+    -> Neovim' (ThreadId, FunctionMap)
+registerStatefulFunctionality m (r, st, fs) = do
+    q <- liftIO newTQueueIO
+    cfg <- R.ask
+    tid <- liftIO . forkIO . void
+        $ runNeovim (cfg { customConfig = r }) st (listeningThread q)
     return $ (tid, foldr (updateMap q) m fs)
   where
     updateMap q = \case
@@ -134,21 +139,25 @@ registerStatefulFunctionality evq m (r, st, fs) = do
         Command  fn f -> Map.insert fn f
         AutoCmd _ _ _ -> error "Not implemented." -- FIXME
 
-    executeFunction :: ([Object] -> Neovim r st Object) -> [Object] -> Neovim r st (Either String Object)
+    executeFunction
+        :: ([Object] -> Neovim r st Object)
+        -> [Object]
+        -> Neovim r st (Either String Object)
     executeFunction f args = do
-            liftIO . debugM "Plugin.hs" $ "Executing function with arguments: " <> show args
-            try (f args) >>= \case
-                Left e -> let e' = e :: SomeException
-                          in return . Left $ show e'
-                Right res -> return $ Right res
+        liftIO . debugM "Plugin.hs" $
+            "Executing function with arguments: " <> show args
+        try (f args) >>= \case
+            Left e -> let e' = e :: SomeException
+                      in return . Left $ show e'
+            Right res -> return $ Right res
     listeningThread q = do
         msg <- liftIO . atomically $ readTQueue q
         liftIO . debugM "Plugin.hs" $ "Running listeningThread"
         forM_ (fromMessage msg) $ \req@Request{..} ->
-                forM_ (Map.lookup reqMethod functionRoutes) $ \f ->
-                    respond req =<< executeFunction f reqArgs
+            forM_ (Map.lookup reqMethod functionRoutes) $ \f ->
+                respond req =<< executeFunction f reqArgs
         forM_ (fromMessage msg) $ \Notification{..} ->
-                forM_ (Map.lookup notMethod functionRoutes) $ \f ->
-                    void $ executeFunction f notArgs
+            forM_ (Map.lookup notMethod functionRoutes) $ \f ->
+                void $ executeFunction f notArgs
         listeningThread q
 
