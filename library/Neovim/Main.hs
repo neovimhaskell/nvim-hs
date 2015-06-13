@@ -29,15 +29,21 @@ import           Options.Applicative
 import           System.IO               (stdin, stdout)
 
 data CommandLineOptions =
-    Opt { hostPort :: Maybe (String, Int)
-        , unix     :: Maybe FilePath
-        , env      :: Bool
-        , logOpts  :: Maybe (FilePath, Priority)
+    Opt { providerName :: String
+        , hostPort     :: Maybe (String, Int)
+        , unix         :: Maybe FilePath
+        , env          :: Bool
+        , logOpts      :: Maybe (FilePath, Priority)
         }
 
 optParser :: Parser CommandLineOptions
 optParser = Opt
-    <$> optional ((,)
+    <$> strOption
+        (long "name"
+        <> short 'n'
+        <> metavar "NAME"
+        <> help "Name that associates the plugin provider with neovim")
+    <*> optional ((,)
             <$> strOption
                 (long "host"
                 <> short 'a'
@@ -104,12 +110,11 @@ runPluginProvider os = case (hostPort os, unix os) of
     run evHandlerSocket sockreaderSocket cfg = do
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
-        let conf = ConfigWrapper q ()
-        register conf (plugins cfg) >>= \case
+        let conf = ConfigWrapper q (providerName os) ()
+        register (conf { customConfig = RPC.functions rpcConfig }) (plugins cfg) >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
-            Right (pluginTids, funMap) -> do
-                let rpcEnv = conf { customConfig = rpcConfig
-                                        { RPC.functions = funMap } }
+            Right pluginTids -> do
+                let rpcEnv = conf { customConfig = rpcConfig }
                 ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
                 runSocketReader sockreaderSocket rpcEnv
                 forM_ (ehTid:pluginTids) $ \tid ->

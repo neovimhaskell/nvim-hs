@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -30,7 +31,7 @@ data ExportedFunctionality r st
     --
     -- * Name of the command (must start with an uppercase letter)
     -- * Function to call
-    | AutoCmd  Text Text ([Object] -> Neovim r st Object)
+    | AutoCmd  Text Text Text ([Object] -> Neovim r st Object)
     -- ^ Exported autocommand. Will call the given function if the type and
     -- filter match.
     --
@@ -40,7 +41,17 @@ data ExportedFunctionality r st
     --
     -- * Type of autocmd (e.g. FileType)
     -- * Filter fo the autocmd type
+    -- * Name for the function to call
     -- * Function to call
+
+class FunctionName a where
+    name :: a -> Text
+
+instance FunctionName (ExportedFunctionality r st) where
+    name = \case
+        Function    n _ -> n
+        Command     n _ -> n
+        AutoCmd _ _ n _ -> n
 
 -- | This data type contains meta information for the plugin manager.
 --

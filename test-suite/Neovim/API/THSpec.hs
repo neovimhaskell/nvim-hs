@@ -21,7 +21,7 @@ import Control.Concurrent.STM
 call :: ([Object] -> Neovim () () Object) -> [Object]
      -> IO Object
 call f args = do
-    cfg <- ConfigWrapper <$> newTQueueIO <*> return ()
+    cfg <- ConfigWrapper <$> newTQueueIO <*> pure "nvim-hs-test-suite" <*> return ()
     res <- fmap fst <$> runNeovim cfg () (f args)
     case res of
         Right x -> return x

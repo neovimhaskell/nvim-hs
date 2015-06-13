@@ -13,6 +13,7 @@ module Neovim.RPC.Common
     where
 
 import           Neovim.API.Context
+import           Neovim.Plugin.Classes
 
 import           Control.Applicative
 import           Control.Concurrent.STM
@@ -45,8 +46,14 @@ import           Prelude
 -- state is stored for as long as the plugin provider is running and not
 -- restarted.)
 type FunctionMap =
-    Map Text (Either ([Object] -> Neovim' Object) (TQueue SomeMessage))
+    Map Text FunctionType
 
+data FunctionType
+    = Loading (TMVar ())
+    -- ^ The 'TMVar' is used to wait until the function is loaded (or failed to
+    -- load).
+    | Stateless (ExportedFunctionality () ())
+    | Stateful (TQueue SomeMessage)
 
 -- | Things shared between the socket reader and the event handler.
 data RPCConfig = RPCConfig
@@ -54,7 +61,7 @@ data RPCConfig = RPCConfig
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.
-    , functions  :: FunctionMap
+    , functions  :: TVar FunctionMap
     -- ^ A map that contains the function names which are registered to this
     -- plugin manager.
     }
@@ -65,7 +72,7 @@ data RPCConfig = RPCConfig
 newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
 newRPCConfig = RPCConfig
     <$> liftIO (newTVarIO mempty)
-    <*> pure mempty
+    <*> liftIO (newTVarIO mempty)
 
 -- | Simple data type defining the kind of socket the socket reader should use.
 data SocketType = Stdout Handle

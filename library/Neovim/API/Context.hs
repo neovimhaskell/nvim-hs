@@ -50,6 +50,9 @@ data ConfigWrapper a = ConfigWrapper
     { _eventQueue  :: TQueue SomeMessage
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
+    , _providerName :: String
+    -- ^ Name that is used to identify this provider. Assigning such a name is
+    -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
     , customConfig :: a
     -- ^ Plugin author supplyable custom configuration. It can be queried via
     -- 'myConf'.

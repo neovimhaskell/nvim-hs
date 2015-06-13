@@ -12,78 +12,93 @@ Portability :  GHC
 
 -}
 module Neovim.Plugin
-    where
+    ( register
+    ) where
 
 import           Neovim.API.Context
 import           Neovim.API.IPC
+import           Neovim.API.String
 import           Neovim.Plugin.Classes
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Concurrent       (ThreadId, forkIO)
+import           Control.Concurrent       (ThreadId)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException, try)
 import           Control.Monad
-import qualified Control.Monad.Reader     as R
+import qualified Control.Monad.Reader as R
 import qualified Data.Map                 as Map
 import           Data.MessagePack
+import           Data.Text                (unpack)
+import System.Log.Logger
+
+logger :: String
+logger = "Neovim.Plugin"
 
 -- | Register the given list of plugins. The first argument is the
 -- communication channel to the internal mediators of remote procedure calls.
 -- The result is a list of thread identifiers started for plugins that carry
 -- state around and a 'FunctionMap'.
-register :: ConfigWrapper ()
+register :: ConfigWrapper (TVar FunctionMap)
          -> [IO SomePlugin]
-         -> IO (Either String ([ThreadId], FunctionMap))
-register cfg = fmap (fmap fst) . runNeovim cfg () . foldM go ([], mempty)
+         -> IO (Either String [ThreadId])
+register cfg = fmap (fmap fst) . runNeovim cfg () . foldM go []
   where
-    go :: ([ThreadId], FunctionMap)
+    go :: [ThreadId]
        -> IO SomePlugin
-       -> Neovim' ([ThreadId], FunctionMap)
-    go (pluginThreads, m) iop = do
+       -> Neovim (TVar FunctionMap) () [ThreadId]
+    go pluginThreads iop = do
         SomePlugin p <- liftIO iop
-        (tids, m') <- registerStatefulFunctionalities (statefulExports p)
-            =<< foldM updateMap m (exports p)
-        return (tids ++ pluginThreads, m')
+        mapM_ (\e -> updateMap e (Map.insert (name e) (Stateless e))) (exports p)
+        tids <- mapM registerStatefulFunctionality (statefulExports p)
+        return $ tids ++ pluginThreads
 
-    updateMap m = \case
-        Function n f  -> do
-            return $ Map.insert n (Left f) m
-        Command  n f  -> return $ Map.insert n (Left f) m
-        AutoCmd _ _ _ -> error "TODO register autocmds"
 
-registerStatefulFunctionalities
-    :: [(r,st, [ExportedFunctionality r st])]
-    -> FunctionMap
-    -> Neovim' ([ThreadId], FunctionMap)
-registerStatefulFunctionalities es funMap = foldM f ([], funMap) es
+updateMap :: ExportedFunctionality r st
+          -> (FunctionMap -> FunctionMap)
+          -> Neovim (TVar FunctionMap) () ThreadId
+updateMap ef upd = do
+    m <- ask
+    waiting <- liftIO newEmptyTMVarIO
+    modifyMap $ Map.insert (name ef) (Loading waiting)
+    forkNeovim m () $ do
+        case ef of
+            Function{} -> do
+                pName <- R.asks _providerName
+                ret <- wait . vim_command $ concat
+                    [ "call remote#define#FunctionOnHost('" , pName ,"', '"
+                    , unpack (name ef), "', 1,'", unpack (name ef), "',{})"
+                    ]
+                case ret of
+                    Left e -> do
+                        liftIO . errorM logger $
+                            "Failed to register function: " ++ unpack (name ef) ++ show e
+                    Right _ -> do
+                        liftIO $ debugM logger $ "Registerd function: " ++ unpack (name ef)
+                        modifyMap $ upd
+            Command{} -> error "TODO register commands"
+            AutoCmd{} -> error "TODO register autocmds"
+        atomically' $ putTMVar waiting ()
+
   where
-    f (tids,m) e = (\(tid,m') -> (tid:tids,m'))
-        <$> registerStatefulFunctionality m e
+    modifyMap f = ask >>= \m -> atomically' $ modifyTVar m f
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
-    :: FunctionMap
-    -> (r, st, [ExportedFunctionality r st])
-    -> Neovim' (ThreadId, FunctionMap)
-registerStatefulFunctionality m (r, st, fs) = do
+    :: (r, st, [ExportedFunctionality r st])
+    -> Neovim (TVar FunctionMap) () ThreadId
+registerStatefulFunctionality (r, st, fs) = do
     q <- liftIO newTQueueIO
-    cfg <- R.ask
-    tid <- liftIO . forkIO . void
-        $ runNeovim (cfg { customConfig = r }) st (listeningThread q)
-    return (tid, foldr (updateMap q) m fs)
+    tid <- forkNeovim r st (listeningThread q)
+    forM_ fs $ \f -> updateMap f (Map.insert (name f) (Stateful q))
+    return tid
   where
-    updateMap q = \case
-        Function fn _ -> Map.insert fn (Right q)
-        Command  fn _ -> Map.insert fn (Right q)
-        AutoCmd _ _ _ -> error "Not implemented." -- FIXME
-
     functionRoutes = foldr updateRoute Map.empty fs
     updateRoute = \case
-        Function fn f -> Map.insert fn f
-        Command  fn f -> Map.insert fn f
-        AutoCmd _ _ _ -> error "Not implemented." -- FIXME
+        Function    n f -> Map.insert n f
+        Command     n f -> Map.insert n f
+        AutoCmd _ _ _ _ -> error "Not implemented." -- FIXME
 
     executeFunction
         :: ([Object] -> Neovim r st Object)

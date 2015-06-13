@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.RPC.SocketReader
 Description :  The component which reads RPC messages from the neovim instance
@@ -17,6 +18,7 @@ module Neovim.RPC.SocketReader (
 import           Neovim.API.Classes
 import           Neovim.API.Context           hiding (ask, asks)
 import           Neovim.API.IPC
+import           Neovim.Plugin.Classes
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -33,7 +35,7 @@ import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize               (get)
-import           Data.Text                    (unpack)
+import           Data.Text                    (unpack, Text)
 import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
@@ -101,7 +103,7 @@ handleResponse i e result = do
 -- the two is that a notification does not generate a reply. The distinction
 -- between those two cases is done via the first paramater which is 'Maybe' the
 -- function call identifier.
-handleRequestOrNotification :: (Maybe Int64) -> Object -> Object -> Sink a SocketHandler ()
+handleRequestOrNotification :: Maybe Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleRequestOrNotification mi method (ObjectArray params) = case fromObject method of
     Left e -> liftIO . errorM logger $ show e
     -- Fork everything so that we do not block.
@@ -110,39 +112,68 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
     -- threads. Maybe we should gather the ThreadIds and kill them after some
     -- amount of time if they are still around. Maybe resourcet provides such a
     -- facility for threads already.
-    Right m -> ask >>= \e -> void . liftIO . forkIO $
-        case Map.lookup m ((functions . customConfig) e) of
-            Nothing -> do
-                let errM = "No provider for: " <> unpack m
-                debugM logger errM
-                forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue e)
-                    . SomeMessage $ Response i (toObject errM) ObjectNil
-            Just (Left f) -> do
-                -- Stateless function: Create a boring state object for the
-                -- Neovim context.
-                let r = ConfigWrapper (_eventQueue e) ()
-                -- drop the state of the result with (fmap fst <$>)
-                res <- fmap fst <$> runNeovim r () (f params)
-                -- Send the result to the event handler
-                forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue e)
-                    . SomeMessage . uncurry (Response i) $ responseResult res
-            Just (Right c) -> do
-                now <- liftIO getCurrentTime
-                reply <- liftIO newEmptyTMVarIO
-                let q = (recipients . customConfig) e
-                liftIO . debugM logger $ "Executing stateful function with ID: " <> show mi
-                case mi of
-                    Just i -> do
-                        atomically' . modifyTVar q $ Map.insert i (now, reply)
-                        atomically' . writeTQueue c . SomeMessage $ Request m i params
-                    Nothing -> do
-                        atomically' . writeTQueue c . SomeMessage $ Notification m params
+    Right m -> ask >>= \conf -> void . liftIO . forkIO $ handle m conf
+
   where
+    lookupFunction :: Text -> RPCConfig -> STM (Maybe FunctionType)
+    lookupFunction m rpc = do
+        funMap <- readTVar (functions rpc)
+        return $ Map.lookup m funMap
+
+    handle m rpc = atomically (lookupFunction m (customConfig rpc)) >>= \case
+        Nothing -> do
+            let errM = "No provider for: " <> unpack m
+            debugM logger errM
+            forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
+                . SomeMessage $ Response i (toObject errM) ObjectNil
+        Just (Loading waiting) -> do
+            atomically $ readTMVar waiting
+            handle m rpc
+        Just (Stateless f) -> do
+            -- Stateless function: Create a boring state object for the
+            -- Neovim context.
+            -- drop the state of the result with (fmap fst <$>)
+            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (call f params)
+            -- Send the result to the event handler
+            forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
+                . SomeMessage . uncurry (Response i) $ responseResult res
+        Just (Stateful c) -> do
+            now <- liftIO getCurrentTime
+            reply <- liftIO newEmptyTMVarIO
+            let q = (recipients . customConfig) rpc
+            liftIO . debugM logger $ "Executing stateful function with ID: " <> show mi
+            case mi of
+                Just i -> do
+                    atomically' . modifyTVar q $ Map.insert i (now, reply)
+                    atomically' . writeTQueue c . SomeMessage $ Request m i params
+                Nothing -> do
+                    atomically' . writeTQueue c . SomeMessage $ Notification m params
     responseResult (Left !e) = (toObject e, ObjectNil)
     responseResult (Right !res) = (ObjectNil, toObject res)
 
 handleRequestOrNotification _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params
+
+call :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
+call ef args = case ef of
+    -- Defining a function on the remote host creates a function that, that
+    -- passes all arguments in a list. At the time of this writing, no other
+    -- arguments are passed for such a function.
+    --
+    -- The function generating the function on neovim side is called:
+    -- @remote#define#FunctionOnHost@
+    Function _ f -> case args of
+        [ObjectArray fArgs] -> f fArgs
+        _                   -> err $ "Received request for function with unsupported argument list: " <> show args
+    -- Similarly to the definition of functions on the remote host, the
+    -- arguments for commands are possibly out of order as well.
+    --
+    -- FIXME This is defintely not working properly.
+    Command _ f -> case args of
+        [ObjectArray fArgs] -> f fArgs
+        _                   -> err $ "Received request for command with unsupported argument list: " <> show args
+    AutoCmd{} -> err "Argument handling not yet implemented for AutoCmd"
+
 
 handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleNotification 2 method params = do
