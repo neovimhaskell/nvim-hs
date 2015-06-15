@@ -17,6 +17,7 @@ module Neovim (
     module Neovim.Config,
     module Neovim.Main,
     module Neovim.RPC.FunctionCall,
+    module Neovim.Plugin,
 
     module Control.Monad,
     module Control.Applicative,
@@ -33,6 +34,7 @@ import           Neovim.API.String
 import           Neovim.Config
 import           Neovim.Main             (neovim)
 import           Neovim.RPC.FunctionCall (atomically', respond, wait, wait')
+import           Neovim.Plugin           (NeovimPlugin, wrapPlugin, Plugin(..))
 
 import           Control.Concurrent      (forkIO)
 import           Control.Concurrent.STM

@@ -11,8 +11,11 @@ Stability   :  experimental
 Portability :  GHC
 
 -}
-module Neovim.Plugin
-    ( register
+module Neovim.Plugin (
+    register,
+    wrapPlugin,
+    NeovimPlugin,
+    Plugin(..),
     ) where
 
 import           Neovim.API.Context
@@ -25,12 +28,13 @@ import           Neovim.RPC.FunctionCall
 import           Control.Concurrent       (ThreadId)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException, try)
-import           Control.Monad
-import qualified Control.Monad.Reader as R
+import           Control.Monad            (foldM, void)
+import qualified Control.Monad.Reader     as R
+import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map
 import           Data.MessagePack
 import           Data.Text                (unpack)
-import System.Log.Logger
+import           System.Log.Logger
 
 logger :: String
 logger = "Neovim.Plugin"
@@ -40,15 +44,15 @@ logger = "Neovim.Plugin"
 -- The result is a list of thread identifiers started for plugins that carry
 -- state around and a 'FunctionMap'.
 register :: ConfigWrapper (TVar FunctionMap)
-         -> [IO SomePlugin]
+         -> [IO NeovimPlugin]
          -> IO (Either String [ThreadId])
 register cfg = fmap (fmap fst) . runNeovim cfg () . foldM go []
   where
     go :: [ThreadId]
-       -> IO SomePlugin
+       -> IO NeovimPlugin
        -> Neovim (TVar FunctionMap) () [ThreadId]
     go pluginThreads iop = do
-        SomePlugin p <- liftIO iop
+        NeovimPlugin p <- liftIO iop
         mapM_ (\e -> updateMap e (Map.insert (name e) (Stateless e))) (exports p)
         tids <- mapM registerStatefulFunctionality (statefulExports p)
         return $ tids ++ pluginThreads

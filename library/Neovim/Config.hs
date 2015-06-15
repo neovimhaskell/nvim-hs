@@ -14,13 +14,13 @@ module Neovim.Config (
     module System.Log,
     ) where
 
-import           Neovim.Plugin.Classes
+import           Neovim.Plugin.Classes (NeovimPlugin)
 
 import           Data.Default      (Default (def))
 import           System.Log        (Priority (..))
 
 data NeovimConfig = Config
-    { plugins      :: [IO SomePlugin]
+    { plugins      :: [IO NeovimPlugin]
     -- ^ The list of plugins. The IO type inside the list allows the plugin
     -- author to run some arbitrary startup code before creating a value of
     -- type 'SomePlugin'.

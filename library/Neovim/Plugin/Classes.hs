@@ -60,4 +60,9 @@ data Plugin r st = Plugin
     , statefulExports :: [(r, st, [ExportedFunctionality r  st])]
     }
 
-data SomePlugin = forall r st. SomePlugin (Plugin r st)
+data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
+
+-- | Wrap a 'Plugin' in some nice blankets, so that we can put them in a simple
+-- list.
+wrapPlugin :: Monad m => Plugin r st -> m NeovimPlugin
+wrapPlugin = return . NeovimPlugin

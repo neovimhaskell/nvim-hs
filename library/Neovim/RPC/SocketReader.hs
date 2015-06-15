@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase                 #-}
 {- |
 Module      :  Neovim.RPC.SocketReader
 Description :  The component which reads RPC messages from the neovim instance
@@ -25,17 +25,18 @@ import           Neovim.RPC.FunctionCall
 import           Control.Applicative
 import           Control.Concurrent           (forkIO)
 import           Control.Concurrent.STM
-import           Control.Monad.Except
-import           Control.Monad.Reader
+import           Control.Monad                (void)
+import           Control.Monad.Reader         (MonadReader, ask, asks)
 import           Control.Monad.Trans.Resource
 import           Data.Conduit                 as C
 import           Data.Conduit.Binary
 import           Data.Conduit.Cereal
+import           Data.Foldable                (forM_)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize               (get)
-import           Data.Text                    (unpack, Text)
+import           Data.Text                    (Text, unpack)
 import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
