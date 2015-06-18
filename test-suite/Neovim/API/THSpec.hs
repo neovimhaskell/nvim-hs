@@ -10,6 +10,7 @@ import Neovim.API.TH
 import Neovim.API.Context
 import Neovim.Plugin.Classes
 
+import Data.Default
 import qualified Data.Map as Map
 
 import Test.Hspec
@@ -35,7 +36,7 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let Function fname testFun = $(function  "TestFunction0" 'testFunction0)
+    let ExportedFunctionality (Function fname _, testFun) = $(function  "TestFunction0" 'testFunction0) def
     it "should have a capitalized prefix" $ do
         fname `shouldBe` "TestFunction0"
     it "should return the consant value" $ do
@@ -44,7 +45,7 @@ spec = do
         call testFun [ObjectNil] `shouldThrow` isNeovimException
 
   describe "calling testFunction with two arguments" $ do
-    let Function fname testFun = $(function' 'testFunction2)
+    let ExportedFunctionality (Function fname _, testFun) = $(function' 'testFunction2) def
     it "should have a capitalized prefix" $ do
         fname `shouldBe` "TestFunction2"
     it "should return 2 for proper arguments" $ do
@@ -57,19 +58,19 @@ spec = do
       call testFun [ObjectString "ignored", ObjectFloat 42] `shouldReturn` ObjectDouble 2
 
   describe "generating a command from the two argument test function" $ do
-      let Command fname testFun = $(command' 'testFunction2)
+      let ExportedFunctionality (Command fname _, testFun) = $(command' 'testFunction2) def
       it "should capitalize the first character" $ do
         fname `shouldBe` "TestFunction2"
 
   describe "generating the test successor functions" $ do
-      let Function fname testFun = $(function' 'testSucc)
+      let ExportedFunctionality (Function fname _, testFun) = $(function' 'testSucc) def
       it "should be named TestSucc" $ do
           fname `shouldBe` "TestSucc"
       it "should return the old value + 1" $ property $ do
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do
-      let Command cname testFun = $(command "TestFunctionMap" 'testFunctionMap)
+      let ExportedFunctionality (Command cname _, testFun) = $(command "TestFunctionMap" 'testFunctionMap) def
       it "should capitalize the first letter" $ do
           cname `shouldBe` "TestFunctionMap"
       it "should fail for the wrong number of arguments" $ do

@@ -43,6 +43,8 @@ library
                       , Neovim.RPC.EventHandler
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
+                      , Neovim.Plugin.ConfigHelper
+  other-modules:        Neovim.Plugin.ConfigHelper.Internal
   -- other-extensions:
   build-depends:        base ==4.*
                       , bytestring

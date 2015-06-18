@@ -16,8 +16,9 @@ module Neovim.Config (
 
 import           Neovim.Plugin.Classes (NeovimPlugin)
 
-import           Data.Default      (Default (def))
-import           System.Log        (Priority (..))
+import qualified Config.Dyre           as Dyre
+import           Data.Default          (Default (def))
+import           System.Log            (Priority (..))
 
 data NeovimConfig = Config
     { plugins      :: [IO NeovimPlugin]
@@ -28,6 +29,9 @@ data NeovimConfig = Config
     -- ^ Used by "Dyre" for storing compilation errors.
     , logOptions   :: Maybe (FilePath, Priority)
     -- ^ Set the general logging options.
+    , dyreParams   :: Maybe (Dyre.Params NeovimConfig)
+    -- ^ Parmaeters used by "Dyre". This is only used for the
+    -- "Neovim.Plugin.ConfigHelper" plugin.
     }
 
 instance Default NeovimConfig where
@@ -35,5 +39,6 @@ instance Default NeovimConfig where
             { plugins      = []
             , errorMessage = Nothing
             , logOptions   = Nothing
+            , dyreParams   = Nothing
             }
 

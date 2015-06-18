@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase                #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -14,24 +14,33 @@ Portability :  GHC
 module Neovim.Plugin.Classes
     where
 
-import Data.MessagePack
-import Data.Text (Text)
-import Neovim.API.Context
+import           Data.Default
+import           Data.MessagePack
+import           Data.Text          (Text)
+import           Neovim.API.Context
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
-data ExportedFunctionality r st
-    = Function Text ([Object] -> Neovim r st Object)
+newtype ExportedFunctionality r st = ExportedFunctionality (FunctionalityDescription, [Object] -> Neovim r st Object)
+
+functionalityDescription :: ExportedFunctionality r st -> FunctionalityDescription
+functionalityDescription (ExportedFunctionality (d,_)) = d
+
+functionalityFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
+functionalityFunction (ExportedFunctionality (_, f)) = f
+
+data FunctionalityDescription
+    = Function Text Synchronous
     -- ^ Exported function. Callable via @call name(arg1,arg2)@.
     --
     -- * Name of the function (must start with an uppercase letter)
-    -- * Function to call
-    | Command  Text ([Object] -> Neovim r st Object)
+    -- * Option to indicate how neovim should behave when calling this function
+    | Command  Text CommandOptions
     -- ^ Exported Command. Callable via @:Name arg1 arg2@.
     --
     -- * Name of the command (must start with an uppercase letter)
-    -- * Function to call
-    | AutoCmd  Text Text Text ([Object] -> Neovim r st Object)
+    -- * Options to configure neovim's behavior for calling the command
+    | AutoCmd  Text Text Text
     -- ^ Exported autocommand. Will call the given function if the type and
     -- filter match.
     --
@@ -39,19 +48,49 @@ data ExportedFunctionality r st
     -- number of accepted arguments should be 0.
     -- TODO Should this be enforced somehow? Possibly via the TH generator.
     --
-    -- * Type of autocmd (e.g. FileType)
+    -- * Type of autocmd (e.g. FileType) (TODO create enum)
     -- * Filter fo the autocmd type
     -- * Name for the function to call
-    -- * Function to call
+
+-- | This option detemines how neovim should behave when calling some
+-- functionality on a remote host.
+data Synchronous
+    = Async
+    -- ^ Call the functionality entirely for its side effects and do not wait
+    -- for it to finish. Calling a functionality with this flag set is
+    -- completely asynchronous and nothing is really expected to happen. This
+    -- is why a call like this is called notification on the neovim side of
+    -- things.
+    | Sync
+    -- ^ Call the function and wait for its result. This is only synchronous on
+    -- the neovim side. For comands it means that the GUI will (probably) not
+    -- allow any user input until a reult is received. Functions run
+    -- asynchronously inside neovim (or in one of its plugin providers) can use
+    -- these functions concurrently.
+
+instance Default Synchronous where
+    def = Sync
+
+data CommandOptions = CommandOptions
+    { sync :: Synchronous
+    }
+
+instance Default CommandOptions where
+    def = CommandOptions
+        { sync = Sync
+        }
 
 class FunctionName a where
     name :: a -> Text
 
-instance FunctionName (ExportedFunctionality r st) where
+instance FunctionName FunctionalityDescription where
     name = \case
         Function    n _ -> n
         Command     n _ -> n
-        AutoCmd _ _ n _ -> n
+        AutoCmd _ _ n -> n
+
+instance FunctionName (ExportedFunctionality r st) where
+    name = name . functionalityDescription
 
 -- | This data type contains meta information for the plugin manager.
 --

@@ -14,6 +14,7 @@ module Neovim.Main
 
 import           Neovim.Plugin       as P
 import           Neovim.Config
+import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
 
 import qualified Config.Dyre             as Dyre
 import           Control.Concurrent
@@ -85,12 +86,14 @@ opts = info (helper <*> optParser)
 
 
 neovim :: NeovimConfig -> IO ()
-neovim = Dyre.wrapMain $ Dyre.defaultParams
-    { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
-    , Dyre.projectName = "nvim"
-    , Dyre.realMain    = realMain
-    , Dyre.statusOut   = debugM "Dyre"
-    }
+neovim conf =
+    let params = Dyre.defaultParams
+            { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
+            , Dyre.projectName = "nvim"
+            , Dyre.realMain    = realMain
+            , Dyre.statusOut   = debugM "Dyre"
+            }
+    in Dyre.wrapMain params (conf { dyreParams = Just params })
 
 realMain :: NeovimConfig -> IO ()
 realMain cfg = do
@@ -111,13 +114,15 @@ runPluginProvider os = case (hostPort os, unix os) of
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
         let conf = ConfigWrapper q (providerName os) ()
-        register (conf { customConfig = RPC.functions rpcConfig }) (plugins cfg) >>= \case
+            allPlugins = maybe id ((:) . ConfigHelper.plugin) (dyreParams cfg) $ plugins cfg
+        startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
-            Right pluginTids -> do
+            Right pluginTidsWithQueues -> do
                 let rpcEnv = conf { customConfig = rpcConfig }
                 ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
+                _ <- forkIO $ register (conf { customConfig = RPC.functions rpcConfig }) pluginTidsWithQueues
                 runSocketReader sockreaderSocket rpcEnv
-                forM_ (ehTid:pluginTids) $ \tid ->
+                forM_ (ehTid:concatMap (map fst . snd) pluginTidsWithQueues) $ \tid ->
                     -- TODO actuall kill those threads in a reasonable way
                     liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
 

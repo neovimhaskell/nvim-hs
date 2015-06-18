@@ -3,7 +3,6 @@ import           Neovim
 import           Neovim.Main           (realMain)
 import           Neovim.Plugin.Classes
 
-import           Data.MessagePack
 import           System.Log.Logger
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
@@ -13,16 +12,23 @@ main = realMain def
     { plugins = [ randPlugin ]
     }
 
-randPlugin :: IO SomePlugin
+randPlugin :: IO NeovimPlugin
 randPlugin = do
     -- This plugin was intended to use a real random number generator, but
     -- unfortunately a Travis build with other GHC versions failed to reproduce
     -- the same numbers. So we just chose from these three numbers. You better
     -- don't use this for cryptography!
     let randomNumbers = cycle [42,17,-666] :: [Int16]
-    return $ SomePlugin Plugin
-      { exports = [Function "Randoom" randoom, Function "const42" const42]
-      , statefulExports = [((), randomNumbers, [Function "Random" rf, Function "InjectNumber" inj])]
+    wrapPlugin Plugin
+      { exports = [ ExportedFunctionality (Function "Randoom" Sync, randoom)
+                  , ExportedFunctionality (Function "Const42" Sync, const42)
+                  ]
+      , statefulExports =
+          [((), randomNumbers,
+            [ ExportedFunctionality (Function "Random" Sync, rf)
+            , ExportedFunctionality (Function "InjectNumber" Sync, inj)
+            ])
+          ]
       }
 
 rf :: [Object] -> Neovim cfg [Int16] Object
@@ -39,8 +45,8 @@ inj [x] = case fromObject x of
         startofints <- gets (take 10)
         liftIO . debugM "TestPlugins.hs" $ "Updated map to: " <> show startofints
         return ObjectNil
-    Left _  -> return ObjectNil
-inj _ = return ObjectNil
+    Left _  -> liftIO (debugM "TestPlugin.hs" ("wrong argument type " ++ show x)) >> return ObjectNil
+inj x = liftIO (debugM "TestPlugin.hs" ("wrong argument form " ++ show x)) >> return ObjectNil
 
 randoom :: [Object] -> Neovim cfg st Object
 randoom _ = err "Function not supported"

@@ -27,7 +27,7 @@ module Neovim.API.TH
 import           Neovim.API.Classes
 import           Neovim.API.Context
 import           Neovim.API.Parser
-import           Neovim.Plugin.Classes    (ExportedFunctionality (..))
+import           Neovim.Plugin.Classes    (ExportedFunctionality (..), FunctionalityDescription(..))
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
@@ -231,7 +231,7 @@ function :: String -> Name -> Q Exp
 function [] _ = error "Empty names are not allowed for exported functions."
 function customName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
-    | otherwise = [|Function (pack $(litE (StringL customName))) $(functionImplementation functionName) |]
+    | otherwise = [|\funOpts -> ExportedFunctionality (Function (pack $(litE (StringL customName))) funOpts, $(functionImplementation functionName)) |]
 
 function' :: Name -> Q Exp
 function' functionName =
@@ -242,7 +242,7 @@ command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
-    | otherwise = [|Command (pack $(litE (StringL customFunctionName))) $(functionImplementation functionName)|]
+    | otherwise = [|\copts -> ExportedFunctionality (Command (pack $(litE (StringL customFunctionName))) copts, $(functionImplementation functionName))|]
 
 command' :: Name -> Q Exp
 command' functionName =

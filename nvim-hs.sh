@@ -17,8 +17,8 @@ fi
 
 if [ -d ".cabal-sandbox/" ] ; then
     # Use `cabal exec` if we are in a sandbox
-    exec cabal exec runghc TestPlugins.hs
+    exec cabal exec runghc TestPlugins.hs -- -n $1 -l test-log.txt -v DEBUG
 else
-    exec runghc TestPlugins.hs
+    exec runghc TestPlugins.hs -- -n $1 -l test-log.txt -v DEBUG
 fi
 

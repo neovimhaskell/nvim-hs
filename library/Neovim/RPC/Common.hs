@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {- |
 Module      :  Neovim.RPC.Common
@@ -49,10 +51,7 @@ type FunctionMap =
     Map Text FunctionType
 
 data FunctionType
-    = Loading (TMVar ())
-    -- ^ The 'TMVar' is used to wait until the function is loaded (or failed to
-    -- load).
-    | Stateless (ExportedFunctionality () ())
+    = Stateless ([Object] -> Neovim' Object)
     | Stateful (TQueue SomeMessage)
 
 -- | Things shared between the socket reader and the event handler.
@@ -61,9 +60,11 @@ data RPCConfig = RPCConfig
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.
-    , functions  :: TVar FunctionMap
+    , functions  :: TMVar FunctionMap
     -- ^ A map that contains the function names which are registered to this
-    -- plugin manager.
+    -- plugin manager. Putting the map in a 'TMVar' ensures that all
+    -- functionality is registered properly before answering to requests send
+    -- by neovim.
     }
 
 -- | Create a new basic configuration containing a communication channel for
@@ -72,7 +73,7 @@ data RPCConfig = RPCConfig
 newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
 newRPCConfig = RPCConfig
     <$> liftIO (newTVarIO mempty)
-    <*> liftIO (newTVarIO mempty)
+    <*> liftIO newEmptyTMVarIO
 
 -- | Simple data type defining the kind of socket the socket reader should use.
 data SocketType = Stdout Handle
