@@ -17,6 +17,7 @@ import           Neovim.Config
 import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
 
 import qualified Config.Dyre             as Dyre
+import qualified Config.Dyre.Params      as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad
@@ -92,6 +93,7 @@ neovim conf =
             , Dyre.projectName = "nvim"
             , Dyre.realMain    = realMain
             , Dyre.statusOut   = debugM "Dyre"
+            , Dyre.ghcOpts     = ["-threaded", "-rtsopts", "-with-rtsopts=-N"]
             }
     in Dyre.wrapMain params (conf { dyreParams = Just params })
 

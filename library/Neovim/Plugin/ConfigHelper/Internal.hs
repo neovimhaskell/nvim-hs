@@ -19,6 +19,9 @@ import           Neovim.Config
 import           Config.Dyre         (Params)
 import           Config.Dyre.Compile
 
+ping :: Neovim' String
+ping = return "Pong"
+
 recompileNvimhs :: Neovim (Params NeovimConfig) (Maybe String) ()
 recompileNvimhs = do
     cfg <- ask

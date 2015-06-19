@@ -84,8 +84,23 @@ registerWithNeovim description = case description of
                     "Failed to register function: " ++ unpack functionName ++ show e
             Right _ -> do
                 liftIO $ debugM logger $ "Registered function: " ++ unpack functionName
-    Command{} -> error "TODO register commands"
-    AutoCmd{} -> error "TODO register autocmds"
+    Command functionName copts -> do
+        pName <- R.asks _providerName
+        let s = case sync copts of
+                Sync -> "1"
+                Async -> "0"
+        ret <- wait . vim_command $ concat
+            [ "call remote#define#CommandOnHost('", pName, "', '"
+            , unpack functionName, "', ", s, ", '", unpack functionName
+            , "', {})"
+            ]
+        case ret of
+            Left e -> do
+                liftIO . errorM logger $
+                    "Failed to register command: " ++ unpack functionName ++ show e
+            Right _ -> do
+                liftIO $ debugM logger $ "Registered command: " ++ unpack functionName
+    AutoCmd{} -> liftIO $ errorM logger "Registering of autocmds not yet supported!"
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
@@ -101,7 +116,7 @@ registerStatefulFunctionality (r, st, fs) = do
     updateRoute f = case functionalityDescription f of
         Function  n _ -> Map.insert n (functionalityFunction f)
         Command   n _ -> Map.insert n (functionalityFunction f)
-        AutoCmd _ _ _ -> error "Not implemented." -- FIXME
+        AutoCmd _ _ n -> Map.insert n (functionalityFunction f)
 
     executeFunction
         :: ([Object] -> Neovim r st Object)

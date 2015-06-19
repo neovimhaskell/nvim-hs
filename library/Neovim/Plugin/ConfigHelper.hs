@@ -23,6 +23,6 @@ import Neovim.Plugin.ConfigHelper.Internal
 -- loaded for all Neovim instances.
 plugin :: Params NeovimConfig -> IO NeovimPlugin
 plugin params = wrapPlugin $ Plugin
-    { exports = []
+    { exports = [$(function' 'ping) Sync]
     , statefulExports = [(params, Nothing, [$(command' 'recompileNvimhs) def])]
     }
