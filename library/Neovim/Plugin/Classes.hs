@@ -51,6 +51,7 @@ data FunctionalityDescription
     -- * Type of autocmd (e.g. FileType) (TODO create enum)
     -- * Filter fo the autocmd type
     -- * Name for the function to call
+    deriving (Show, Read, Eq, Ord)
 
 -- | This option detemines how neovim should behave when calling some
 -- functionality on a remote host.
@@ -67,6 +68,7 @@ data Synchronous
     -- allow any user input until a reult is received. Functions run
     -- asynchronously inside neovim (or in one of its plugin providers) can use
     -- these functions concurrently.
+    deriving (Show, Read, Eq, Ord, Enum)
 
 instance Default Synchronous where
     def = Sync
@@ -74,6 +76,7 @@ instance Default Synchronous where
 data CommandOptions = CommandOptions
     { sync :: Synchronous
     }
+    deriving (Show, Read, Eq, Ord)
 
 instance Default CommandOptions where
     def = CommandOptions

@@ -17,6 +17,8 @@ module Neovim.Plugin (
     wrapPlugin,
     NeovimPlugin,
     Plugin(..),
+    Synchronous(..),
+    CommandOptions(..),
     ) where
 
 import           Neovim.API.Context
