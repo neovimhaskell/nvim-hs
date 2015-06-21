@@ -134,7 +134,7 @@ createFunction typeMap nf = do
         toObjVar v = [|toObject $(varE v)|]
 
 
-    ret <- let (r,st) = ((mkName "r"), (mkName "st"))
+    ret <- let (r,st) = (mkName "r", mkName "st")
            in forallT [PlainTV r, PlainTV st] (return []) $ appT ([t|Neovim $(varT r) $(varT st) |])
             . withDeferred . withException
             . apiTypeToHaskellType typeMap $ returnType nf
@@ -231,7 +231,7 @@ function :: String -> Name -> Q Exp
 function [] _ = error "Empty names are not allowed for exported functions."
 function customName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
-    | otherwise = [|\funOpts -> ExportedFunctionality (Function (pack $(litE (StringL customName))) funOpts, $(functionImplementation functionName)) |]
+    | otherwise = [|\funOpts -> EF (Function (pack $(litE (StringL customName))) funOpts, $(functionImplementation functionName)) |]
 
 function' :: Name -> Q Exp
 function' functionName =
@@ -242,7 +242,7 @@ command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
-    | otherwise = [|\copts -> ExportedFunctionality (Command (pack $(litE (StringL customFunctionName))) copts, $(functionImplementation functionName))|]
+    | otherwise = [|\copts -> EF (Command (pack $(litE (StringL customFunctionName))) copts, $(functionImplementation functionName))|]
 
 command' :: Name -> Q Exp
 command' functionName =

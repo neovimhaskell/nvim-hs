@@ -22,7 +22,7 @@ import Neovim.Plugin.ConfigHelper.Internal
 -- | Note that you cannot really use this plugin by hand. It is automatically
 -- loaded for all Neovim instances.
 plugin :: Params NeovimConfig -> IO NeovimPlugin
-plugin params = wrapPlugin $ Plugin
+plugin params = wrapPlugin Plugin
     { exports = [$(function' 'ping) Sync]
     , statefulExports = [(params, Nothing, [$(command' 'recompileNvimhs) def])]
     }

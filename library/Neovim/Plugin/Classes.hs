@@ -11,8 +11,18 @@ Stability   :  experimental
 Portability :  GHC
 
 -}
-module Neovim.Plugin.Classes
-    where
+module Neovim.Plugin.Classes (
+    ExportedFunctionality(..),
+    getFunction,
+    getDescription,
+    FunctionalityDescription(..),
+    FunctionName(..),
+    NeovimPlugin(..),
+    Plugin(..),
+    wrapPlugin,
+    Synchronous(..),
+    CommandOptions(..),
+    ) where
 
 import           Data.Default
 import           Data.MessagePack
@@ -21,14 +31,18 @@ import           Neovim.API.Context
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
-newtype ExportedFunctionality r st = ExportedFunctionality (FunctionalityDescription, [Object] -> Neovim r st Object)
+newtype ExportedFunctionality r st
+    = EF (FunctionalityDescription, [Object] -> Neovim r st Object)
 
-functionalityDescription :: ExportedFunctionality r st -> FunctionalityDescription
-functionalityDescription (ExportedFunctionality (d,_)) = d
+-- | Extract the description of an 'ExportedFunctionality'.
+getDescription :: ExportedFunctionality r st -> FunctionalityDescription
+getDescription (EF (d,_)) = d
 
-functionalityFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
-functionalityFunction (ExportedFunctionality (_, f)) = f
+-- | Extract the function of an 'ExportedFunctionality'.
+getFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
+getFunction (EF (_, f)) = f
 
+-- | Functionality specific functional description entries.
 data FunctionalityDescription
     = Function Text Synchronous
     -- ^ Exported function. Callable via @call name(arg1,arg2)@.
@@ -75,6 +89,8 @@ instance Default Synchronous where
 
 data CommandOptions = CommandOptions
     { sync :: Synchronous
+    -- ^ Option to indicate whether vim shuould block until the function has
+    -- completed.
     }
     deriving (Show, Read, Eq, Ord)
 
@@ -83,6 +99,7 @@ instance Default CommandOptions where
         { sync = Sync
         }
 
+-- | Conveniennce class to extract a name from some value.
 class FunctionName a where
     name :: a -> Text
 
@@ -93,7 +110,7 @@ instance FunctionName FunctionalityDescription where
         AutoCmd _ _ n -> n
 
 instance FunctionName (ExportedFunctionality r st) where
-    name = name . functionalityDescription
+    name = name . getDescription
 
 -- | This data type contains meta information for the plugin manager.
 --

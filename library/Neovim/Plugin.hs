@@ -28,6 +28,7 @@ import           Neovim.Plugin.Classes
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
+import           Control.Arrow ((&&&), first)
 import           Control.Concurrent       (ThreadId)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException, try)
@@ -59,16 +60,17 @@ register :: ConfigWrapper (TMVar FunctionMap)
          -> [(NeovimPlugin, [(ThreadId, [(FunctionalityDescription, FunctionType)])])]
          -> IO ()
 register (cfg@ConfigWrapper{ customConfig = sem }) ps = void . runNeovim cfg () $ do
-    registeredFunctions <- forM ps $ \(NeovimPlugin p, tffs) -> do
-        let statefulFunctionsToRegister = concatMap snd tffs
-            statelessFunctionsToRegister = map (\ef -> (functionalityDescription ef, (Stateless . functionalityFunction) ef)) $ exports p
+    registeredFunctions <- forM ps $ \(NeovimPlugin p, fs) -> do
+        let statefulFunctionsToRegister = concatMap snd fs
+            statelessFunctionsToRegister =
+                map (getDescription &&& Stateless . getFunction) $ exports p
             functionsToRegister = statefulFunctionsToRegister ++ statelessFunctionsToRegister
-        mapM_ (registerWithNeovim . fst) $ functionsToRegister
-        return $ map (\(d, f) -> (name d, f)) functionsToRegister
+        mapM_ (registerWithNeovim . fst) functionsToRegister
+        return $ map (first name) functionsToRegister
     liftIO . atomically . putTMVar sem . Map.fromList $ concat registeredFunctions
 
 registerWithNeovim :: FunctionalityDescription -> Neovim customConfig () ()
-registerWithNeovim description = case description of
+registerWithNeovim = \case
     Function functionName s -> do
         pName <- R.asks _providerName
         let sync = case s of
@@ -79,11 +81,10 @@ registerWithNeovim description = case description of
             , unpack functionName, "', ", sync, ",'", unpack functionName, "',{})"
             ]
         case ret of
-            Left e -> do
-                liftIO . errorM logger $
-                    "Failed to register function: " ++ unpack functionName ++ show e
-            Right _ -> do
-                liftIO $ debugM logger $ "Registered function: " ++ unpack functionName
+            Left e -> liftIO . errorM logger $
+                "Failed to register function: " ++ unpack functionName ++ show e
+            Right _ -> liftIO . debugM logger $
+                "Registered function: " ++ unpack functionName
     Command functionName copts -> do
         pName <- R.asks _providerName
         let s = case sync copts of
@@ -95,11 +96,10 @@ registerWithNeovim description = case description of
             , "', {})"
             ]
         case ret of
-            Left e -> do
-                liftIO . errorM logger $
-                    "Failed to register command: " ++ unpack functionName ++ show e
-            Right _ -> do
-                liftIO $ debugM logger $ "Registered command: " ++ unpack functionName
+            Left e -> liftIO . errorM logger $
+                "Failed to register command: " ++ unpack functionName ++ show e
+            Right _ -> liftIO . debugM logger $
+                "Registered command: " ++ unpack functionName
     AutoCmd{} -> liftIO $ errorM logger "Registering of autocmds not yet supported!"
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
@@ -110,20 +110,16 @@ registerStatefulFunctionality
 registerStatefulFunctionality (r, st, fs) = do
     q <- liftIO newTQueueIO
     tid <- forkNeovim r st (listeningThread q)
-    return (tid, map (\n -> (functionalityDescription n, Stateful q)) fs)
+    return (tid, map (\n -> (getDescription n, Stateful q)) fs)
   where
     functionRoutes = foldr updateRoute Map.empty fs
-    updateRoute f = case functionalityDescription f of
-        Function  n _ -> Map.insert n (functionalityFunction f)
-        Command   n _ -> Map.insert n (functionalityFunction f)
-        AutoCmd _ _ n -> Map.insert n (functionalityFunction f)
+    updateRoute = uncurry Map.insert . (name &&& getFunction)
 
     executeFunction
         :: ([Object] -> Neovim r st Object)
         -> [Object]
         -> Neovim r st (Either String Object)
-    executeFunction f args = do
-        try (f args) >>= \case
+    executeFunction f args = try (f args) >>= \case
             Left e -> let e' = e :: SomeException
                       in return . Left $ show e'
             Right res -> return $ Right res

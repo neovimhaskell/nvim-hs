@@ -19,7 +19,6 @@ module Neovim (
     module Neovim.Main,
     module Neovim.RPC.FunctionCall,
     module Neovim.Plugin,
-    module Neovim.Plugin,
 
     module Control.Monad,
     module Control.Applicative,

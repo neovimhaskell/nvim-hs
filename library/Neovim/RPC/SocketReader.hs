@@ -129,7 +129,7 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             -- Stateless function: Create a boring state object for the
             -- Neovim context.
             -- drop the state of the result with (fmap fst <$>)
-            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (f $ call params)
+            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (f $ parseParams params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
                 . SomeMessage . uncurry (Response i) $ responseResult res
@@ -141,19 +141,18 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             case mi of
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
-                    atomically' . writeTQueue c . SomeMessage $ Request m i (call params)
-                Nothing -> do
-                    atomically' . writeTQueue c . SomeMessage $ Notification m (call params)
+                    atomically' . writeTQueue c . SomeMessage $ Request m i (parseParams params)
+                Nothing ->
+                    atomically' . writeTQueue c . SomeMessage $ Notification m (parseParams params)
     responseResult (Left !e) = (toObject e, ObjectNil)
     responseResult (Right !res) = (ObjectNil, toObject res)
 
 handleRequestOrNotification _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params
 
--- TODO implement proper handling for additional parameters and name this
--- function appropriately
-call :: [Object] -> [Object]
-call = \case
+-- TODO implement proper handling for additional parameters
+parseParams :: [Object] -> [Object]
+parseParams = \case
     -- Defining a function on the remote host creates a function that, that
     -- passes all arguments in a list. At the time of this writing, no other
     -- arguments are passed for such a function.

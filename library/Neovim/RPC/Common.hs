@@ -15,7 +15,6 @@ module Neovim.RPC.Common
     where
 
 import           Neovim.API.Context
-import           Neovim.Plugin.Classes
 
 import           Control.Applicative
 import           Control.Concurrent.STM
