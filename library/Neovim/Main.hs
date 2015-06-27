@@ -39,10 +39,8 @@ data CommandLineOptions =
 
 optParser :: Parser CommandLineOptions
 optParser = Opt
-    <$> strOption
-        (long "name"
-        <> short 'n'
-        <> metavar "NAME"
+    <$> strArgument
+        (metavar "NAME"
         <> help "Name that associates the plugin provider with neovim")
     <*> optional ((,)
             <$> strOption
