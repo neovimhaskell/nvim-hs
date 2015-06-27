@@ -51,7 +51,13 @@ runSocketReader :: SocketType -> ConfigWrapper RPCConfig -> IO ()
 runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
     runSocketHandler env $
-        addCleanup (cleanUpHandle h) (sourceHandle h)
+        -- addCleanup (cleanUpHandle h) (sourceHandle h)
+        -- TODO test whether/how this should be handled
+        -- this has been commented out because I think that restarting the
+        -- plugin provider should not cause the stdin and stdout handles to be
+        -- closed since that would cause neovim to stop the plugin provider (I
+        -- think).
+        sourceHandle h
             $= conduitGet Data.Serialize.get
             $$ messageHandlerSink
 
@@ -62,7 +68,8 @@ newtype SocketHandler a =
              , MonadReader (ConfigWrapper RPCConfig), MonadThrow)
 
 runSocketHandler :: ConfigWrapper RPCConfig -> SocketHandler a -> IO ()
-runSocketHandler r (SocketHandler a) = void $ runNeovim r () (runResourceT a)
+runSocketHandler r (SocketHandler a) =
+    void $ runNeovim r () (runResourceT a >> quit)
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
@@ -112,7 +119,7 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
     -- threads. Maybe we should gather the ThreadIds and kill them after some
     -- amount of time if they are still around. Maybe resourcet provides such a
     -- facility for threads already.
-    Right m -> ask >>= \conf -> void . liftIO . forkIO $ handle m conf
+    Right m -> void . liftIO . forkIO . handle m =<< ask
 
   where
     lookupFunction :: Text -> RPCConfig -> STM (Maybe FunctionType)

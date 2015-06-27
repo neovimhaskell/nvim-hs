@@ -41,7 +41,10 @@ withNeovimEmbedded file testCase = do
                 , std_out = CreatePipe
                 }
 
-        e <- ConfigWrapper <$> newTQueueIO <*> pure "nvim-hs-test-suite" <*> newRPCConfig
+        e <- ConfigWrapper <$> newTQueueIO
+                           <*> newEmptyMVar
+                           <*> pure "nvim-hs-test-suite"
+                           <*> newRPCConfig
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 

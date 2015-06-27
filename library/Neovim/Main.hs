@@ -12,22 +12,22 @@ Stability   :  experimental
 module Neovim.Main
     where
 
-import           Neovim.Plugin       as P
 import           Neovim.Config
+import           Neovim.Plugin              as P
 import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
 
-import qualified Config.Dyre             as Dyre
+import qualified Config.Dyre                as Dyre
+import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
-import           Control.Monad
 import           Data.Monoid
 import           Neovim.API.Context
 import           Neovim.Debug
-import           Neovim.RPC.Common       as RPC
+import           Neovim.RPC.Common          as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 import           Options.Applicative
-import           System.IO               (stdin, stdout)
+import           System.IO                  (stdin, stdout)
 
 data CommandLineOptions =
     Opt { providerName :: String
@@ -112,7 +112,8 @@ runPluginProvider os = case (hostPort os, unix os) of
     run evHandlerSocket sockreaderSocket cfg = do
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
-        let conf = ConfigWrapper q (providerName os) ()
+        quitter <- newEmptyMVar
+        let conf = ConfigWrapper q quitter (providerName os) ()
             allPlugins = maybe id ((:) . ConfigHelper.plugin) (dyreParams cfg) $ plugins cfg
         startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
@@ -120,8 +121,15 @@ runPluginProvider os = case (hostPort os, unix os) of
                 let rpcEnv = conf { customConfig = rpcConfig }
                 ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
                 _ <- forkIO $ register (conf { customConfig = RPC.functions rpcConfig }) pluginTidsWithQueues
-                runSocketReader sockreaderSocket rpcEnv
-                forM_ (ehTid:concatMap (map fst . snd) pluginTidsWithQueues) $ \tid ->
-                    -- TODO actuall kill those threads in a reasonable way
-                    liftIO $ debugM "Neovim.Main" $ "Killing thread" <> show tid
+                let pluginTids = concatMap (map fst . snd) pluginTidsWithQueues
+                rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
+                debugM "Neovim.Main" "Waiting for threads to finish."
+                finish (rTid:ehTid:pluginTids) =<< readMVar quitter
 
+finish :: [ThreadId] -> QuitAction -> IO ()
+finish threads = \case
+    Restart -> do
+        debugM "Neovim.Main" "Trying to restart nvim-hs"
+        mapM_ killThread threads
+        Dyre.relaunchMaster Nothing
+    Quit -> return ()

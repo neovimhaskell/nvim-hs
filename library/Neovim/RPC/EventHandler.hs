@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- |
 Module      :  Neovim.RPC.EventHandler
@@ -43,7 +44,7 @@ runEventHandler socketType env =
     runEventHandlerContext env $ do
         h <- createHandle WriteMode socketType
         eventHandlerSource
-            $= awaitForever eventHandler
+            $= eventHandler
             $$ addCleanup (cleanUpHandle h) (sinkHandle h)
 
 -- | Convenient monad transformer stack for the event handler
@@ -60,8 +61,13 @@ eventHandlerSource :: Source EventHandler SomeMessage
 eventHandlerSource = asks _eventQueue >>= \q ->
     forever $ yield =<< atomically' (readTQueue q)
 
-eventHandler :: SomeMessage -> ConduitM SomeMessage ByteString EventHandler ()
-eventHandler message = case fromMessage message of
+eventHandler :: ConduitM SomeMessage ByteString EventHandler ()
+eventHandler = await >>= \case
+    Nothing -> return () -- i.e. close the conduit -- TODO signal shutdown globally
+    Just message -> handleMessage (fromMessage message) >> eventHandler
+
+handleMessage :: Maybe RPCMessage -> ConduitM i ByteString EventHandler ()
+handleMessage = \case
     Just (FunctionCall fn params reply time) -> do
         i <- get
         modify succ
@@ -86,5 +92,5 @@ eventHandler message = case fromMessage message of
             , toObject fn
             , toObject params
             ]
-    Nothing -> return ()
+    Nothing -> return () -- i.e. skip to next message
 

@@ -20,13 +20,13 @@ randPlugin = do
     -- don't use this for cryptography!
     let randomNumbers = cycle [42,17,-666] :: [Int16]
     wrapPlugin Plugin
-      { exports = [ ExportedFunctionality (Function "Randoom" Sync, randoom)
-                  , ExportedFunctionality (Function "Const42" Sync, const42)
+      { exports = [ EF (Function "Randoom" Sync, randoom)
+                  , EF (Function "Const42" Sync, const42)
                   ]
       , statefulExports =
           [((), randomNumbers,
-            [ ExportedFunctionality (Function "Random" Sync, rf)
-            , ExportedFunctionality (Function "InjectNumber" Sync, inj)
+            [ EF (Function "Random" Sync, rf)
+            , EF (Function "InjectNumber" Sync, inj)
             ])
           ]
       }
