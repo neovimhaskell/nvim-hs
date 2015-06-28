@@ -28,7 +28,7 @@ import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Text            as Text (Text, unpack)
+import           Data.Text            as Text (Text)
 import           Data.Traversable
 
 import           Prelude
@@ -108,7 +108,7 @@ instance NvimObject Int where
 instance {-# OVERLAPS #-} NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString
     fromObject (ObjectBinary o) = return $ U.toString o
-    fromObject (ObjectString o) = return $ Text.unpack o
+    fromObject (ObjectString o) = return $ U.toString o
     fromObject o                = throwError $ "Expected ObjectBinary, but got " <> show o
 
 instance NvimObject o => NvimObject [o] where
@@ -136,7 +136,7 @@ instance (Ord key, NvimObject key, NvimObject val)
 instance NvimObject Text where
     toObject                    = ObjectBinary . encodeUtf8
     fromObject (ObjectBinary o) = return $ decodeUtf8 o
-    fromObject (ObjectString o) = return o
+    fromObject (ObjectString o) = return $ decodeUtf8 o
     fromObject o                = throwError $ "Expected ObjectBinary, but got " <> show o
 
 instance NvimObject ByteString where

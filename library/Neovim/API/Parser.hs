@@ -28,7 +28,6 @@ import qualified Data.Map                 as Map
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Serialize
-import qualified Data.Text                as T
 import           System.IO                (hClose)
 import           System.Process
 import           Text.Parsec              as P
@@ -114,7 +113,7 @@ oLookupDefault d qry o = oMap o
 oToString :: Object -> Except String String
 oToString o = case o of
     ObjectBinary bs -> return $ U.toString bs
-    ObjectString t  -> return $ T.unpack t
+    ObjectString t  -> return $ U.toString t
     _ -> throwError $ show o <> " is not convertible to a String."
 
 -- | Extract an 'Int64' from an @Object@.
