@@ -11,7 +11,7 @@ function! s:RequireHaskellHost(name)
 	return rpcstart("./nvim-hs.sh", [a:name])
 endfunction
 
-call remote#host#Register(s:hostName, function('s:RequireHaskellHost'))
+call remote#host#Register(s:hostName, ".l\?hs",function('s:RequireHaskellHost'))
 let haskellChannel = remote#host#Require(s:hostName)
 echom haskellChannel
 " FIXME A request must be made to the host to make the following calls work.
