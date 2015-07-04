@@ -6,24 +6,18 @@
 " messages (something like dist/test/nvim-hs-0.0.1-hspec.log).
 
 " Initialize the plugin provider
-let s:hostName = 'test'
-function! s:RequireHaskellHost(name)
-	return rpcstart("./nvim-hs.sh", [a:name])
-endfunction
-
-call remote#host#Register(s:hostName, ".l\?hs",function('s:RequireHaskellHost'))
-let haskellChannel = remote#host#Require(s:hostName)
-echom haskellChannel
-" FIXME A request must be made to the host to make the following calls work.
-" It does not matter what function is called, just that some function must
-" be called.
-echom rpcrequest(haskellChannel, "test")
+call remote#host#Register('test', "*.l\?hs", rpcstart('./nvim-hs.sh', ['test']))
+let haskellChannel = remote#host#Require('test')
+" We need to issue a synchornous request to make sure that the function
+" hooks are registered before we try to call them. Issueing this as late as
+" possible will improve startup time because this is a blocking operation.
+" TODO think about hooking into a general undefined function autocmd.
+call rpcrequest(haskellChannel, 'Ping', [])
 
 if haskellChannel < 1
 	echom 'Failure to initialize the haskell channel for remote procedure calls'
 	cq!
 endif
-echom remote#host#IsRunning(s:hostName)
 
 " The test plugin random number generator is initialized with a static seed
 if Random() != 42
