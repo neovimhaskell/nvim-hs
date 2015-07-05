@@ -12,7 +12,7 @@ useful for plugin developement for neovim.
 -}
 module Neovim (
     module Neovim.Classes,
-    module Neovim.API.Context,
+    module Neovim.Context,
     module Neovim.API.String,
     module Neovim.API.TH,
     module Neovim.Config,
@@ -31,7 +31,7 @@ module Neovim (
     ) where
 
 import           Neovim.Classes
-import           Neovim.API.Context
+import           Neovim.Context
 import           Neovim.API.String
 import           Neovim.API.TH           (command, command', function,
                                           function')

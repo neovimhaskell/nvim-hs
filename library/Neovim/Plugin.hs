@@ -21,7 +21,7 @@ module Neovim.Plugin (
     CommandOptions(..),
     ) where
 
-import           Neovim.API.Context
+import           Neovim.Context
 import           Neovim.API.IPC
 import           Neovim.API.String
 import           Neovim.Plugin.Classes

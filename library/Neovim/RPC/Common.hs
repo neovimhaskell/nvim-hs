@@ -14,7 +14,7 @@ Stability   :  experimental
 module Neovim.RPC.Common
     where
 
-import           Neovim.API.Context
+import           Neovim.Context
 
 import           Control.Applicative
 import           Control.Concurrent.STM

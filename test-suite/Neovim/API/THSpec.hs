@@ -7,7 +7,7 @@ import Neovim.API.THSpecFunctions
 
 import Neovim.Classes
 import Neovim.API.TH
-import Neovim.API.Context
+import Neovim.Context
 import Neovim.Plugin.Classes
 
 import Data.Default

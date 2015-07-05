@@ -28,9 +28,14 @@ executable nvim-hs
 
 library
   exposed-modules:      Neovim
+  -- Note that every module below this is considered internal and if you have to
+  -- import it somewhere in your code and you think it should be generally
+  -- available , you should open a ticket about inclusion in the export list of
+  -- the Neovim module. Since we are still in a prototyping stage, every user of
+  -- this library should have the freedom to do what she wants.
                       , Neovim.API.String
                       , Neovim.Classes
-                      , Neovim.API.Context
+                      , Neovim.Context
                       , Neovim.Plugin
                       , Neovim.Plugin.Classes
                       , Neovim.API.IPC
@@ -42,6 +47,7 @@ library
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.ConfigHelper
+
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.API.Parser
                       , Neovim.API.TH

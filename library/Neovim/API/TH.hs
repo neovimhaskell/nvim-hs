@@ -25,7 +25,7 @@ module Neovim.API.TH
     ) where
 
 import           Neovim.Classes
-import           Neovim.API.Context
+import           Neovim.Context
 import           Neovim.API.Parser
 import           Neovim.Plugin.Classes    (ExportedFunctionality (..), FunctionalityDescription(..))
 import           Neovim.RPC.FunctionCall

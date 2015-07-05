@@ -21,7 +21,7 @@ import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Data.Monoid
-import           Neovim.API.Context
+import           Neovim.Context
 import           Neovim.Debug
 import           Neovim.RPC.Common          as RPC
 import           Neovim.RPC.EventHandler

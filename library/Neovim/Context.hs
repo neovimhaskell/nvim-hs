@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase         #-}
 {- |
-Module      :  Neovim.API.Context
+Module      :  Neovim.Context
 Description :  The Neovim context
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
@@ -10,7 +10,7 @@ Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 
 -}
-module Neovim.API.Context (
+module Neovim.Context (
     asks,
     ask,
     eventQueue,

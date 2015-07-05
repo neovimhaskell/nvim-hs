@@ -16,7 +16,7 @@ module Neovim.RPC.SocketReader (
     ) where
 
 import           Neovim.Classes
-import           Neovim.API.Context           hiding (ask, asks)
+import           Neovim.Context           hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall

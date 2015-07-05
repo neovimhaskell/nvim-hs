@@ -18,7 +18,7 @@ module Neovim.Classes
     , module Data.Int
     ) where
 
-import           Neovim.API.Context
+import           Neovim.Context
 
 import           Control.Applicative
 import           Control.Arrow
