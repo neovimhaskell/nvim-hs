@@ -283,7 +283,6 @@ functionImplementation functionName = do
     topLevelCase nargs
 
   where
-
     determineNumberOfArguments :: Type -> Int
     determineNumberOfArguments ft = case ft of
         ForallT _ _ t -> determineNumberOfArguments t
@@ -296,7 +295,9 @@ functionImplementation functionName = do
 
     -- _ -> err "Wrong number of arguments"
     errorCase :: Q Match
-    errorCase = match wildP (normalB [|err "Wrong number of arguments."|]) []
+    errorCase = match wildP
+        (normalB [|err $ "Wrong number of arguments for function: "
+                        ++ $(litE (StringL (nameBase functionName))) |]) []
 
     -- [x,y] -> case pure add <*> fromObject x <*> fromObject y of ...
     matchingCase :: Int -> Q Match
