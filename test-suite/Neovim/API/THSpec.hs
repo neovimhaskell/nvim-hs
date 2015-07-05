@@ -5,7 +5,7 @@ module Neovim.API.THSpec
 
 import Neovim.API.THSpecFunctions
 
-import Neovim.API.Classes
+import Neovim.Classes
 import Neovim.API.TH
 import Neovim.API.Context
 import Neovim.Plugin.Classes
@@ -70,7 +70,7 @@ spec = do
       let EF (Function fname _, testFun) = $(function' 'testSucc) def
       it "should be named TestSucc" $
           fname `shouldBe` "TestSucc"
-      it "should return the old value + 1" $ property $
+      it "should return the old value + 1" . property $
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do

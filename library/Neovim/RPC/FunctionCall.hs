@@ -21,7 +21,7 @@ module Neovim.RPC.FunctionCall (
     respond,
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 import           Neovim.API.Context
 import           Neovim.API.IPC
 

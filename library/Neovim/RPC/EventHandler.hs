@@ -14,7 +14,7 @@ module Neovim.RPC.EventHandler (
     runEventHandler,
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 import           Neovim.API.Context           hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common

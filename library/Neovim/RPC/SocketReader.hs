@@ -15,7 +15,7 @@ module Neovim.RPC.SocketReader (
     runSocketReader,
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 import           Neovim.API.Context           hiding (ask, asks)
 import           Neovim.API.IPC
 import           Neovim.RPC.Common
@@ -81,7 +81,7 @@ messageHandlerSink = awaitForever $ \rpc -> do
             handleResponseOrRequest msgType fi e result
         ObjectArray [ObjectInt msgType, method, params] ->
             handleNotification msgType method params
-        obj -> liftIO $ errorM logger $
+        obj -> liftIO . errorM logger $
             "Unhandled rpc message: " <> show obj
 
 handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
@@ -90,7 +90,7 @@ handleResponseOrRequest msgType i
     | msgType == 1 = handleResponse i
     | msgType == 0 = handleRequestOrNotification (Just i)
     | otherwise = \_ _ -> do
-        liftIO $ errorM logger $ "Invalid message type: " <> show msgType
+        liftIO . errorM logger $ "Invalid message type: " <> show msgType
         return ()
 
 handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
@@ -101,7 +101,7 @@ handleResponse i e result = do
         Nothing -> liftIO $ warningM logger
             "Received response but could not find a matching recipient."
         Just (_,reply) -> do
-            atomically' $ modifyTVar' answerMap $ Map.delete i
+            atomically' . modifyTVar' answerMap $ Map.delete i
             atomically' . putTMVar reply $ case e of
                 ObjectNil -> Right result
                 _         -> Left e

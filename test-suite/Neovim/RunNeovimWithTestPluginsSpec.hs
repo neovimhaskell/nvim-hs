@@ -11,7 +11,7 @@ import           System.Process
 
 spec :: Spec
 spec = describe "The executable created by TestPlugins.hs should cause the\
-      \ script TestPlugins.vim to return proper values." $
+      \ script TestPlugins.vim to return proper values." .
     it "should have an exit status of 0" $ do
       (_,Just _,_,ph) <- createProcess (proc "nvim" ["-n","-u","TestPlugins.vim"])
                          { std_out = CreatePipe }

@@ -19,12 +19,12 @@ module Neovim.API.TH
     , autocmd
     , defaultAPITypeToHaskellTypeMap
     , module Control.Exception.Lifted
-    , module Neovim.API.Classes
+    , module Neovim.Classes
     , module Data.Data
     , module Data.MessagePack
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 import           Neovim.API.Context
 import           Neovim.API.Parser
 import           Neovim.Plugin.Classes    (ExportedFunctionality (..), FunctionalityDescription(..))
@@ -135,7 +135,8 @@ createFunction typeMap nf = do
 
 
     ret <- let (r,st) = (mkName "r", mkName "st")
-           in forallT [PlainTV r, PlainTV st] (return []) $ appT ([t|Neovim $(varT r) $(varT st) |])
+           in forallT [PlainTV r, PlainTV st] (return [])
+            . appT ([t|Neovim $(varT r) $(varT st) |])
             . withDeferred . withException
             . apiTypeToHaskellType typeMap $ returnType nf
 

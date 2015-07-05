@@ -31,7 +31,7 @@ withNeovimEmbedded file testCase = do
         args <- case file of
             Just f -> do
                 fileExists <- doesFileExist f
-                unless fileExists $ expectationFailure $ concat
+                unless fileExists . expectationFailure $ concat
                     ["File ", f, " does not exst."]
                 return [f]
             Nothing -> return []
@@ -62,15 +62,15 @@ withNeovimEmbedded file testCase = do
 spec :: Spec
 spec = parallel $ do
   let helloFile = "test-files/hello"
-  describe "Read hello test file" $
-    it "should match 'Hello, World!'" $ withNeovimEmbedded (Just helloFile) $ do
+  describe "Read hello test file" .
+    it "should match 'Hello, World!'" . withNeovimEmbedded (Just helloFile) $ do
         bs <- vim_get_buffers
         l <- vim_get_current_line
         liftIO $ l `shouldBe` Right "Hello, World!"
         liftIO $ length bs `shouldBe` 1
 
   describe "New empty buffer test" $ do
-    it "should contain the test text" $ withNeovimEmbedded Nothing $ do
+    it "should contain the test text" . withNeovimEmbedded Nothing $ do
         cl0 <- vim_get_current_line
         liftIO $ cl0 `shouldBe` Right ""
         bs <- vim_get_buffers
@@ -83,7 +83,7 @@ spec = parallel $ do
         recs <- atomically' . readTVar =<< asks recipients
         liftIO $ Map.size recs `shouldBe` 0
 
-    it "should create a new buffer" $ withNeovimEmbedded Nothing $ do
+    it "should create a new buffer" . withNeovimEmbedded Nothing $ do
         bs0 <- vim_get_buffers
         liftIO $ length bs0 `shouldBe` 1
         wait' $ vim_command "new"

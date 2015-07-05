@@ -3,7 +3,7 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE OverlappingInstances       #-}
 {- |
-Module      :  Neovim.API.Classes
+Module      :  Neovim.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
@@ -12,7 +12,7 @@ Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 
 -}
-module Neovim.API.Classes
+module Neovim.Classes
     ( NvimObject(..)
 
     , module Data.Int
@@ -105,7 +105,7 @@ instance NvimObject Int where
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
 
-instance {-# OVERLAPS #-} NvimObject [Char] where
+instance NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString
     fromObject (ObjectBinary o) = return $ U.toString o
     fromObject (ObjectString o) = return $ U.toString o

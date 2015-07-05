@@ -11,7 +11,7 @@ This module should export all modules and functions which are generally
 useful for plugin developement for neovim.
 -}
 module Neovim (
-    module Neovim.API.Classes,
+    module Neovim.Classes,
     module Neovim.API.Context,
     module Neovim.API.String,
     module Neovim.API.TH,
@@ -30,7 +30,7 @@ module Neovim (
     module Control.Concurrent.STM,
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 import           Neovim.API.Context
 import           Neovim.API.String
 import           Neovim.API.TH           (command, command', function,

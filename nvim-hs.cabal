@@ -29,13 +29,11 @@ executable nvim-hs
 library
   exposed-modules:      Neovim
                       , Neovim.API.String
-                      , Neovim.API.Classes
+                      , Neovim.Classes
                       , Neovim.API.Context
-                      , Neovim.API.Parser
                       , Neovim.Plugin
                       , Neovim.Plugin.Classes
                       , Neovim.API.IPC
-                      , Neovim.API.TH
                       , Neovim.Config
                       , Neovim.Debug
                       , Neovim.Main
@@ -45,6 +43,8 @@ library
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.ConfigHelper
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
+                      , Neovim.API.Parser
+                      , Neovim.API.TH
   -- other-extensions:
   build-depends:        base ==4.*
                       , bytestring

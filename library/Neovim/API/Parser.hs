@@ -16,7 +16,7 @@ module Neovim.API.Parser
     , parseAPI
     ) where
 
-import           Neovim.API.Classes
+import           Neovim.Classes
 
 import           Control.Applicative
 import           Control.Exception.Lifted
