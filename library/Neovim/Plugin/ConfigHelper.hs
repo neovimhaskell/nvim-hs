@@ -24,7 +24,7 @@ import Neovim.Plugin.ConfigHelper.Internal
 plugin :: Params NeovimConfig -> IO NeovimPlugin
 plugin params = wrapPlugin Plugin
     { exports =
-        [ $(function' 'ping) Sync
+        [ $(function' 'pingNvimhs) Sync
         , $(command' 'restartNvimhs) def { sync = Async }
         ]
     , statefulExports =

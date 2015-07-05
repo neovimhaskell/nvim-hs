@@ -22,6 +22,7 @@ randPlugin = do
     wrapPlugin Plugin
       { exports = [ EF (Function "Randoom" Sync, randoom)
                   , EF (Function "Const42" Sync, const42)
+                  , EF (Function "PingNvimhs" Sync, pingNvimhs)
                   ]
       , statefulExports =
           [((), randomNumbers,
@@ -53,3 +54,6 @@ randoom _ = err "Function not supported"
 
 const42 :: [Object] -> Neovim cfg st Object
 const42 _ = return $ ObjectInt 42
+
+pingNvimhs :: [Object] -> Neovim cfg st Object
+pingNvimhs _ = return $ ObjectString "Pong"

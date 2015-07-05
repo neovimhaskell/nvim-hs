@@ -21,8 +21,8 @@ import           Config.Dyre.Compile
 
 import           System.Log.Logger
 
-ping :: Neovim' String
-ping = return "Pong"
+pingNvimhs :: Neovim' String
+pingNvimhs = return "Pong"
 
 recompileNvimhs :: Neovim (Params NeovimConfig) (Maybe String) ()
 recompileNvimhs = do

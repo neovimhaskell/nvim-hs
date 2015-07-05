@@ -12,7 +12,15 @@ let haskellChannel = remote#host#Require('test')
 " hooks are registered before we try to call them. Issueing this as late as
 " possible will improve startup time because this is a blocking operation.
 " TODO think about hooking into a general undefined function autocmd.
-call rpcrequest(haskellChannel, 'Ping', [])
+try
+	if "Pong" != rpcrequest(haskellChannel, 'PingNvimhs', [])
+		echom 'Ping function not properly registered'
+		cq!
+	endif
+catch
+	echom 'Functions not properly registered aborting'
+	cq!
+endtry
 
 if haskellChannel < 1
 	echom 'Failure to initialize the haskell channel for remote procedure calls'
