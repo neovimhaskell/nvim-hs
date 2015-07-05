@@ -21,18 +21,19 @@ module Neovim.Plugin (
     CommandOptions(..),
     ) where
 
-import           Neovim.Context
-import           Neovim.API.IPC
 import           Neovim.API.String
+import           Neovim.Context
 import           Neovim.Plugin.Classes
+import           Neovim.Plugin.IPC
+import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Arrow ((&&&), first)
+import           Control.Arrow            (first, (&&&))
 import           Control.Concurrent       (ThreadId)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted (SomeException, try)
-import           Control.Monad            (foldM, void, forM)
+import           Control.Monad            (foldM, forM, void)
 import qualified Control.Monad.Reader     as R
 import           Data.Foldable            (forM_)
 import qualified Data.Map                 as Map

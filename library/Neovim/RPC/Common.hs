@@ -1,6 +1,6 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes        #-}
 {- |
 Module      :  Neovim.RPC.Common
 Description :  Common functons for the RPC module
@@ -19,6 +19,7 @@ import           Neovim.Context
 import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad
+import           Data.Int               (Int64)
 import           Data.Map
 import           Data.MessagePack
 import           Data.Monoid
@@ -26,7 +27,7 @@ import           Data.Streaming.Network
 import           Data.String
 import           Data.Text              (Text)
 import           Data.Time
-import           Neovim.API.IPC
+import           Neovim.Plugin.IPC
 import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode,

@@ -24,10 +24,11 @@ module Neovim.API.TH
     , module Data.MessagePack
     ) where
 
+import           Neovim.API.Parser
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.API.Parser
-import           Neovim.Plugin.Classes    (ExportedFunctionality (..), FunctionalityDescription(..))
+import           Neovim.Plugin.Classes    (ExportedFunctionality (..),
+                                           FunctionalityDescription (..))
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH

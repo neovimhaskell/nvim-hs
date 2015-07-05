@@ -1,42 +1,31 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {- |
-Module      :  Neovim.API.IPC
-Description :  Communication between Haskell processes/threads
+Module      :  Neovim.Plugin.IPC.Internal
+Description :  Internally used parts of the inter plugin communication
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
 
 Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
+Portability :  GHC
 
 -}
-module Neovim.API.IPC (
-    SomeMessage(..),
-    RPCMessage(..),
-    Request(..),
-    Notification(..),
-    fromMessage,
+module Neovim.Plugin.IPC.Internal
+    ( RPCMessage(..)
+    , Request(..)
+    , Notification(..)
 
-    module Data.Int,
+    , module Data.Int
+    , module Data.Time
     ) where
 
 import           Control.Concurrent.STM
+import           Data.Data                 (Typeable)
+import           Data.Int                  (Int64)
 import           Data.MessagePack
-import           Data.Text              as Text
+import           Data.Text                 (Text)
 import           Data.Time
-import           Data.Typeable          (Typeable, cast)
-import           Data.Int               (Int64)
-
-
--- | Taken from xmonad and based on ideas in /An Extensible Dynamically-Typed
--- Hierarchy of Exceptions/, Simon Marlow, 2006.
---
--- User-extensible messages must be a member of this class.
-data SomeMessage = forall msg. Message msg => SomeMessage msg
-
-class Typeable message => Message message where
-    fromMessage :: SomeMessage -> Maybe message
-    fromMessage (SomeMessage message) = cast message
+import           Neovim.Plugin.IPC.Classes
 
 -- | Haskell representation of supported Remote Procedure Call messages.
 data RPCMessage

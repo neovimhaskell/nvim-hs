@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {- |
 Module      :  Neovim.RPC.EventHandler
 Description :  Event handling loop
@@ -15,8 +15,9 @@ module Neovim.RPC.EventHandler (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Context           hiding (ask, asks)
-import           Neovim.API.IPC
+import           Neovim.Context               hiding (ask, asks)
+import           Neovim.Plugin.IPC
+import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -71,8 +72,8 @@ handleMessage = \case
     Just (FunctionCall fn params reply time) -> do
         i <- get
         modify succ
-        rec <- asks (recipients . customConfig)
-        atomically' . modifyTVar rec $ Map.insert i (time, reply)
+        rs <- asks (recipients . customConfig)
+        atomically' . modifyTVar rs $ Map.insert i (time, reply)
         yield . encode $ ObjectArray
             [ toObject (0 :: Int64)
             , ObjectInt i

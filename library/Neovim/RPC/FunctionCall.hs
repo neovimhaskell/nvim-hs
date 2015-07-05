@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.RPC.FunctionCall
@@ -23,7 +23,8 @@ module Neovim.RPC.FunctionCall (
 
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.API.IPC
+import           Neovim.Plugin.IPC
+import           Neovim.Plugin.IPC.Internal
 
 import           Control.Applicative
 import           Control.Concurrent.STM
@@ -31,9 +32,6 @@ import           Control.Monad.Reader   as R
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text
-import           Data.Time
-
-import           Prelude
 
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $

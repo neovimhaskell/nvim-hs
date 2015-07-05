@@ -45,7 +45,7 @@ import           Control.Monad.Reader   hiding (ask, asks)
 import qualified Control.Monad.Reader   as R
 import           Control.Monad.State
 import           Data.Data              (Typeable)
-import           Neovim.API.IPC         (SomeMessage)
+import           Neovim.Plugin.IPC         (SomeMessage)
 import           System.Log.Logger
 
 -- | A wrapper for a reader value that contains extra fields required to

@@ -16,8 +16,9 @@ module Neovim.RPC.SocketReader (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Context           hiding (ask, asks)
-import           Neovim.API.IPC
+import           Neovim.Context               hiding (ask, asks)
+import           Neovim.Plugin.IPC
+import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -36,7 +37,6 @@ import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize               (get)
 import           Data.Text                    (Text, unpack)
-import           Data.Time
 import           System.IO                    (IOMode (ReadMode))
 import           System.Log.Logger
 
