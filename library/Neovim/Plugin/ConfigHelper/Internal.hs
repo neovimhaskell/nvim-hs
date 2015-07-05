@@ -37,5 +37,5 @@ recompileNvimhs = do
 -- more time then you might expect.
 restartNvimhs :: Neovim r st ()
 restartNvimhs = do
-    liftIO $ debugM "ConfigHelper" "Throwing exception to restart"
+    liftIO $ debugM "ConfigHelper" "Issuing restart"
     restart
