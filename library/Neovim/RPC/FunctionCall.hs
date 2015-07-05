@@ -28,7 +28,7 @@ import           Neovim.Plugin.IPC.Internal
 
 import           Control.Applicative
 import           Control.Concurrent.STM
-import           Control.Monad.Reader   as R
+import           Control.Monad.Reader       as R
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text

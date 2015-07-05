@@ -26,7 +26,7 @@ module Neovim.Plugin.Classes (
 
 import           Data.Default
 import           Data.MessagePack
-import           Data.Text          (Text)
+import           Data.Text        (Text)
 import           Neovim.Context
 
 -- | This data type is used in the plugin registration to properly register the

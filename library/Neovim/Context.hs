@@ -36,7 +36,7 @@ module Neovim.Context (
     ) where
 
 
-import           Control.Concurrent     (ThreadId, forkIO, putMVar, MVar)
+import           Control.Concurrent     (MVar, ThreadId, forkIO, putMVar)
 import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad.Except
@@ -45,7 +45,7 @@ import           Control.Monad.Reader   hiding (ask, asks)
 import qualified Control.Monad.Reader   as R
 import           Control.Monad.State
 import           Data.Data              (Typeable)
-import           Neovim.Plugin.IPC         (SomeMessage)
+import           Neovim.Plugin.IPC      (SomeMessage)
 import           System.Log.Logger
 
 -- | A wrapper for a reader value that contains extra fields required to

@@ -1,6 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE TemplateHaskell    #-}
 {- |
 Module      :  Neovim.API.String
 Description :  String based API
@@ -14,7 +14,7 @@ Stability   :  experimental
 module Neovim.API.String
     where
 
-import Neovim.API.TH
+import           Neovim.API.TH
 
 $(generateAPI defaultAPITypeToHaskellTypeMap)
 

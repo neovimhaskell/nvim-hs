@@ -10,8 +10,8 @@ Stability   :  experimental
 -}
 module Main where
 
-import Neovim (neovim)
-import Data.Default
+import           Data.Default
+import           Neovim       (neovim)
 
 main :: IO ()
 main = neovim def

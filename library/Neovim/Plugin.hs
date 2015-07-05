@@ -29,16 +29,16 @@ import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Arrow            (first, (&&&))
-import           Control.Concurrent       (ThreadId)
+import           Control.Arrow              (first, (&&&))
+import           Control.Concurrent         (ThreadId)
 import           Control.Concurrent.STM
-import           Control.Exception.Lifted (SomeException, try)
-import           Control.Monad            (foldM, forM, void)
-import qualified Control.Monad.Reader     as R
-import           Data.Foldable            (forM_)
-import qualified Data.Map                 as Map
+import           Control.Exception.Lifted   (SomeException, try)
+import           Control.Monad              (foldM, forM, void)
+import qualified Control.Monad.Reader       as R
+import           Data.Foldable              (forM_)
+import qualified Data.Map                   as Map
 import           Data.MessagePack
-import           Data.Text                (unpack)
+import           Data.Text                  (unpack)
 import           System.Log.Logger
 
 logger :: String

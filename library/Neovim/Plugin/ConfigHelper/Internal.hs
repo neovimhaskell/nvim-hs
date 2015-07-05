@@ -13,8 +13,8 @@ Portability :  GHC
 module Neovim.Plugin.ConfigHelper.Internal
     where
 
-import           Neovim.Context
 import           Neovim.Config
+import           Neovim.Context
 
 import           Config.Dyre         (Params)
 import           Config.Dyre.Compile

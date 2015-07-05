@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE OverlappingInstances       #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverlappingInstances  #-}
+{-# LANGUAGE RankNTypes            #-}
 {- |
 Module      :  Neovim.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types

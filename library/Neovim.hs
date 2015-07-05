@@ -30,14 +30,16 @@ module Neovim (
     module Control.Concurrent.STM,
     ) where
 
-import           Neovim.Classes
-import           Neovim.Context
 import           Neovim.API.String
 import           Neovim.API.TH           (command, command', function,
                                           function')
+import           Neovim.Classes
 import           Neovim.Config
+import           Neovim.Context
 import           Neovim.Main             (neovim)
-import           Neovim.Plugin           (NeovimPlugin, Plugin (..), wrapPlugin, Synchronous(..), CommandOptions(..))
+import           Neovim.Plugin           (CommandOptions (..), NeovimPlugin,
+                                          Plugin (..), Synchronous (..),
+                                          wrapPlugin)
 import           Neovim.RPC.FunctionCall (atomically', respond, wait, wait')
 
 import           Control.Concurrent      (forkIO)

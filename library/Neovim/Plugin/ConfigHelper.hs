@@ -13,11 +13,11 @@ Portability :  GHC
 module Neovim.Plugin.ConfigHelper
     where
 
-import Neovim.Plugin.Classes
-import Config.Dyre (Params)
-import Neovim.Config
-import Neovim.API.TH
-import Neovim.Plugin.ConfigHelper.Internal
+import           Config.Dyre                         (Params)
+import           Neovim.API.TH
+import           Neovim.Config
+import           Neovim.Plugin.Classes
+import           Neovim.Plugin.ConfigHelper.Internal
 
 -- | Note that you cannot really use this plugin by hand. It is automatically
 -- loaded for all Neovim instances.

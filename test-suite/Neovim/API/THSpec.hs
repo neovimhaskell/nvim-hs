@@ -1,24 +1,24 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 module Neovim.API.THSpec
     where
 
-import Neovim.API.THSpecFunctions
+import           Neovim.API.THSpecFunctions
 
-import Neovim.Classes
-import Neovim.API.TH
-import Neovim.Context
-import Neovim.Plugin.Classes
+import           Neovim.API.TH
+import           Neovim.Classes
+import           Neovim.Context
+import           Neovim.Plugin.Classes
 
-import Data.Default
-import qualified Data.Map as Map
+import           Data.Default
+import qualified Data.Map                   as Map
 
-import Test.Hspec
-import Test.QuickCheck
+import           Test.Hspec
+import           Test.QuickCheck
 
-import Control.Applicative
-import Control.Concurrent
-import Control.Concurrent.STM
+import           Control.Applicative
+import           Control.Concurrent
+import           Control.Concurrent.STM
 
 call :: ([Object] -> Neovim () () Object) -> [Object]
      -> IO Object

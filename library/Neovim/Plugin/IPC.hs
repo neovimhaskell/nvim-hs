@@ -16,5 +16,5 @@ module Neovim.Plugin.IPC (
 
     ) where
 
-import Neovim.Plugin.IPC.Classes
+import           Neovim.Plugin.IPC.Classes
 

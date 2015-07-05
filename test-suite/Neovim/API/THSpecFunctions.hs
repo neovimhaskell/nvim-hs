@@ -1,8 +1,8 @@
 module Neovim.API.THSpecFunctions
     where
 
-import Neovim.Context
-import qualified Data.Map as Map
+import qualified Data.Map       as Map
+import           Neovim.Context
 
 testFunction0 :: Neovim' Int
 testFunction0 = return 42
