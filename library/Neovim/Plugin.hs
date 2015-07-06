@@ -22,6 +22,7 @@ module Neovim.Plugin (
     ) where
 
 import           Neovim.API.String
+import           Neovim.Classes
 import           Neovim.Context
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.IPC
@@ -35,6 +36,7 @@ import           Control.Concurrent.STM
 import           Control.Exception.Lifted   (SomeException, try)
 import           Control.Monad              (foldM, forM, void)
 import qualified Control.Monad.Reader       as R
+import           Data.ByteString            (ByteString)
 import           Data.Foldable              (forM_)
 import qualified Data.Map                   as Map
 import           Data.MessagePack
@@ -74,12 +76,9 @@ registerWithNeovim :: FunctionalityDescription -> Neovim customConfig () ()
 registerWithNeovim = \case
     Function functionName s -> do
         pName <- R.asks _providerName
-        let sync = case s of
-                Sync -> "1"
-                Async -> "0"
-        ret <- wait . vim_command $ concat
-            [ "call remote#define#FunctionOnHost('" , pName ,"', '"
-            , unpack functionName, "', ", sync, ",'", unpack functionName, "',{})"
+        ret <- wait $ vim_call_function "remote#define#FunctionOnHost"
+            [ toObject pName, toObject functionName, toObject s
+            , toObject functionName, toObject (Map.empty :: Map.Map ByteString Object)
             ]
         case ret of
             Left e -> liftIO . errorM logger $
@@ -88,20 +87,26 @@ registerWithNeovim = \case
                 "Registered function: " ++ unpack functionName
     Command functionName copts -> do
         pName <- R.asks _providerName
-        let s = case sync copts of
-                Sync -> "1"
-                Async -> "0"
-        ret <- wait . vim_command $ concat
-            [ "call remote#define#CommandOnHost('", pName, "', '"
-            , unpack functionName, "', ", s, ", '", unpack functionName
-            , "', {})"
+        ret <- wait $ vim_call_function "remote#define#CommandOnHost"
+            [ toObject pName, toObject functionName, toObject (cmdSync copts)
+            , toObject functionName, toObject copts
             ]
         case ret of
             Left e -> liftIO . errorM logger $
                 "Failed to register command: " ++ unpack functionName ++ show e
             Right _ -> liftIO . debugM logger $
                 "Registered command: " ++ unpack functionName
-    AutoCmd{} -> liftIO $ errorM logger "Registering of autocmds not yet supported!"
+    Autocmd acmdType functionName opts -> do
+        pName <- R.asks _providerName
+        ret <- wait $ vim_call_function "remote#define#AutocmdOnHost"
+            [ toObject pName, toObject functionName, toObject (acmdSync opts)
+            , toObject acmdType , toObject opts
+            ]
+        case ret of
+            Left e -> liftIO . errorM logger $
+                "Failed to register autocmd: " ++ unpack functionName ++ show e
+            Right _ -> liftIO . debugM logger $
+                "Registered autocmd: " ++ unpack functionName
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).

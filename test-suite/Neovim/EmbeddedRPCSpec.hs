@@ -6,21 +6,29 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
+import           Neovim.Quickfix
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 
 import           Control.Concurrent
+import           Control.Monad.Reader (runReaderT)
+import           Control.Monad.State
 import qualified Data.Map                as Map
 import           System.Directory
 import           System.Exit             (ExitCode (..))
 import           System.IO               (hClose)
 import           System.Process
 
+testNeovim :: ConfigWrapper r
+          -> Neovim r () a
+          -> IO (a, ())
+testNeovim r a = runReaderT (runStateT a ()) r
+
 withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> Assertion
 withNeovimEmbedded file testCase = do
     (hin, hout, ph, e) <- startNvim
-    void $ runNeovim e () runTest
+    void $ testNeovim e runTest
     hClose hin
     hClose hout
     waitForProcess ph >>= \case
@@ -95,4 +103,10 @@ spec = parallel $ do
 
         recs <- atomically' . readTVar =<< asks recipients
         liftIO $ Map.size recs `shouldBe` 0
+
+    it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
+        let q = quickfixListItem (Left 1) (Left 1337) :: QuickfixListItem String
+        setqflist [q] Replace
+        Right q' <- wait $ vim_eval "getqflist()"
+        liftIO $ fromObject q' `shouldBe` Right [q]
 
