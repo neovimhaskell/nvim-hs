@@ -6,6 +6,7 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
+import           Neovim.Quickfix
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
@@ -95,4 +96,10 @@ spec = parallel $ do
 
         recs <- atomically' . readTVar =<< asks recipients
         liftIO $ Map.size recs `shouldBe` 0
+
+    it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
+        let q = quickFixListItem (Left 1) (Left 1337) :: QuickfixListItem String
+        setqflist [q] Replace
+        Right q' <- wait $ vim_eval "getqflist()"
+        liftIO $ fromObject q' `shouldBe` Right q
 

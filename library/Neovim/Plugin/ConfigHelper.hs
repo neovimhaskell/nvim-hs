@@ -28,6 +28,6 @@ plugin params = wrapPlugin Plugin
         , $(command' 'restartNvimhs) def { sync = Async }
         ]
     , statefulExports =
-        [ (params, Nothing, [$(command' 'recompileNvimhs) def { sync = Async }])
+        [ (params, [], [$(command' 'recompileNvimhs) def { sync = Async }])
         ]
     }
