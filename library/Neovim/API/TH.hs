@@ -79,7 +79,7 @@ defaultAPITypeToHaskellTypeMap = Map.fromList
     [ ("Boolean"   , [t|Bool|])
     , ("Integer"   , [t|Int64|])
     , ("Float"     , [t|Double|])
-    , ("Array"     , [t|Object|])
+    , ("Array"     , [t|[Object]|])
     , ("Dictionary", [t|Map Object Object|])
     , ("void"      , [t|()|])
     ]
