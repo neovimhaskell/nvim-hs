@@ -1,0 +1,4 @@
+
+/.config/nvim/lib/TestPlugins.hs:23:9:
+    Not in scope: ‘vim_call_dict_function’
+    Perhaps you meant ‘vim_call_function’ (imported from Neovim)

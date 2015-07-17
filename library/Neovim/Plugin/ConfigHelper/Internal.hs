@@ -51,6 +51,8 @@ recompileNvimhs = do
 restartNvimhs :: Neovim r st ()
 restartNvimhs = restart
 
+-- See the tests in @test-suite\/Neovim\/Plugin\/ConfigHelperSpec.hs@ on how the
+-- error messages look like.
 parseQuickfixItems :: String -> [QuickfixListItem String]
 parseQuickfixItems s =
     case parse (many pQuickfixListItem) "Quickfix parser" s of
@@ -80,16 +82,16 @@ pQuickfixListItem = do
     _ <- many blankLine
     (f,l,c) <- pLocation
     desc <- try pShortDesrciption <|> pLongDescription
-    return $ (quickFixListItem (Right f) (Left l))
+    return $ (quickfixListItem (Right f) (Left l))
         { col = Just (c, True)
-        , text = Just desc
-        , errorType = Just 'E' -- TODO determine actual type
+        , text = desc
+        , errorType = "E" -- TODO determine actual type
         }
 
 pShortDesrciption :: Parser String
 pShortDesrciption = (:)
     <$> (many spaceChar *> notFollowedBy blankLine *> anyChar)
-    <*> anyChar `manyTill` (blankLine <|> eof)
+    <*> anyChar `manyTill` (void (many1 blankLine) <|> eof)
 
 pLongDescription :: Parser String
 pLongDescription = anyChar `manyTill` (blank <|> eof)
@@ -107,6 +109,8 @@ blankLine = void . try $ many spaceChar >> newline
 -- The result will be a triple of filename, line number and column
 
 -- | Try to parse location information.
+--
+-- @\/some\/path\/to\/a\/file.hs:42:88:@
 pLocation :: Parser (String, Int, Int)
 pLocation = (,,)
     <$> many1 (noneOf ":\n\t\r") <* char ':'

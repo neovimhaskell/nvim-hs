@@ -20,16 +20,17 @@ import           Data.ByteString         as BS (ByteString, all, elem)
 import qualified Data.Map                as Map
 import           Data.Maybe
 import           Data.MessagePack
+import           Data.Monoid
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
 import           Neovim.RPC.FunctionCall
 
-setqflist :: NvimObject strType
+setqflist :: (Monoid strType, NvimObject strType)
           => [QuickfixListItem strType] -> QuickfixAction -> Neovim r st ()
 setqflist qs a = do
     -- TODO replace with vim_call_function once it's in an official pre-release
-    let vqs = "nvim-hs-qs"
+    let vqs = "nvimhsqs"
     _ <- wait' $ vim_set_var vqs (ObjectArray [toObject qs, toObject a])
     _ <- wait' . vim_eval $ concat ["call('setqflist', g:", vqs, ")"]
     return ()
@@ -37,6 +38,9 @@ setqflist qs a = do
 -- | Quickfix list item. The parameter names should mostly conform to those in
 -- @:h setqflist()@. Some fields are merged to explicitly state mutually
 -- exclusive elements or some other behavior of the fields.
+--
+-- see 'quickfixListItem' for creating a value of this type without typing too
+-- much.
 data QuickfixListItem strType = QFItem
     { bufOrFile     :: Either Int strType
     -- ^ Since the filename is only used if no buffer can be specified, this
@@ -49,23 +53,29 @@ data QuickfixListItem strType = QFItem
     -- used. 'False' means to use the byte index.
     , nr            :: Maybe Int
     -- ^ Error number.
-    , text          :: Maybe strType
+    , text          :: strType
     -- ^ Description of the error.
-    , errorType     :: Maybe Char
+    , errorType     :: strType
     -- ^ TODO replace with enum, but too lazy for now.
     } deriving (Eq, Show)
 
-quickFixListItem :: Either Int strType -> Either Int strType -> QuickfixListItem strType
-quickFixListItem bufferOrFile lineOrPattern = QFItem
+-- | Create a 'QuickfixListItem' by providing the minimal amount of arguments
+-- needed.
+quickfixListItem :: (Monoid strType)
+                 => Either Int strType -- ^ buffer of file name
+                 -> Either Int strType -- ^ line number or pattern
+                 -> QuickfixListItem strType
+quickfixListItem bufferOrFile lineOrPattern = QFItem
     { bufOrFile = bufferOrFile
     , lnumOrPattern = lineOrPattern
     , col = Nothing
     , nr = Nothing
-    , text = Nothing
-    , errorType = Nothing
+    , text = mempty
+    , errorType = mempty
     }
 
-instance NvimObject strType => NvimObject (QuickfixListItem strType) where
+instance (Monoid strType, NvimObject strType)
+            => NvimObject (QuickfixListItem strType) where
     toObject QFItem{..} =
         (toObject :: Map.Map ByteString Object -> Object) . Map.fromList $
             [ either (\b -> ("bufnr", toObject b))
@@ -74,12 +84,12 @@ instance NvimObject strType => NvimObject (QuickfixListItem strType) where
             , either (\l -> ("lnum", toObject l))
                      (\p -> ("pattern", toObject p))
                      lnumOrPattern
+            , ("type", toObject errorType)
+            , ("text", toObject text)
             ] ++ catMaybes
             [ (\n -> ("nr", toObject n)) <$> nr
             , (\(c,_) -> ("col", toObject c)) <$> col
             , (\(_,t) -> ("vcol", toObject t)) <$> col
-            , (\t -> ("text", toObject t)) <$> text
-            , (\t -> ("type", toObject t)) <$> errorType
             ]
 
     fromObject objectMap@(ObjectMap _) = do
@@ -100,12 +110,19 @@ instance NvimObject strType => NvimObject (QuickfixListItem strType) where
             l' key = case Map.lookup key m of
                 Just o -> Just <$> fromObject o
                 Nothing -> return Nothing
-        nr <- l' "nr"
+        nr <- l' "nr" >>= \case
+                Just 0 -> return Nothing
+                nr' -> return nr'
         c <- l' "col"
-        v <- fromMaybe (Just False) <$> l' "vcol"
-        let col = (,) <$> c <*> v
-        text <- l' "text"
-        errorType <- l' "type"
+        v <- l' "vcol"
+        let col = do
+                c' <- c
+                v' <- v
+                case c' of
+                    0 -> Nothing
+                    _ -> Just (c',v')
+        text <- fromMaybe mempty <$> l' "text"
+        errorType <- fromMaybe mempty <$> l' "type"
         return QFItem{..}
     fromObject o = throwError $ "Could not deserialize QuickfixListItem, expected a map but received: " ++ show o
 

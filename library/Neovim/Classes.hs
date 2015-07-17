@@ -60,10 +60,14 @@ instance NvimObject () where
     fromObject ObjectNil = return ()
     fromObject o         = throwError $ "Expected ObjectNil, but got " <> show o
 
+-- We may receive truthy values from neovim, so we should be more forgiving
+-- here.
 instance NvimObject Bool where
     toObject                  = ObjectBool
     fromObject (ObjectBool o) = return o
-    fromObject o              = throwError $ "Expected ObjectBool, but got " <> show o
+    fromObject (ObjectInt  0) = return False
+    fromObject ObjectNil      = return False
+    fromObject _              = return True
 
 instance NvimObject Double where
     toObject                    = ObjectDouble
