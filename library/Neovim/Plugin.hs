@@ -77,8 +77,8 @@ registerWithNeovim = \case
         let sync = case s of
                 Sync -> "1"
                 Async -> "0"
-        ret <- wait . vim_command $ concat
-            [ "call remote#define#FunctionOnHost('" , pName ,"', '"
+        ret <- wait . vim_eval $ concat
+            [ "remote#define#FunctionOnHost('" , pName ,"', '"
             , unpack functionName, "', ", sync, ",'", unpack functionName, "',{})"
             ]
         case ret of
@@ -88,11 +88,11 @@ registerWithNeovim = \case
                 "Registered function: " ++ unpack functionName
     Command functionName copts -> do
         pName <- R.asks _providerName
-        let s = case sync copts of
+        let s = case cmdSync copts of
                 Sync -> "1"
                 Async -> "0"
-        ret <- wait . vim_command $ concat
-            [ "call remote#define#CommandOnHost('", pName, "', '"
+        ret <- wait . vim_eval $ concat
+            [ "remote#define#CommandOnHost('", pName, "', '"
             , unpack functionName, "', ", s, ", '", unpack functionName
             , "', {})"
             ]
@@ -101,7 +101,21 @@ registerWithNeovim = \case
                 "Failed to register command: " ++ unpack functionName ++ show e
             Right _ -> liftIO . debugM logger $
                 "Registered command: " ++ unpack functionName
-    AutoCmd{} -> liftIO $ errorM logger "Registering of autocmds not yet supported!"
+    Autocmd acmdType functionName opts -> do
+        pName <- R.asks _providerName
+        let s = case acmdSync opts of
+                Sync -> "1"
+                Async -> "0"
+        ret <- wait . vim_eval $ concat
+            [ "remote#define#AutocmdOnHost('", pName, "', '"
+            , unpack functionName, "', ", s, ", '", unpack acmdType
+            , "', {'pattern': '", unpack (acmdPattern opts), "'})"
+            ]
+        case ret of
+            Left e -> liftIO . errorM logger $
+                "Failed to register autocmd: " ++ unpack functionName ++ show e
+            Right _ -> liftIO . debugM logger $
+                "Registered autocmd: " ++ unpack functionName
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).

@@ -40,9 +40,9 @@ recompileNvimhs = do
     let qs = maybe [] parseQuickfixItems mErrString
     put qs
     setqflist qs Replace
-    if null qs
-        then wait' $ vim_command "cclose"
-        else wait' $ vim_command "copen"
+    wait' . vim_command $ case qs of
+        [] -> "cclose"
+        _  -> "copen"
 
 -- | Note that restarting the plugin provider implies compilation because Dyre
 -- does this automatically. However, if the recompilation fails, the previously
