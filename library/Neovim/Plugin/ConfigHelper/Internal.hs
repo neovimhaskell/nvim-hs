@@ -59,24 +59,6 @@ parseQuickfixItems s =
         Right qs -> qs
         Left _   -> []
 
--- | Parse the output from ghc.
--- TODO maybe there is a GHC api function for this.
--- parseQuickfixItems :: String -> [QuickfixListItem String]
--- parseQuickfixItems = undefined
--- parseQuickfixItems (x:xs) = case sepBy ':' x of
---     (file:line:c:shortDescription) ->
---         -- Assume everything to the next empty line is the error text
---         let (t,rs) = break (\l -> null l || (not . isSpace . head) l) xs
---             q = (quickFixListItem (Right file) (Left (read line)))
---                     { col = Just (read c, True)
---                     , text = Just $ case shortDescription of
---                         [] -> unlines t
---                         _  -> intercalate ":" shortDescription
---                     , errorType = Just 'E' -- TODO determine actual type
---                     }
---         in q : parseQuickfixItems rs
---     _ -> parseQuickfixItems xs
-
 pQuickfixListItem :: Parser (QuickfixListItem String)
 pQuickfixListItem = do
     _ <- many blankLine
