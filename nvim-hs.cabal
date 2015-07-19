@@ -49,6 +49,7 @@ library
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.ConfigHelper
+                      , Neovim.Quickfix
 
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.API.Parser

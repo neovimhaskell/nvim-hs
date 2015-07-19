@@ -27,7 +27,8 @@ module Neovim.API.TH
 import           Neovim.API.Parser
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.Plugin.Classes    (ExportedFunctionality (..),
+import           Neovim.Plugin.Classes    (CommandOptions (..),
+                                           ExportedFunctionality (..),
                                            FunctionalityDescription (..))
 import           Neovim.RPC.FunctionCall
 
@@ -79,7 +80,7 @@ defaultAPITypeToHaskellTypeMap = Map.fromList
     [ ("Boolean"   , [t|Bool|])
     , ("Integer"   , [t|Int64|])
     , ("Float"     , [t|Double|])
-    , ("Array"     , [t|Object|])
+    , ("Array"     , [t|[Object]|])
     , ("Dictionary", [t|Map Object Object|])
     , ("void"      , [t|()|])
     ]
@@ -233,7 +234,9 @@ function :: String -> Name -> Q Exp
 function [] _ = error "Empty names are not allowed for exported functions."
 function customName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
-    | otherwise = [|\funOpts -> EF (Function (pack $(litE (StringL customName))) funOpts, $(functionImplementation functionName)) |]
+    | otherwise = do
+        (_, fun) <- functionImplementation functionName
+        [|\funOpts -> EF (Function (pack $(litE (StringL customName))) funOpts, $(return fun)) |]
 
 function' :: Name -> Q Exp
 function' functionName =
@@ -244,7 +247,9 @@ command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
-    | otherwise = [|\copts -> EF (Command (pack $(litE (StringL customFunctionName))) copts, $(functionImplementation functionName))|]
+    | otherwise = do
+        (nargs, fun) <- functionImplementation functionName
+        [|\copts -> EF (Command (pack $(litE (StringL customFunctionName))) (copts { cmdNargs = nargs }), $(return fun))|]
 
 command' :: Name -> Q Exp
 command' functionName =
@@ -253,7 +258,10 @@ command' functionName =
 
 autocmd :: Name -> Q Exp
 autocmd functionName =
-    [|\t f -> AutoCmd t f $(functionImplementation functionName)|]
+    let (c:cs) = nameBase functionName
+    in do
+        (_, fun) <- functionImplementation functionName
+        [|\t acmdOpts -> EF (Autocmd t (pack $(litE (StringL (toUpper c : cs)))) acmdOpts, $(return fun))|]
 
 -- | Generate a function of type @[Object] -> Neovim' Object@ from the argument
 -- function.
@@ -272,7 +280,7 @@ autocmd functionName =
 --     _ -> err $ "Wrong number of arguments for add: " ++ show xs
 -- @
 --
-functionImplementation :: Name -> Q Exp
+functionImplementation :: Name -> Q (Int, Exp)
 functionImplementation functionName = do
     fInfo <- reify functionName
     -- We only need the number of arguments to generate the appropriate function
@@ -280,7 +288,8 @@ functionImplementation functionName = do
             VarI _ functionType _ _ -> determineNumberOfArguments functionType
             x -> error $ "Value given to function is (likely) not the name of a function.\n"
                             <> show x
-    topLevelCase nargs
+    e <- topLevelCase nargs
+    return (nargs, e)
 
   where
     determineNumberOfArguments :: Type -> Int

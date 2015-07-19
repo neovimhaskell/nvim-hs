@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverlappingInstances  #-}
 {-# LANGUAGE RankNTypes            #-}
@@ -22,6 +23,7 @@ import           Neovim.Context
 
 import           Control.Applicative
 import           Control.Arrow
+import           Control.Monad.Except
 import           Data.ByteString      (ByteString)
 import           Data.Int             (Int16, Int32, Int64)
 import           Data.Map             (Map)
@@ -29,7 +31,7 @@ import qualified Data.Map             as Map
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text            as Text (Text)
-import           Data.Traversable
+import           Data.Traversable     hiding (forM, mapM)
 
 import           Prelude
 
@@ -58,10 +60,14 @@ instance NvimObject () where
     fromObject ObjectNil = return ()
     fromObject o         = throwError $ "Expected ObjectNil, but got " <> show o
 
+-- We may receive truthy values from neovim, so we should be more forgiving
+-- here.
 instance NvimObject Bool where
     toObject                  = ObjectBool
     fromObject (ObjectBool o) = return o
-    fromObject o              = throwError $ "Expected ObjectBool, but got " <> show o
+    fromObject (ObjectInt  0) = return False
+    fromObject ObjectNil      = return False
+    fromObject _              = return True
 
 instance NvimObject Double where
     toObject                    = ObjectDouble
@@ -104,6 +110,12 @@ instance NvimObject Int where
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError $ "Expected any Integer value, but got " <> show o
+
+instance NvimObject Char where
+    toObject c = ObjectBinary . U.fromString $ [c]
+    fromObject str = case fromObject str of
+        Right [c] -> return c
+        _   -> throwError $ "Expected one element string but got: " <> show str
 
 instance NvimObject [Char] where
     toObject                    = ObjectBinary . U.fromString
@@ -235,4 +247,3 @@ instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 -- 1}}}
-

@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE OverloadedStrings         #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -22,6 +23,7 @@ module Neovim.Plugin.Classes (
     wrapPlugin,
     Synchronous(..),
     CommandOptions(..),
+    AutocmdOptions(..),
     ) where
 
 import           Data.Default
@@ -34,13 +36,16 @@ import           Neovim.Context
 newtype ExportedFunctionality r st
     = EF (FunctionalityDescription, [Object] -> Neovim r st Object)
 
+
 -- | Extract the description of an 'ExportedFunctionality'.
 getDescription :: ExportedFunctionality r st -> FunctionalityDescription
 getDescription (EF (d,_)) = d
 
+
 -- | Extract the function of an 'ExportedFunctionality'.
 getFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
 getFunction (EF (_, f)) = f
+
 
 -- | Functionality specific functional description entries.
 data FunctionalityDescription
@@ -49,12 +54,14 @@ data FunctionalityDescription
     --
     -- * Name of the function (must start with an uppercase letter)
     -- * Option to indicate how neovim should behave when calling this function
-    | Command  Text CommandOptions
+
+    | Command Text CommandOptions
     -- ^ Exported Command. Callable via @:Name arg1 arg2@.
     --
     -- * Name of the command (must start with an uppercase letter)
     -- * Options to configure neovim's behavior for calling the command
-    | AutoCmd  Text Text Text
+
+    | Autocmd Text Text AutocmdOptions
     -- ^ Exported autocommand. Will call the given function if the type and
     -- filter match.
     --
@@ -62,10 +69,11 @@ data FunctionalityDescription
     -- number of accepted arguments should be 0.
     -- TODO Should this be enforced somehow? Possibly via the TH generator.
     --
-    -- * Type of autocmd (e.g. FileType) (TODO create enum)
-    -- * Filter fo the autocmd type
+    -- * Type of the autocmd (e.g. \"BufWritePost\")
     -- * Name for the function to call
+
     deriving (Show, Read, Eq, Ord)
+
 
 -- | This option detemines how neovim should behave when calling some
 -- functionality on a remote host.
@@ -76,6 +84,7 @@ data Synchronous
     -- completely asynchronous and nothing is really expected to happen. This
     -- is why a call like this is called notification on the neovim side of
     -- things.
+
     | Sync
     -- ^ Call the function and wait for its result. This is only synchronous on
     -- the neovim side. For comands it means that the GUI will (probably) not
@@ -84,33 +93,85 @@ data Synchronous
     -- these functions concurrently.
     deriving (Show, Read, Eq, Ord, Enum)
 
+
 instance Default Synchronous where
     def = Sync
 
+
 data CommandOptions = CommandOptions
-    { sync :: Synchronous
-    -- ^ Option to indicate whether vim shuould block until the function has
-    -- completed.
+    { cmdSync :: Synchronous
+    -- ^ Option to indicate whether vim shuould block until the command has
+    -- completed. (default: 'Sync')
+
+    , cmdRange :: Text
+    -- ^ Vim expression for the range (or count). (default: \"\")
+
+    , cmdCount :: Bool
+    -- ^ If true,
+
+    , cmdNargs :: Int
+    -- ^ Number of arguments. Note that all arguments have to be a string type.
+    --
+    -- TODO Check this in the Template Haskell functions.
+    --
+    -- If you're using the template haskell functions for registering commands,
+    -- this field is overridden by it.
+
+    , cmdBang :: Bool
+    -- ^ Behavior changes when using a bang.
     }
     deriving (Show, Read, Eq, Ord)
 
+
 instance Default CommandOptions where
     def = CommandOptions
-        { sync = Sync
+        { cmdSync  = Sync
+        , cmdRange = ""
+        , cmdCount = False
+        , cmdNargs = 0
+        , cmdBang  = False
         }
+
+
+data AutocmdOptions = AutocmdOptions
+    { acmdSync    :: Synchronous
+    -- ^ Option to indicate whether vim shuould block until the function has
+    -- completed. (default: 'Sync')
+
+    , acmdPattern :: Text
+    -- ^ Pattern to match on. (default: \"*\")
+
+    , acmdNested  :: Bool
+    -- ^ Nested autocmd. (default: False)
+    --
+    -- See @:h autocmd-nested@
+    }
+    deriving (Show, Read, Eq, Ord)
+
+
+instance Default AutocmdOptions where
+    def = AutocmdOptions
+        { acmdSync    = Sync
+        , acmdPattern = "*"
+        , acmdNested  = False
+        }
+
 
 -- | Conveniennce class to extract a name from some value.
 class FunctionName a where
     name :: a -> Text
 
+
 instance FunctionName FunctionalityDescription where
     name = \case
-        Function    n _ -> n
-        Command     n _ -> n
-        AutoCmd _ _ n -> n
+        Function  n _ -> n
+        Command   n _ -> n
+        Autocmd _ n _ -> n
+
 
 instance FunctionName (ExportedFunctionality r st) where
     name = name . getDescription
+
 
 -- | This data type contains meta information for the plugin manager.
 --
@@ -119,9 +180,12 @@ data Plugin r st = Plugin
     , statefulExports :: [(r, st, [ExportedFunctionality r  st])]
     }
 
+
 data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
+
 
 -- | Wrap a 'Plugin' in some nice blankets, so that we can put them in a simple
 -- list.
 wrapPlugin :: Monad m => Plugin r st -> m NeovimPlugin
 wrapPlugin = return . NeovimPlugin
+
