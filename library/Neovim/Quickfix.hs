@@ -16,6 +16,7 @@ module Neovim.Quickfix
     where
 
 import           Control.Applicative
+import           Control.Monad           (void)
 import           Data.ByteString         as BS (ByteString, all, elem)
 import qualified Data.Map                as Map
 import           Data.Maybe
@@ -28,12 +29,8 @@ import           Neovim.RPC.FunctionCall
 
 setqflist :: (Monoid strType, NvimObject strType)
           => [QuickfixListItem strType] -> QuickfixAction -> Neovim r st ()
-setqflist qs a = do
-    -- TODO replace with vim_call_function once it's in an official pre-release
-    let vqs = "nvimhsqs"
-    _ <- wait' $ vim_set_var vqs (ObjectArray [toObject qs, toObject a])
-    _ <- wait' . vim_eval $ concat ["call('setqflist', g:", vqs, ")"]
-    return ()
+setqflist qs a =
+    void . wait' $ vim_call_function "setqflist" [toObject qs, toObject a]
 
 -- | Quickfix list item. The parameter names should mostly conform to those in
 -- @:h setqflist()@. Some fields are merged to explicitly state mutually

@@ -15,6 +15,7 @@ Stability   :  experimental
 -}
 module Neovim.Classes
     ( NvimObject(..)
+    , Dictionary
 
     , module Data.Int
     ) where
@@ -38,6 +39,12 @@ import           Prelude
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
 import qualified Data.ByteString.UTF8 as U (fromString, toString)
 import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
+
+
+-- | A generic vim dictionary is a simply a map from strings to objects.  This
+-- type alias is sometimes useful as a type annotation especially if the
+-- OverloadedStrings extension is enabled.
+type Dictionary = Map ByteString Object
 
 
 -- | Conversion from 'Object' files to Haskell types and back with respect

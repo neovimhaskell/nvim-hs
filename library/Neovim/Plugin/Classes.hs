@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RecordWildCards           #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -26,10 +27,14 @@ module Neovim.Plugin.Classes (
     AutocmdOptions(..),
     ) where
 
+import           Neovim.Classes
+import           Neovim.Context
+
 import           Data.Default
+import qualified Data.Map         as Map
+import           Data.Maybe
 import           Data.MessagePack
 import           Data.Text        (Text)
-import           Neovim.Context
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
@@ -97,13 +102,23 @@ data Synchronous
 instance Default Synchronous where
     def = Sync
 
+instance NvimObject Synchronous where
+    toObject = \case
+        Async -> toObject False
+        Sync  -> toObject True
+
+    fromObject = \case
+        ObjectBool True  -> return Sync
+        ObjectBool False -> return Async
+        ObjectInt 0      -> return Async
+        _                -> return Sync
 
 data CommandOptions = CommandOptions
-    { cmdSync :: Synchronous
+    { cmdSync  :: Synchronous
     -- ^ Option to indicate whether vim shuould block until the command has
     -- completed. (default: 'Sync')
 
-    , cmdRange :: Text
+    , cmdRange :: Maybe Text
     -- ^ Vim expression for the range (or count). (default: \"\")
 
     , cmdCount :: Bool
@@ -117,7 +132,7 @@ data CommandOptions = CommandOptions
     -- If you're using the template haskell functions for registering commands,
     -- this field is overridden by it.
 
-    , cmdBang :: Bool
+    , cmdBang  :: Bool
     -- ^ Behavior changes when using a bang.
     }
     deriving (Show, Read, Eq, Ord)
@@ -126,11 +141,23 @@ data CommandOptions = CommandOptions
 instance Default CommandOptions where
     def = CommandOptions
         { cmdSync  = Sync
-        , cmdRange = ""
+        , cmdRange = Nothing
         , cmdCount = False
         , cmdNargs = 0
         , cmdBang  = False
         }
+
+
+instance NvimObject CommandOptions where
+    toObject (CommandOptions{..}) =
+        (toObject :: Dictionary -> Object) . Map.fromList . catMaybes $
+            [ cmdRange >>= \r -> Just ("range", toObject r)
+            , if cmdCount then Just ("count", toObject True) else Nothing
+            , if cmdNargs > 0 then Just ("nargs", toObject cmdNargs) else Nothing
+            , if cmdBang then Just ("bang", toObject True) else Nothing
+            ]
+    fromObject o = throwError $
+        "Did not expect to receive a CommandOptions object: " ++ show o
 
 
 data AutocmdOptions = AutocmdOptions
@@ -156,6 +183,15 @@ instance Default AutocmdOptions where
         , acmdNested  = False
         }
 
+
+instance NvimObject AutocmdOptions where
+    toObject (AutocmdOptions{..}) =
+        (toObject :: Dictionary -> Object) . Map.fromList $
+            [ ("pattern", toObject acmdPattern)
+            , ("nested", toObject acmdNested)
+            ]
+    fromObject o = throwError $
+        "Did not expect to receive an AutocmdOptions object: " ++ show o
 
 -- | Conveniennce class to extract a name from some value.
 class FunctionName a where
