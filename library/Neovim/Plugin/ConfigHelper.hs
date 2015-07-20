@@ -34,8 +34,7 @@ plugin params = do
             ]
         , statefulExports =
             [ (params, [],
-                [ $(command' 'recompileNvimhs) def { cmdSync = Async }
-                , $(autocmd 'recompileNvimhs) "BufWritePost" def
+                [ $(autocmd 'recompileNvimhs) "BufWritePost" def
                         { acmdSync    = Async
                         , acmdPattern = pack cfgFile
                         }
