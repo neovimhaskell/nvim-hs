@@ -52,6 +52,7 @@ import           Data.Text                (pack)
 
 import           Prelude
 
+
 -- | Generate the API types and functions provided by @nvim --api-info@.
 --
 -- The provided map allows the use of different Haskell types for the types
@@ -74,6 +75,7 @@ generateAPI typeMap = do
         , fmap join . mapM (createFunction typeMap) $ functions api
         ]
 
+
 -- | Default type mappings for the requested API.
 defaultAPITypeToHaskellTypeMap :: Map String (Q Type)
 defaultAPITypeToHaskellTypeMap = Map.fromList
@@ -85,6 +87,7 @@ defaultAPITypeToHaskellTypeMap = Map.fromList
     , ("void"      , [t|()|])
     ]
 
+
 apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Q Type
 apiTypeToHaskellType typeMap at = case at of
     Void -> [t|()|]
@@ -94,6 +97,7 @@ apiTypeToHaskellType typeMap at = case at of
         foldl appT (tupleT n) . replicate n $ apiTypeToHaskellType typeMap t
     SimpleType t ->
         fromMaybe ((conT . mkName) t) $ Map.lookup t typeMap
+
 
 -- | This function will create a wrapper function with neovim's function name
 -- as its name.
@@ -158,6 +162,7 @@ createFunction typeMap nf = do
             ]
         ]
 
+
 -- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@
 -- will create this:
 -- @
@@ -176,6 +181,7 @@ createDataTypeWithByteStringComponent nme cs = do
             (map (\n-> normalC n [return (IsStrict, tObject)]) cs)
             (mkName <$> ["Typeable", "Eq", "Show"])
 
+
 -- | If the first parameter is @mkName NeovimException@, this function will
 -- generate  @instance Exception NeovimException"@.
 exceptionInstance :: Name -> Q [Dec]
@@ -184,6 +190,7 @@ exceptionInstance exceptionName = return <$>
         (return [])
         ([t|Exception|] `appT` conT exceptionName)
         []
+
 
 -- | @customTypeInstance Foo [(Bar, 1), (Quz, 2)]@
 -- will create this:
@@ -230,6 +237,13 @@ customTypeInstance typeName nis =
             <> [fromObjectErrorClause]
         ]
 
+
+-- | Define an exported function by providing a cutom name and referencing the
+-- function you want to export.
+--
+-- Note that the name must start with an upper case letter.
+--
+-- Example: @ $(function "MyExportedFunction" 'myDefinedFunction) def @
 function :: String -> Name -> Q Exp
 function [] _ = error "Empty names are not allowed for exported functions."
 function customName@(c:_) functionName
@@ -238,11 +252,20 @@ function customName@(c:_) functionName
         (_, fun) <- functionImplementation functionName
         [|\funOpts -> EF (Function (pack $(litE (StringL customName))) funOpts, $(return fun)) |]
 
+
+-- | Define an exported function. This function works exactly like 'function',
+-- but it generates the exported name automatically by converting the first
+-- letter to upper case.
 function' :: Name -> Q Exp
 function' functionName =
     let (c:cs) = nameBase functionName
     in function (toUpper c:cs) functionName
 
+
+-- | Similarly to 'function', this function is used to export a command with a
+-- custom name.
+--
+-- Note that commands must start with an upper case letter.
 command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
@@ -251,17 +274,25 @@ command customFunctionName@(c:_) functionName
         (nargs, fun) <- functionImplementation functionName
         [|\copts -> EF (Command (pack $(litE (StringL customFunctionName))) (copts { cmdNargs = nargs }), $(return fun))|]
 
+
+-- | Define an exported command. This function works exactly like 'command', but
+-- it generates the command name by converting the first letter to upper case.
 command' :: Name -> Q Exp
 command' functionName =
     let (c:cs) = nameBase functionName
     in command (toUpper c:cs) functionName
 
+
+-- | Define an autocmd. This function generates an export for autocmd. Since
+-- this is a static registration, arguments are not allowed here. You can of
+-- course define a fully applied functions and pass it as an arguments.
 autocmd :: Name -> Q Exp
 autocmd functionName =
     let (c:cs) = nameBase functionName
     in do
         (_, fun) <- functionImplementation functionName
         [|\t acmdOpts -> EF (Autocmd t (pack $(litE (StringL (toUpper c : cs)))) acmdOpts, $(return fun))|]
+
 
 -- | Generate a function of type @[Object] -> Neovim' Object@ from the argument
 -- function.
