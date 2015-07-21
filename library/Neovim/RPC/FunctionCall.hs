@@ -40,11 +40,13 @@ unexpectedException fn _ = error $
     "Function threw an exception even though it was declared not to throw one: "
     <> fn
 
+
 withIgnoredException :: (Functor f, NvimObject result)
                      => Text -- ^ Function name for better error messages
                      -> f (Either err result)
                      -> f result
 withIgnoredException fn = fmap (either ((unexpectedException . unpack) fn) id)
+
 
 -- | Helper function that concurrently puts a 'Message' in the event queue
 -- and returns an 'STM' action that returns the result.
@@ -72,6 +74,7 @@ acall' :: (NvimObject result)
        -> Neovim r st (STM result)
 acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 
+
 -- | Call a neovim function synchronously. This function blocks until the
 -- result is available.
 scall :: (NvimObject result)
@@ -81,12 +84,15 @@ scall :: (NvimObject result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
 
+
 scall' :: NvimObject result => Text -> [Object] -> Neovim r st result
 scall' fn = withIgnoredException fn . scall fn
+
 
 -- | Lifted variant of 'atomically'.
 atomically' :: (MonadIO io) => STM result -> io result
 atomically' = liftIO . atomically
+
 
 -- | Wait for the result of the STM action.
 --

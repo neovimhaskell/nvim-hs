@@ -6,13 +6,16 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
+import           Neovim.Context          (ConfigWrapper (..))
 import           Neovim.Quickfix
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
+import           Neovim.RPC.FunctionCall (atomically')
 import           Neovim.RPC.SocketReader
 
 import           Control.Concurrent
-import           Control.Monad.Reader (runReaderT)
+import           Control.Concurrent.STM
+import           Control.Monad.Reader    (runReaderT)
 import           Control.Monad.State
 import qualified Data.Map                as Map
 import           System.Directory

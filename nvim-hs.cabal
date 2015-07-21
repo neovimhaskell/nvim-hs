@@ -1,7 +1,17 @@
 name:                nvim-hs
 version:             0.0.1
 synopsis:            Haskell plugin backend for neovim
-description:         This package provides a plugin provider for neovim.
+description:
+  This package provides a plugin provider for neovim. It allows you to write
+  plugins for one of the great editors of our time in the best programming
+  language of our time! ;-)
+  .
+  You should find all the documentation you need inside the "Neovim" module. All
+  other modules are considered internal, so don't be annoyed if using things
+  from there may break your code.
+  .
+  If you spot any errors or if you have great ideas, feel free to open an issue
+  on github.
 homepage:            https://github.com/saep/nvim-hs
 license:             Apache-2.0
 license-file:        LICENSE
@@ -14,17 +24,22 @@ cabal-version:       >=1.10
 extra-source-files:    TestPlugins.vim
                      , TestPlugins.hs
                      , nvim-hs.sh
+                     , test-files/compile-error-for-quickfix-test1
+                     , test-files/compile-error-for-quickfix-test2
+                     , test-files/compile-error-for-quickfix-test3
+                     , test-files/compile-error-for-quickfix-test4
+                     , test-files/compile-error-for-quickfix-test5
+                     , test-files/hello
 source-repository head
     type:            git
     location:        https://github.com/saep/nvim-hs
-
 
 executable nvim-hs
   main-is:              Main.hs
   hs-source-dirs:       executable
   default-language:     Haskell2010
   build-depends:        base ==4.*, nvim-hs, data-default
-  ghc-options:          -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -O2 -threaded -rtsopts -with-rtsopts=-N
 
 library
   exposed-modules:      Neovim
@@ -86,7 +101,7 @@ library
                       , utf8-string
   hs-source-dirs:       library
   default-language:     Haskell2010
-  ghc-options:          -Wall
+  ghc-options:          -Wall -O2
 
 
 test-suite hspec

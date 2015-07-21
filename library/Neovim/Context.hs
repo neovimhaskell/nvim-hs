@@ -48,6 +48,7 @@ import           Data.Data              (Typeable)
 import           Neovim.Plugin.IPC      (SomeMessage)
 import           System.Log.Logger
 
+
 -- | A wrapper for a reader value that contains extra fields required to
 -- communicate with the messagepack-rpc components.
 data ConfigWrapper a = ConfigWrapper
@@ -66,18 +67,33 @@ data ConfigWrapper a = ConfigWrapper
     -- 'myConf'.
     }
 
+
 data QuitAction = Quit
                 -- ^ Quit the plugin provider.
                 | Restart
                 -- ^ Restart the plugin provider.
                 deriving (Show, Read, Eq, Ord, Enum, Bounded)
 
+
 eventQueue :: Neovim r st (TQueue SomeMessage)
 eventQueue = R.asks _eventQueue
 
-type Neovim cfg state = StateT state (ReaderT (ConfigWrapper cfg) IO)
 
+-- | This is the environment in which all plugins are initially started.
+-- Stateless functions use '()' for the static configuration and the mutable
+-- state and there is another type alias for that case: 'Neovim''.
+--
+-- Functions have to run in this transformer stack to communicate with neovim.
+-- If parts of your own functions dont need to communicate with neovim, it is
+-- good practice to factor them out. This allows you to write tests and spot
+-- errors easier. Essentially, you should treat this similar to 'IO' in general
+-- haskell programs.
+type Neovim r st = StateT st (ReaderT (ConfigWrapper r) IO)
+
+
+-- | Convenience alias for @'Neovim' () ()@.
 type Neovim' = Neovim () ()
+
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: ConfigWrapper r
@@ -90,6 +106,7 @@ runNeovim r st a = (try . runReaderT (runStateT a st)) r >>= \case
         return . Left $ show (e :: SomeException)
     Right res -> return $ Right res
 
+
 -- | Fork a neovim thread with the given custom config value and a custom
 -- state. The result of the thread is discarded and only the 'ThreadId' is
 -- returend immediately.
@@ -98,29 +115,35 @@ forkNeovim r st a = do
     cfg <- R.ask
     liftIO . forkIO . void $ runNeovim (cfg { customConfig = r }) st a
 
+
 data NeovimException
     = ErrorMessage String
     deriving (Typeable, Show)
 
 instance Exception NeovimException
 
+
 -- | @throw . ErrorMessage@
 err :: String ->  Neovim r st a
 err = throw . ErrorMessage
 
+
 -- | Retrieve something from the configuration with respect to the first
 -- function. Works exactly like 'R.asks'.
-asks :: (config -> a) -> Neovim config state a
+asks :: (r -> a) -> Neovim r st a
 asks q = R.asks (q . customConfig)
+
 
 -- | Retrieve the Cunfiguration (i.e. read-only state) from the 'Neovim'
 -- context.
-ask :: Neovim config state config
+ask :: Neovim r st r
 ask = R.asks customConfig
+
 
 -- | Initiate a restart of the plugin provider.
 restart :: Neovim r st ()
 restart = liftIO . flip putMVar Restart =<< R.asks _quit
+
 
 -- | Initiate the termination of the plugin provider.
 quit :: Neovim r st ()
