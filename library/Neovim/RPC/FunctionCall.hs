@@ -18,6 +18,8 @@ module Neovim.RPC.FunctionCall (
     atomically',
     wait,
     wait',
+    waitErr,
+    waitErr',
     respond,
     ) where
 
@@ -93,9 +95,28 @@ atomically' = liftIO . atomically
 wait :: Neovim r st (STM result) -> Neovim r st result
 wait = (=<<) atomically'
 
+
 -- | Variant of 'wait' that discards the result.
 wait' :: Neovim r st (STM result) -> Neovim r st ()
 wait' = void . wait
+
+
+-- | Wait for the result of the 'STM' action and call @'err' . (loc++) . show@
+-- if the action returned an error.
+waitErr :: (Show e)
+        => String                              -- ^ Prefix error message with this.
+        -> Neovim r st (STM (Either e result)) -- ^ Function call to neovim
+        -> Neovim r st result
+waitErr loc act = wait act >>= either (err . (loc++) . show) return
+
+
+-- | 'waitErr' that discards the result.
+waitErr' :: (Show e)
+         => String
+         -> Neovim r st (STM (Either e result))
+         -> Neovim r st ()
+waitErr' loc = void . waitErr loc
+
 
 -- | Send the result back to the neovim instance.
 respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
