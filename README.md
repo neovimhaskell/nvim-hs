@@ -14,13 +14,15 @@ handy work, some exotic operating systems and architectures may not work.
 # What do I have to expect if I were to use it now?
 
 * There may still be API changes, but I'm confident that they will be minor.
-* Neovim might hang while waiting for an answer of request because
-  the exception handling is not very well tested.
+* Neovim might hang while waiting for an answer of a request because
+  the exception handling is not very well tested because it hasn't occured yet. ;-)
+* And of course, check the issue list here on github.
 
 # How do I start using this?
 
-As the documentation has not been the primary focus of the development yet,
-your best bet is to look at existing examples.
+All you need to know is inside the [Neovim](https://github.com/saep/nvim-hs/blob/master/library/Neovim.hs) module. 
+
+There are also some additional examples:
 * There is low [level example](https://github.com/saep/nvim-hs/blob/master/TestPlugins.hs)
   run by the tests that execute [this script](https://github.com/saep/nvim-hs/blob/master/TestPlugins.vim).
   This example does not have any convenience code generation and is
