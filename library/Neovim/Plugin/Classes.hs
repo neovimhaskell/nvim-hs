@@ -53,6 +53,11 @@ getFunction (EF (_, f)) = f
 
 
 -- | Functionality specific functional description entries.
+--
+-- All fields which are directly specified in these constructors are not
+-- optional, but can partialy be generated via the Template Haskell functions.
+-- The last field is a data type that contains all relevant options with
+-- sensible defaults, hence 'def' can be used as an argument.
 data FunctionalityDescription
     = Function Text Synchronous
     -- ^ Exported function. Callable via @call name(arg1,arg2)@.
@@ -113,6 +118,12 @@ instance NvimObject Synchronous where
         ObjectInt 0      -> return Async
         _                -> return Sync
 
+
+-- | Options that can be optionally set for commands.
+--
+-- TODO Determine which of these make sense, how they are transmitted back and
+--      which options are still missing.
+--      (see remote#define#CommandOnHost in runtime\/autoload\/remote\/define.vim))
 data CommandOptions = CommandOptions
     { cmdSync  :: Synchronous
     -- ^ Option to indicate whether vim shuould block until the command has
