@@ -288,7 +288,7 @@ This is a bit unfortunate, but it will save you a lot of boring boilerplate and
 it will present you with helpful error messages if your plugin's functions do
 not work together with neovim.
 
-So, let's write a plugin that calculates the @n@th fibonacci number. Don't we all
+So, let's write a plugin that calculates the @n@th Fibonacci number. Don't we all
 love those!
 
 File @~\/.config\/nvim\/lib\/MyFirstPlugin.hs@
@@ -324,10 +324,10 @@ main = 'neovim' 'def'
 @
 
 Let's analyze how it works. The module @MyFirstPlugin@ simply defines a function
-that takes the @n@th element of the infinite list of fibonacci numbers. Even though
+that takes the @n@th element of the infinite list of Fibonacci numbers. Even though
 the definition is very concise and asthetically pleasing, the important part is the
 type signature for @fibonacci@. Similarly how @main :: IO ()@ works in normal Haskell
-programs, 'Neovim'' is the envoronment we need for plugins. Internally, it stores a
+programs, 'Neovim'' is the environment we need for plugins. Internally, it stores a
 few things that are needed to communicate with neovim, but that shouldn't bother you
 too much. Simply remember that every plugin function must have a function signature
 whose last element is of type @'Neovim' r st something@'. The result of @fibonacci@
@@ -339,7 +339,7 @@ in @~\/.config\/nvim\/nvim.hs@, shows what a plugin is. It is essentially two
 lists of stateless and stateful functionality. A functionality can currently be one
 of three things: a function, a command and an autocmd in the context of vim
 terminology. In the end, all of those functionalities map to a function at the side
-of /nvim-hs/. If you really want to know what the destinction between those, you
+of /nvim-hs/. If you really want to know what the distinction between those, you
 have to consult the @:help@ pages of neovim (e.g. @:help :function@, @:help :command@
 and @:help :autocmd@). What's relevant from the side of /nvim-hs/ is the distinction
 between __stateful__ and __stateless__. A stateless function can be called at any
@@ -351,7 +351,7 @@ type variables @r@ and @st@. These can be accessed with different semantics
 each. A value of type @r@ can only be read. It is more or less a static value
 you can query with 'ask' or 'asks' if you
 are inside a 'Neovim' environment. The value @st@ can be changed and those
-changes will be avialable to other functions which run in the same environment.
+changes will be available to other functions which run in the same environment.
 You can get the current value with 'get', you can replace an existing value with
 'put' and you can also apply a function to the current state with 'modify'.
 Notice how 'Neovim'' is just a specialization of 'Neovim' with its @r@ and
@@ -370,7 +370,7 @@ some trouble if I haven't mentioned it here! Template Haskell simply requires
 you to put that in from of function names that are passed in a splice.
 
 If you compile this (which should happen automatically if you have put those
-files at the appropriate places), you can calculate the 287323 fibonacci number
+files at the appropriate places), you can calculate the 287323rd Fibonacci number
 like this:
 
 @
@@ -439,7 +439,7 @@ main = 'neovim' 'def'
 That wasn't too hard, was it? The definition is very similar to the previous
 example, we just were able to mutate our state and share that with other
 functions. The only slightly tedious thing was to define the 'statefulExpors'
-field because it is a list of triples which has a list of exported funcionality
+field because it is a list of triples which has a list of exported functionality
 as its third argument.
 
 -}
@@ -467,7 +467,7 @@ inspectBuffer = do
 
 You may have noticed the 'wait'' function in there. Some functions have a return
 type with 'STM' in it. This means that the function call is asynchronous. We can
-'wait' (or 'wait'') for the result at the point at which we actuall need it. In
+'wait' (or 'wait'') for the result at the point at which we actually need it. In
 this short example, we put the 'wait'' directly in front of the remote function
 call because we want to inspect the result immediately, though. The other
 functions either returned a result directly or they returned
