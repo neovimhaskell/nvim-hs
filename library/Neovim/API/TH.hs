@@ -27,9 +27,11 @@ module Neovim.API.TH
 import           Neovim.API.Parser
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.Plugin.Classes    (CommandOptions (..),
+import           Neovim.Plugin.Classes    (CommandArguments (..),
+                                           CommandOption (..),
                                            ExportedFunctionality (..),
-                                           FunctionalityDescription (..))
+                                           FunctionalityDescription (..),
+                                           mkCommandOptions)
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
@@ -48,7 +50,8 @@ import qualified Data.Map                 as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Text                (pack)
+import qualified Data.Set                 as Set
+import           Data.Text                (Text, pack)
 
 import           Prelude
 
@@ -262,6 +265,43 @@ function' functionName =
     in function (toUpper c:cs) functionName
 
 
+-- | Simply data type used to identify a string-ish type (e.g. 'String', 'Text',
+-- 'ByteString' for a value of type.
+data ArgType = StringyType
+             | ListOfStringyTypes
+             | OptionalStringyType
+             | CommandArgumentsType
+             | OtherType
+             deriving (Eq, Ord, Show, Read, Enum, Bounded)
+
+
+-- | Given a value of type 'Type', test whether it can be classified according
+-- to the constructors of 'ArgType'.
+classifyArgType :: Type -> Q ArgType
+classifyArgType t = do
+    set <- genStringTypesSet
+    maybeType <- [t|Maybe|]
+    cmdArgsType <- [t|CommandArguments|]
+    return $ case t of
+        AppT ListT (ConT str) | str `Set.member` set
+            -> ListOfStringyTypes
+
+        AppT m (ConT str) | m == maybeType && str `Set.member` set
+            -> OptionalStringyType
+
+        ConT str | str `Set.member` set
+            -> StringyType
+        cmd | cmd == cmdArgsType
+            -> CommandArgumentsType
+
+        _ -> OtherType
+
+  where
+    genStringTypesSet = do
+        types <- sequence [[t|String|],[t|ByteString|],[t|Text|]]
+        return $ Set.fromList [ n | ConT n <- types ]
+
+
 -- | Similarly to 'function', this function is used to export a command with a
 -- custom name.
 --
@@ -271,9 +311,29 @@ command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
     | otherwise = do
-        (nargs, fun) <- functionImplementation functionName
-        [|\copts -> EF (Command (pack $(litE (StringL customFunctionName))) (copts { cmdNargs = nargs }), $(return fun))|]
-
+        (argTypes, fun) <- functionImplementation functionName
+        -- See :help :command-nargs for what the result strings mean
+        cts <- mapM classifyArgType argTypes
+        case cts of
+            (CommandArgumentsType:_) -> return ()
+            _ -> error "First argument for a function exported as a command must be CommandArguments!"
+        let nargs = case tail cts of
+                []                                -> [|CmdNargs "0"|]
+                [StringyType]                     -> [|CmdNargs "1"|]
+                [OptionalStringyType]             -> [|CmdNargs "?"|]
+                [ListOfStringyTypes]              -> [|CmdNargs "*"|]
+                [StringyType, ListOfStringyTypes] -> [|CmdNargs "+"|]
+                _                                 -> error $ unlines
+                    [ "Trying to generate a command without compatible types."
+                    , "Due to a limitation burdened on us by vimL, we can only"
+                    , "use a limited amount type signatures for commands. See"
+                    , "the documentation for 'command' for am ore thorough"
+                    , "explanation."
+                    ]
+        [|\copts -> EF (Command
+                            (pack $(litE (StringL customFunctionName)))
+                            (mkCommandOptions ($(nargs) : copts))
+                       , $(return fun))|]
 
 -- | Define an exported command. This function works exactly like 'command', but
 -- it generates the command name by converting the first letter to upper case.
@@ -311,7 +371,7 @@ autocmd functionName =
 --     _ -> err $ "Wrong number of arguments for add: " ++ show xs
 -- @
 --
-functionImplementation :: Name -> Q (Int, Exp)
+functionImplementation :: Name -> Q ([Type], Exp)
 functionImplementation functionName = do
     fInfo <- reify functionName
     -- We only need the number of arguments to generate the appropriate function
@@ -319,15 +379,15 @@ functionImplementation functionName = do
             VarI _ functionType _ _ -> determineNumberOfArguments functionType
             x -> error $ "Value given to function is (likely) not the name of a function.\n"
                             <> show x
-    e <- topLevelCase nargs
+    e <- topLevelCase (length nargs)
     return (nargs, e)
 
   where
-    determineNumberOfArguments :: Type -> Int
+    determineNumberOfArguments :: Type -> [Type]
     determineNumberOfArguments ft = case ft of
         ForallT _ _ t -> determineNumberOfArguments t
-        AppT (AppT ArrowT _) r -> 1 + determineNumberOfArguments r
-        _ -> 0
+        AppT (AppT ArrowT t) r -> t : determineNumberOfArguments r
+        _ -> []
     -- \args -> case args of ...
     topLevelCase :: Int -> Q Exp
     topLevelCase n = newName "args" >>= \args ->

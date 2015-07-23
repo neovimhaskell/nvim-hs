@@ -18,25 +18,24 @@ module Neovim.Plugin (
     NeovimPlugin,
     Plugin(..),
     Synchronous(..),
-    CommandOptions(..),
+    CommandOption(..),
     ) where
 
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.Plugin.Classes
+import           Neovim.Plugin.Classes      hiding (register)
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
-import           Control.Arrow              (first, (&&&))
+import           Control.Arrow              ((&&&))
 import           Control.Concurrent         (ThreadId)
 import           Control.Concurrent.STM
 import           Control.Exception.Lifted   (SomeException, try)
 import           Control.Monad              (foldM, forM, void)
 import qualified Control.Monad.Reader       as R
-import           Data.ByteString            (ByteString)
 import           Data.Foldable              (forM_)
 import qualified Data.Map                   as Map
 import           Data.MessagePack
@@ -69,8 +68,9 @@ register (cfg@ConfigWrapper{ customConfig = sem }) ps = void . runNeovim cfg () 
                 map (getDescription &&& Stateless . getFunction) $ exports p
             functionsToRegister = statefulFunctionsToRegister ++ statelessFunctionsToRegister
         mapM_ (registerWithNeovim . fst) functionsToRegister
-        return $ map (first name) functionsToRegister
+        return $ map (\(d,f) -> (name d, (d, f))) functionsToRegister
     liftIO . atomically . putTMVar sem . Map.fromList $ concat registeredFunctions
+
 
 registerWithNeovim :: FunctionalityDescription -> Neovim customConfig () ()
 registerWithNeovim = \case
@@ -78,17 +78,24 @@ registerWithNeovim = \case
         pName <- R.asks _providerName
         ret <- wait $ vim_call_function "remote#define#FunctionOnHost"
             [ toObject pName, toObject functionName, toObject s
-            , toObject functionName, toObject (Map.empty :: Map.Map ByteString Object)
+            , toObject functionName, toObject (Map.empty :: Dictionary)
             ]
         case ret of
             Left e -> liftIO . errorM logger $
                 "Failed to register function: " ++ unpack functionName ++ show e
             Right _ -> liftIO . debugM logger $
                 "Registered function: " ++ unpack functionName
+
     Command functionName copts -> do
+        let sync = case getCommandOptions copts of
+                    -- This works because CommandOptions are sorted and CmdSync is
+                    -- the smallest element in the sorting
+                    (CmdSync s:_) -> s
+                    _             -> Sync
+
         pName <- R.asks _providerName
         ret <- wait $ vim_call_function "remote#define#CommandOnHost"
-            [ toObject pName, toObject functionName, toObject (cmdSync copts)
+            [ toObject pName, toObject functionName, toObject sync
             , toObject functionName, toObject copts
             ]
         case ret of
@@ -96,6 +103,7 @@ registerWithNeovim = \case
                 "Failed to register command: " ++ unpack functionName ++ show e
             Right _ -> liftIO . debugM logger $
                 "Registered command: " ++ unpack functionName
+
     Autocmd acmdType functionName opts -> do
         pName <- R.asks _providerName
         ret <- wait $ vim_call_function "remote#define#AutocmdOnHost"
@@ -107,6 +115,7 @@ registerWithNeovim = \case
                 "Failed to register autocmd: " ++ unpack functionName ++ show e
             Right _ -> liftIO . debugM logger $
                 "Registered autocmd: " ++ unpack functionName
+
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).

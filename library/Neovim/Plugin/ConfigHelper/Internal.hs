@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.Plugin.ConfigHelper.Internal
 Description :  Internals for a config helper plugin that helps recompiling nvim-hs
@@ -16,13 +17,14 @@ module Neovim.Plugin.ConfigHelper.Internal
 import           Neovim.API.String       (vim_command)
 import           Neovim.Config
 import           Neovim.Context
+import           Neovim.Plugin.Classes
 import           Neovim.Quickfix
 import           Neovim.RPC.FunctionCall
 
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
 import           Control.Applicative     hiding (many, (<|>))
-import           Control.Monad           (void)
+import           Control.Monad           (void, when)
 import           Data.Char
 import           Text.Parsec
 import           Text.Parsec.String
@@ -46,8 +48,13 @@ recompileNvimhs = do
 -- does this automatically. However, if the recompilation fails, the previously
 -- compiled bynary is executed. This essentially means that restarting may take
 -- more time then you might expect.
-restartNvimhs :: Neovim r st ()
-restartNvimhs = restart
+restartNvimhs :: CommandArguments
+              -> Neovim (Params NeovimConfig) [QuickfixListItem String] ()
+restartNvimhs CommandArguments{..} = do
+    case bang of
+        Just True -> recompileNvimhs
+        _         -> return ()
+    restart
 
 -- See the tests in @test-suite\/Neovim\/Plugin\/ConfigHelperSpec.hs@ on how the
 -- error messages look like.

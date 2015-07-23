@@ -23,18 +23,26 @@ module Neovim.Plugin.Classes (
     Plugin(..),
     wrapPlugin,
     Synchronous(..),
-    CommandOptions(..),
+    CommandOption(..),
+    RangeSpecification(..),
+    CommandArguments(..),
+    getCommandOptions,
+    mkCommandOptions,
     AutocmdOptions(..),
     ) where
 
 import           Neovim.Classes
 import           Neovim.Context
 
+import           Control.Applicative ((<$>))
 import           Data.Default
-import qualified Data.Map         as Map
+import           Data.List           (groupBy, sort)
+import qualified Data.Map            as Map
 import           Data.Maybe
 import           Data.MessagePack
-import           Data.Text        (Text)
+import           Data.Text           (Text)
+import           Data.Traversable    (sequence)
+import           Prelude             hiding (sequence)
 
 -- | This data type is used in the plugin registration to properly register the
 -- functions.
@@ -119,56 +127,140 @@ instance NvimObject Synchronous where
         _                -> return Sync
 
 
--- | Options that can be optionally set for commands.
---
--- TODO Determine which of these make sense, how they are transmitted back and
---      which options are still missing.
---      (see remote#define#CommandOnHost in runtime\/autoload\/remote\/define.vim))
-data CommandOptions = CommandOptions
-    { cmdSync  :: Synchronous
-    -- ^ Option to indicate whether vim shuould block until the command has
-    -- completed. (default: 'Sync')
+-- | Options for commands.
+data CommandOption = CmdSync Synchronous
+                   -- ^ Should neovim wait for an answer ('Sync')?
 
-    , cmdRange :: Maybe Text
-    -- ^ Vim expression for the range (or count). (default: \"\")
+                   | CmdRegister
+                   -- ^ Register passed to the command.
 
-    , cmdCount :: Bool
-    -- ^ If true,
+                   | CmdNargs String
+                   -- ^ Command takes a specific amount of arguments
 
-    , cmdNargs :: Int
-    -- ^ Number of arguments. Note that all arguments have to be a string type.
-    --
-    -- TODO Check this in the Template Haskell functions.
-    --
-    -- If you're using the template haskell functions for registering commands,
-    -- this field is overridden by it.
+                   | CmdRange RangeSpecification
+                   -- ^ Determines how neovim passes the range.
 
-    , cmdBang  :: Bool
-    -- ^ Behavior changes when using a bang.
-    }
-    deriving (Show, Read, Eq, Ord)
+                   | CmdCount Int
+                   -- ^ Command handles a count. The argument defines the
+                   -- default count.
+
+                   | CmdBang
+                   -- ^ Command handles a bang
+
+    deriving (Eq, Ord, Show, Read)
 
 
-instance Default CommandOptions where
-    def = CommandOptions
-        { cmdSync  = Sync
-        , cmdRange = Nothing
-        , cmdCount = False
-        , cmdNargs = 0
-        , cmdBang  = False
-        }
+-- | Newtype wrapper for a list of 'CommandOption'. Any properly constructed
+-- object of this type is sorted and only contains zero or one object for each
+-- possible option.
+newtype CommandOptions = CommandOptions { getCommandOptions :: [CommandOption] }
+    deriving (Eq, Ord, Show, Read)
+
+
+mkCommandOptions :: [CommandOption] -> CommandOptions
+mkCommandOptions = CommandOptions . map head . groupBy constructor . sort
+  where
+    constructor a b = case (a,b) of
+        _ | a == b               -> True
+        -- Only CmdSync and CmdNargs may fail for the equality check,
+        -- so we just have to check those.
+        (CmdSync _, CmdSync _)         -> True
+        (CmdRange _, CmdRange _)       -> True
+        -- Range and conut are mutually recursive.
+        -- XXX Actually '-range=N' and '-count=N' are, but the code in
+        --     remote#define#CommandOnChannel treats it exclusive as a whole.
+        --     (see :h :command-range)
+        (CmdRange _, CmdCount _)       -> True
+        (CmdNargs _, CmdNargs _)       -> True
+        _                              -> False
 
 
 instance NvimObject CommandOptions where
-    toObject (CommandOptions{..}) =
-        (toObject :: Dictionary -> Object) . Map.fromList . catMaybes $
-            [ cmdRange >>= \r -> Just ("range", toObject r)
-            , if cmdCount then Just ("count", toObject True) else Nothing
-            , if cmdNargs > 0 then Just ("nargs", toObject cmdNargs) else Nothing
-            , if cmdBang then Just ("bang", toObject True) else Nothing
-            ]
+    toObject (CommandOptions opts) =
+        (toObject :: Dictionary -> Object) . Map.fromList $ mapMaybe addOption opts
+      where
+        addOption = \case
+            CmdRange r    -> Just ("range"   , toObject r)
+            CmdCount n    -> Just ("count"   , toObject n)
+            CmdBang       -> Just ("bang"    , ObjectBinary "")
+            CmdRegister   -> Just ("register", ObjectBinary "")
+            CmdNargs n    -> Just ("nargs"   , toObject n)
+            _             -> Nothing
+
     fromObject o = throwError $
         "Did not expect to receive a CommandOptions object: " ++ show o
+
+
+data RangeSpecification = CurrentLine
+                        | WholeFile
+                        | RangeCount Int
+                        deriving (Eq, Ord, Show, Read)
+
+
+instance NvimObject RangeSpecification where
+    toObject = \case
+        CurrentLine  -> ObjectBinary ""
+        WholeFile    -> ObjectBinary "%"
+        RangeCount n -> toObject n
+
+
+-- | You can use this type as the first argument for a function which is
+-- intended to be exported as a command. It holds information about the special
+-- attributes a command can take.
+data CommandArguments = CommandArguments
+    { bang  :: Maybe Bool
+    -- ^ Nothing means that the function was not defined to handle a bang,
+    -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
+    -- was not passed when called (@'Just' 'False'@).
+
+    , range :: Maybe (Int, Int)
+    -- ^ Range passed from neovim. Only set if 'CmdRange' was used in the export
+    -- declaration of the command.
+    --
+    -- Examples:
+    -- * @Just (1,12)@
+
+    , count :: Maybe Int
+    -- ^ Count passed by neovim. Only set if 'CmdCount' was used in the export
+    -- declaration of the command.
+
+    , register :: Maybe String
+    -- ^ Register that the command can/should/must use.
+    }
+    deriving (Eq, Ord, Show, Read)
+
+
+instance Default CommandArguments where
+    def = CommandArguments
+            { bang     = Nothing
+            , range    = Nothing
+            , count    = Nothing
+            , register = Nothing
+            }
+
+
+-- XXX This instance is used as a bit of a hack, so that I don't have to write
+--     special code handling in the code generator and "Neovim.RPC.SocketReader".
+instance NvimObject CommandArguments where
+    toObject CommandArguments{..} = (toObject :: Dictionary -> Object)
+        . Map.fromList . catMaybes $
+            [ bang >>= \b -> return ("bang", toObject b)
+            , range >>= \r -> return ("range", toObject r)
+            , count >>= \c -> return ("count", toObject c)
+            , register >>= \r -> return ("register", toObject r)
+            ]
+
+    fromObject (ObjectMap m) = do
+        let l key = sequence (fromObject <$> Map.lookup (ObjectBinary key) m)
+        bang <- l "bang"
+        range <- l "range"
+        count <- l "count"
+        register <- l "register"
+        return CommandArguments{..}
+
+    fromObject ObjectNil = return def
+    fromObject o =
+        throwError $ "Expected a map for CommandArguments object, but got: " ++ show o
 
 
 data AutocmdOptions = AutocmdOptions

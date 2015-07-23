@@ -15,6 +15,8 @@ module Neovim.RPC.Common
     where
 
 import           Neovim.Context
+import           Neovim.Plugin.IPC
+import           Neovim.Plugin.Classes (FunctionalityDescription)
 
 import           Control.Applicative
 import           Control.Concurrent.STM
@@ -27,7 +29,6 @@ import           Data.Streaming.Network
 import           Data.String
 import           Data.Text              (Text)
 import           Data.Time
-import           Neovim.Plugin.IPC
 import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode,
@@ -48,11 +49,19 @@ import           Prelude
 -- state is stored for as long as the plugin provider is running and not
 -- restarted.)
 type FunctionMap =
-    Map Text FunctionType
+    Map Text (FunctionalityDescription, FunctionType)
 
+
+-- | This data type is used to dispatch a remote function call to the appopriate
+-- recipient.
 data FunctionType
     = Stateless ([Object] -> Neovim' Object)
+    -- ^ 'Stateless' functions are simply executed with the sent arguments.
+
     | Stateful (TQueue SomeMessage)
+    -- ^ 'Stateful' functions are handled within a special thread, the 'TQueue'
+    -- is the communication endpoint for the arguments we have to pass.
+
 
 -- | Things shared between the socket reader and the event handler.
 data RPCConfig = RPCConfig

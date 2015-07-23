@@ -23,6 +23,11 @@ randPlugin = do
       { exports = [ EF (Function "Randoom" Sync, randoom)
                   , EF (Function "Const42" Sync, const42)
                   , EF (Function "PingNvimhs" Sync, pingNvimhs)
+                  , EF (Command "ComplicatedSpecialArgsHandling"
+                            (mkCommandOptions [ CmdSync Sync, CmdRange WholeFile
+                                              , CmdBang , CmdNargs "+"
+                                              ])
+                        , complicatedCommand)
                   ]
       , statefulExports =
           [((), randomNumbers,
@@ -31,6 +36,9 @@ randPlugin = do
             ])
           ]
       }
+
+complicatedCommand :: [Object] -> Neovim r st Object
+complicatedCommand = undefined
 
 rf :: [Object] -> Neovim cfg [Int16] Object
 rf _ = do

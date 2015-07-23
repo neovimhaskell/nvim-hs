@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE RecordWildCards            #-}
 {- |
 Module      :  Neovim.RPC.SocketReader
 Description :  The component which reads RPC messages from the neovim instance
@@ -13,10 +14,15 @@ Stability   :  experimental
 -}
 module Neovim.RPC.SocketReader (
     runSocketReader,
+    parseParams,
     ) where
 
 import           Neovim.Classes
 import           Neovim.Context               hiding (ask, asks)
+import           Neovim.Plugin.Classes        (CommandArguments (..),
+                                               CommandOption (..),
+                                               FunctionalityDescription (..),
+                                               getCommandOptions)
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
@@ -27,11 +33,12 @@ import           Control.Concurrent           (forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad                (void)
 import           Control.Monad.Reader         (MonadReader, ask, asks)
-import           Control.Monad.Trans.Resource
+import           Control.Monad.Trans.Resource hiding (register)
 import           Data.Conduit                 as C
 import           Data.Conduit.Binary
 import           Data.Conduit.Cereal
-import           Data.Foldable                (forM_)
+import           Data.Default                 (def)
+import           Data.Foldable                (foldl', forM_)
 import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
@@ -122,7 +129,7 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
     Right m -> void . liftIO . forkIO . handle m =<< ask
 
   where
-    lookupFunction :: Text -> RPCConfig -> STM (Maybe FunctionType)
+    lookupFunction :: Text -> RPCConfig -> STM (Maybe (FunctionalityDescription, FunctionType))
     lookupFunction m rpc = Map.lookup m <$> readTMVar (functions rpc)
 
     handle m rpc = atomically (lookupFunction m (customConfig rpc)) >>= \case
@@ -131,16 +138,16 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             debugM logger errM
             forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
                 . SomeMessage $ Response i (toObject errM) ObjectNil
-        Just (Stateless f) -> do
+        Just (copts, Stateless f) -> do
             liftIO . debugM logger $ "Executing stateless function with ID: " <> show mi
             -- Stateless function: Create a boring state object for the
             -- Neovim context.
             -- drop the state of the result with (fmap fst <$>)
-            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (f $ parseParams params)
+            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (f $ parseParams copts params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
                 . SomeMessage . uncurry (Response i) $ responseResult res
-        Just (Stateful c) -> do
+        Just (copts, Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO
             let q = (recipients . customConfig) rpc
@@ -148,9 +155,9 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             case mi of
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
-                    atomically' . writeTQueue c . SomeMessage $ Request m i (parseParams params)
+                    atomically' . writeTQueue c . SomeMessage $ Request m i (parseParams copts params)
                 Nothing ->
-                    atomically' . writeTQueue c . SomeMessage $ Notification m (parseParams params)
+                    atomically' . writeTQueue c . SomeMessage $ Notification m (parseParams copts params)
     responseResult (Left !e) = (toObject e, ObjectNil)
     responseResult (Right !res) = (ObjectNil, toObject res)
 
@@ -158,8 +165,8 @@ handleRequestOrNotification _ _ params = liftIO . errorM logger $
     "Parmaeters in request are not in an object array: " <> show params
 
 -- TODO implement proper handling for additional parameters
-parseParams :: [Object] -> [Object]
-parseParams = \case
+parseParams :: FunctionalityDescription -> [Object] -> [Object]
+parseParams (Function _ _) args = case args of
     -- Defining a function on the remote host creates a function that, that
     -- passes all arguments in a list. At the time of this writing, no other
     -- arguments are passed for such a function.
@@ -167,7 +174,69 @@ parseParams = \case
     -- The function generating the function on neovim side is called:
     -- @remote#define#FunctionOnHost@
     [ObjectArray fArgs] -> fArgs
-    args -> args
+    _                   -> args
+
+parseParams cmd@(Command _ opts) args = case args of
+    (ObjectArray _ : _) ->
+        let cmdArgs = filter isPassedViaRPC (getCommandOptions opts)
+            (c,args') =
+                foldl' createCommandArguments (def, []) $
+                    zip cmdArgs args
+        in toObject c : args'
+
+    _ -> parseParams cmd $ [ObjectArray args]
+  where
+    isPassedViaRPC :: CommandOption -> Bool
+    isPassedViaRPC = \case
+        CmdSync{}  -> False
+        _          -> True
+
+    -- Neovim passes arguments in a special form, depending on the
+    -- CommandOption values used to export the (command) function (e.g. via
+    -- 'command' or 'command'').
+    createCommandArguments :: (CommandArguments, [Object])
+                           -> (CommandOption, Object)
+                           -> (CommandArguments, [Object])
+    createCommandArguments old@(c, args') = \case
+        (CmdRange _, o) ->
+            either (const old) (\r -> (c { range = Just r }, args')) $ fromObject o
+
+        (CmdCount _, o) ->
+            either (const old) (\n -> (c { count = Just n }, args')) $ fromObject o
+
+        (CmdBang, o) ->
+            either (const old) (\b -> (c { bang = Just b }, args')) $ fromObject o
+
+        (CmdNargs "*", ObjectArray os) ->
+            -- CommadnArguments -> [String] -> Neovim r st a
+            (c, os)
+        (CmdNargs "+", ObjectArray (o:os)) ->
+            -- CommandArguments -> String -> [String] -> Neovim r st a
+            (c, o : [ObjectArray os])
+        (CmdNargs "?", ObjectArray [o]) ->
+            -- CommandArguments -> Maybe String -> Neovim r st a
+            (c, [toObject (Just o)])
+
+        (CmdNargs "?", ObjectArray []) ->
+            -- CommandArguments -> Maybe String -> Neovim r st a
+            (c, [toObject (Nothing :: Maybe Object)])
+
+        (CmdNargs "0", ObjectArray []) ->
+            -- CommandArguments -> Neovim r st a
+            (c, [])
+
+        (CmdNargs "1", ObjectArray [o]) ->
+            -- CommandArguments -> String -> Neovim r st a
+            (c, [o])
+
+        (CmdRegister, o) ->
+            either (const old) (\r -> (c { register = Just r }, args')) $ fromObject o
+
+        _ -> old
+
+parseParams (Autocmd _ _ opts) args = case args of
+    [ObjectArray fArgs] -> fArgs
+    _ -> args
 
 
 handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()

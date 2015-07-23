@@ -53,16 +53,16 @@ spec = do
     it "should have a capitalized prefix" $
         fname `shouldBe` "TestFunction2"
     it "should return 2 for proper arguments" $
-      call testFun [ObjectBinary "ignored", ObjectInt 42] `shouldReturn` ObjectDouble 2
+      call testFun [ObjectNil, ObjectBinary "ignored", ObjectArray [ObjectBinary "42"]] `shouldReturn` ObjectDouble 2
     it "should throw an exception for the wrong number of arguments" $
-      call testFun [] `shouldThrow` isNeovimException
+      call testFun [ObjectNil] `shouldThrow` isNeovimException
     it "should throw an exception for incompatible types" $
-      call testFun [ObjectBinary "ignored", ObjectNil] `shouldThrow` isNeovimException
+      call testFun [ObjectNil, ObjectBinary "ignored", ObjectString "42"] `shouldThrow` isNeovimException
     it "should cast arguments to similar types" $
-      call testFun [ObjectString "ignored", ObjectFloat 42] `shouldReturn` ObjectDouble 2
+      call testFun [ObjectNil, ObjectString "ignored", ObjectArray []] `shouldReturn` ObjectDouble 2
 
   describe "generating a command from the two argument test function" $ do
-      let EF (Command fname _, testFun) = $(command' 'testFunction2) def
+      let EF (Command fname _, testFun) = $(command' 'testFunction2) []
       it "should capitalize the first character" $
         fname `shouldBe` "TestFunction2"
 
@@ -74,9 +74,9 @@ spec = do
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do
-      let EF (Command cname _, testFun) = $(command "TestFunctionMap" 'testFunctionMap) def
+      let EF (Function fname _, testFun) = $(function "TestFunctionMap" 'testFunctionMap) def
       it "should capitalize the first letter" $
-          cname `shouldBe` "TestFunctionMap"
+          fname `shouldBe` "TestFunctionMap"
       it "should fail for the wrong number of arguments" $
         call testFun [] `shouldThrow` isNeovimException
       it "should fail for the wrong type of arguments" $

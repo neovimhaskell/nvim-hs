@@ -30,7 +30,6 @@ plugin params = do
     wrapPlugin Plugin
         { exports =
             [ $(function' 'pingNvimhs) Sync
-            , $(command' 'restartNvimhs) def { cmdSync = Async }
             ]
         , statefulExports =
             [ (params, [],
@@ -40,8 +39,9 @@ plugin params = do
                         }
                 , $(autocmd 'recompileNvimhs) "BufWritePost" def
                         { acmdSync    = Async
-                        , acmdPattern = pack (libsDir++"/.*")
+                        , acmdPattern = pack (libsDir++"/*")
                         }
+                , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
                 ])
             ]
         }

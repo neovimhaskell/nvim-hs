@@ -33,8 +33,10 @@ import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Serialize               (encode)
 import           System.IO                    (IOMode (WriteMode))
+import           System.Log.Logger
 
 import           Prelude
+
 
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
@@ -48,24 +50,35 @@ runEventHandler socketType env =
             $= eventHandler
             $$ addCleanup (cleanUpHandle h) (sinkHandle h)
 
+
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a =
     EventHandler (ResourceT (ReaderT (ConfigWrapper RPCConfig) (StateT Int64 IO)) a)
     deriving ( Functor, Applicative, Monad, MonadState Int64, MonadIO
              , MonadReader (ConfigWrapper RPCConfig))
 
+
 runEventHandlerContext :: ConfigWrapper RPCConfig -> EventHandler a -> IO a
 runEventHandlerContext env (EventHandler a) =
     evalStateT (runReaderT (runResourceT a) env) 1
+
 
 eventHandlerSource :: Source EventHandler SomeMessage
 eventHandlerSource = asks _eventQueue >>= \q ->
     forever $ yield =<< atomically' (readTQueue q)
 
+
 eventHandler :: ConduitM SomeMessage ByteString EventHandler ()
 eventHandler = await >>= \case
     Nothing -> return () -- i.e. close the conduit -- TODO signal shutdown globally
     Just message -> handleMessage (fromMessage message) >> eventHandler
+
+
+yield' :: (MonadIO io) => Object -> ConduitM i ByteString io ()
+yield' o = do
+    liftIO . debugM "EventHandler" $ "Sending: " ++ show o
+    yield $ encode o
+
 
 handleMessage :: Maybe RPCMessage -> ConduitM i ByteString EventHandler ()
 handleMessage = \case
@@ -74,21 +87,21 @@ handleMessage = \case
         modify succ
         rs <- asks (recipients . customConfig)
         atomically' . modifyTVar rs $ Map.insert i (time, reply)
-        yield . encode $ ObjectArray
+        yield' $ ObjectArray
             [ toObject (0 :: Int64)
             , ObjectInt i
             , toObject fn
             , toObject params
             ]
     Just (Response i e res) ->
-        yield . encode $ ObjectArray
+        yield' $ ObjectArray
             [ toObject (1 :: Int64)
             , ObjectInt i
             , toObject e
             , toObject res
             ]
     Just (NotificationCall fn params) ->
-        yield . encode $ ObjectArray
+        yield' $ ObjectArray
             [ ObjectInt 2
             , toObject fn
             , toObject params
