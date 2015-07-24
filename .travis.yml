@@ -28,6 +28,8 @@ install:
 script:
   - cabal configure --enable-tests
   - cabal install
+  - cabal clean
+  - cabal configure --enable-tests
   - cabal test
   - cabal check
   - cabal sdist
