@@ -20,7 +20,7 @@ handy work, some exotic operating systems and architectures may not work.
 
 # How do I start using this?
 
-All you need to know is inside the [Neovim](https://github.com/saep/nvim-hs/blob/master/library/Neovim.hs) module. 
+All you need to know is inside the [Neovim](https://github.com/saep/nvim-hs/blob/master/library/Neovim.hs) module ([hackage](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html)). 
 
 There are also some additional examples:
 * There is low [level example](https://github.com/saep/nvim-hs/blob/master/TestPlugins.hs)
