@@ -30,6 +30,7 @@ extra-source-files:    TestPlugins.vim
                      , test-files/compile-error-for-quickfix-test4
                      , test-files/compile-error-for-quickfix-test5
                      , test-files/hello
+                     , CHANGELOG.md
 source-repository head
     type:            git
     location:        https://github.com/saep/nvim-hs
