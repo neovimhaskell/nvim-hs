@@ -35,11 +35,13 @@ import           Neovim.Classes
 import           Neovim.Context
 
 import           Control.Applicative ((<$>))
+import           Data.Char           (isDigit)
 import           Data.Default
 import           Data.List           (groupBy, sort)
 import qualified Data.Map            as Map
 import           Data.Maybe
 import           Data.MessagePack
+import           Data.String
 import           Data.Text           (Text)
 import           Data.Traversable    (sequence)
 import           Prelude             hiding (sequence)
@@ -112,8 +114,12 @@ data Synchronous
     deriving (Show, Read, Eq, Ord, Enum)
 
 
-instance Default Synchronous where
-    def = Sync
+instance IsString Synchronous where
+    fromString = \case
+        "sync"  -> Sync
+        "async" -> Async
+        _       -> error "Only \"sync\" and \"async\" are valid string representations"
+
 
 instance NvimObject Synchronous where
     toObject = \case
@@ -128,27 +134,59 @@ instance NvimObject Synchronous where
 
 
 -- | Options for commands.
+--
+-- Some command can also be described by using the OverloadedString extensions.
+-- This means that you can write a literal 'String' inside your source file in
+-- place for a 'CommandOption' value. See the documentation for each value on
+-- how these strings should look like (Both versions are compile time checked.)
 data CommandOption = CmdSync Synchronous
                    -- ^ Should neovim wait for an answer ('Sync')?
+                   --
+                   -- Stringliteral: \"sync\" or "\async\"
 
                    | CmdRegister
                    -- ^ Register passed to the command.
+                   --
+                   -- Stringliteral: \"\"\"
 
                    | CmdNargs String
                    -- ^ Command takes a specific amount of arguments
+                   --
+                   -- Automatically set via template haskell functions. You
+                   -- really shouldn't use this option yourself unless you have
+                   -- to.
 
                    | CmdRange RangeSpecification
                    -- ^ Determines how neovim passes the range.
+                   --
+                   -- Stringliterals: \"%\" for 'WholeFile', \",\" for line
+                   --                 and \",123\" for 123 lines.
 
                    | CmdCount Int
                    -- ^ Command handles a count. The argument defines the
                    -- default count.
+                   --
+                   -- Stringliteral: string of numbers (e.g. "132")
 
                    | CmdBang
                    -- ^ Command handles a bang
+                   --
+                   -- Stringliteral: \"!\"
 
     deriving (Eq, Ord, Show, Read)
 
+
+instance IsString CommandOption where
+    fromString = \case
+        "%"     -> CmdRange WholeFile
+        "\""    -> CmdRegister
+        "!"     -> CmdBang
+        "sync"  -> CmdSync Sync
+        "async" -> CmdSync Async
+        ","     -> CmdRange CurrentLine
+        ',':ds | not (null ds) && all isDigit ds -> CmdRange (read ds)
+        ds | not (null ds) && all isDigit ds -> CmdCount (read ds)
+        _       -> error "Not a valid string for a CommandOptions. Check the docs!"
 
 -- | Newtype wrapper for a list of 'CommandOption'. Any properly constructed
 -- object of this type is sorted and only contains zero or one object for each
@@ -208,19 +246,19 @@ instance NvimObject RangeSpecification where
 -- intended to be exported as a command. It holds information about the special
 -- attributes a command can take.
 data CommandArguments = CommandArguments
-    { bang  :: Maybe Bool
+    { bang     :: Maybe Bool
     -- ^ Nothing means that the function was not defined to handle a bang,
     -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
     -- was not passed when called (@'Just' 'False'@).
 
-    , range :: Maybe (Int, Int)
+    , range    :: Maybe (Int, Int)
     -- ^ Range passed from neovim. Only set if 'CmdRange' was used in the export
     -- declaration of the command.
     --
     -- Examples:
     -- * @Just (1,12)@
 
-    , count :: Maybe Int
+    , count    :: Maybe Int
     -- ^ Count passed by neovim. Only set if 'CmdCount' was used in the export
     -- declaration of the command.
 
@@ -268,7 +306,7 @@ data AutocmdOptions = AutocmdOptions
     -- ^ Option to indicate whether vim shuould block until the function has
     -- completed. (default: 'Sync')
 
-    , acmdPattern :: Text
+    , acmdPattern :: String
     -- ^ Pattern to match on. (default: \"*\")
 
     , acmdNested  :: Bool
