@@ -10,6 +10,7 @@ to generate the neovim bindings and to avoid some of the boilerplate
 handy work, some exotic operating systems and architectures may not work.
 
 [![Build Status](https://travis-ci.org/saep/nvim-hs.svg?branch=master)](https://travis-ci.org/saep/nvim-hs)
+[![Hackage version](https://img.shields.io/hackage/v/nvim-hs.svg?style=flat)](https://hackage.haskell.org/package/nvim-hs)
 
 # What do I have to expect if I were to use it now?
 
