@@ -20,7 +20,6 @@ import           Neovim.API.TH
 import           Neovim.Config
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.ConfigHelper.Internal
-import Data.Text (pack)
 
 -- | Note that you cannot really use this plugin by hand. It is automatically
 -- loaded for all Neovim instances.
@@ -35,11 +34,11 @@ plugin params = do
             [ (params, [],
                 [ $(autocmd 'recompileNvimhs) "BufWritePost" def
                         { acmdSync    = Async
-                        , acmdPattern = pack cfgFile
+                        , acmdPattern = cfgFile
                         }
                 , $(autocmd 'recompileNvimhs) "BufWritePost" def
                         { acmdSync    = Async
-                        , acmdPattern = pack (libsDir++"/*")
+                        , acmdPattern = libsDir++"/*"
                         }
                 , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
                 ])

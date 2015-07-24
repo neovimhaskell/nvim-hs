@@ -234,7 +234,7 @@ parseParams cmd@(Command _ opts) args = case args of
 
         _ -> old
 
-parseParams (Autocmd _ _ opts) args = case args of
+parseParams (Autocmd _ _ _) args = case args of
     [ObjectArray fArgs] -> fArgs
     _ -> args
 

@@ -106,8 +106,9 @@ import           Neovim.Context          (Neovim, Neovim', ask, asks, err, get,
 import           Neovim.Main             (neovim)
 import           Neovim.Plugin.Classes   (AutocmdOptions (..),
                                           CommandArguments (..),
-                                          CommandOption (..), NeovimPlugin (..),
-                                          Plugin (..), RangeSpecification (..),
+                                          CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
+                                          NeovimPlugin (..), Plugin (..),
+                                          RangeSpecification (..),
                                           Synchronous (..), wrapPlugin)
 import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
 

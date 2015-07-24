@@ -24,15 +24,17 @@ import           Neovim.RPC.FunctionCall
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
 import           Control.Applicative     hiding (many, (<|>))
-import           Control.Monad           (void, when)
+import           Control.Monad           (void)
 import           Data.Char
-import           Text.Parsec
+import           Text.Parsec             hiding (count)
 import           Text.Parsec.String
+
 
 -- | Simple function that will return @"Pong"@ if the plugin provider is
 -- running.
 pingNvimhs :: Neovim' String
 pingNvimhs = return "Pong"
+
 
 -- | Recompile the plugin provider and put comile errors in the quickfix list.
 recompileNvimhs :: Neovim (Params NeovimConfig) [QuickfixListItem String] ()
@@ -43,6 +45,7 @@ recompileNvimhs = do
     put qs
     setqflist qs Replace
     wait' $ vim_command "cwindow"
+
 
 -- | Note that restarting the plugin provider implies compilation because Dyre
 -- does this automatically. However, if the recompilation fails, the previously
@@ -56,6 +59,7 @@ restartNvimhs CommandArguments{..} = do
         _         -> return ()
     restart
 
+-- Parsing {{{1
 -- See the tests in @test-suite\/Neovim\/Plugin\/ConfigHelperSpec.hs@ on how the
 -- error messages look like.
 parseQuickfixItems :: String -> [QuickfixListItem String]
@@ -63,6 +67,7 @@ parseQuickfixItems s =
     case parse (many pQuickfixListItem) "Quickfix parser" s of
         Right qs -> qs
         Left _   -> []
+
 
 pQuickfixListItem :: Parser (QuickfixListItem String)
 pQuickfixListItem = do
@@ -75,21 +80,26 @@ pQuickfixListItem = do
         , errorType = "E" -- TODO determine actual type
         }
 
+
 pShortDesrciption :: Parser String
 pShortDesrciption = (:)
     <$> (many spaceChar *> notFollowedBy blankLine *> anyChar)
     <*> anyChar `manyTill` (void (many1 blankLine) <|> eof)
+
 
 pLongDescription :: Parser String
 pLongDescription = anyChar `manyTill` (blank <|> eof)
   where
     blank = try (try newline *> try blankLine)
 
+
 spaceChar :: Parser Char
 spaceChar = satisfy $ \c -> c == ' ' || c == '\t'
 
+
 blankLine :: Parser ()
 blankLine = void . try $ many spaceChar >> newline
+
 
 -- | Skip anything until the next location information appears.
 --
@@ -104,5 +114,7 @@ pLocation = (,,)
     <*> pInt <* char ':'
     <*> pInt <* char ':' <* many spaceChar
 
+
 pInt :: Parser Int
 pInt = read <$> many1 (satisfy isDigit)
+-- 1}}}

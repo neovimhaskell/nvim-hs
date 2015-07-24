@@ -40,7 +40,7 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let EF (Function fname _, testFun) = $(function  "TestFunction0" 'testFunction0) def
+    let EF (Function fname _, testFun) = $(function  "TestFunction0" 'testFunction0) Sync
     it "should have a capitalized prefix" $
         fname `shouldBe` "TestFunction0"
     it "should return the consant value" $
@@ -49,7 +49,7 @@ spec = do
         call testFun [ObjectNil] `shouldThrow` isNeovimException
 
   describe "calling testFunction with two arguments" $ do
-    let EF (Function fname _, testFun) = $(function' 'testFunction2) def
+    let EF (Function fname _, testFun) = $(function' 'testFunction2) Sync
     it "should have a capitalized prefix" $
         fname `shouldBe` "TestFunction2"
     it "should return 2 for proper arguments" $
@@ -67,14 +67,14 @@ spec = do
         fname `shouldBe` "TestFunction2"
 
   describe "generating the test successor functions" $ do
-      let EF (Function fname _, testFun) = $(function' 'testSucc) def
+      let EF (Function fname _, testFun) = $(function' 'testSucc) Sync
       it "should be named TestSucc" $
           fname `shouldBe` "TestSucc"
       it "should return the old value + 1" . property $
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do
-      let EF (Function fname _, testFun) = $(function "TestFunctionMap" 'testFunctionMap) def
+      let EF (Function fname _, testFun) = $(function "TestFunctionMap" 'testFunctionMap) Sync
       it "should capitalize the first letter" $
           fname `shouldBe` "TestFunctionMap"
       it "should fail for the wrong number of arguments" $
