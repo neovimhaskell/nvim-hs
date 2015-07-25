@@ -6,7 +6,7 @@
 " messages (something like dist/test/nvim-hs-0.0.1-hspec.log).
 
 " Initialize the plugin provider
-call remote#host#Register('test', "*.l\?hs", rpcstart('./nvim-hs.sh', ['test']))
+call remote#host#Register('test', "*.l\?hs", rpcstart('./TestPlugins.sh', ['test']))
 let haskellChannel = remote#host#Require('test')
 " We need to issue a synchornous request to make sure that the function
 " hooks are registered before we try to call them. Issueing this as late as
