@@ -1,6 +1,6 @@
 # nvim-hs
 
-Neovim API for Haskell plugins as well as a plugin provider. 
+Neovim API for Haskell plugins as well as a plugin provider.
 This library and executable should provide a basis for developing
 plugins. This package should only contain broadly useful interfaces
 to write plugins for neovim in haskell. The design goal was to create
@@ -21,7 +21,7 @@ handy work, some exotic operating systems and architectures may not work.
 
 # How do I start using this?
 
-All you need to know is inside the [Neovim](https://github.com/saep/nvim-hs/blob/master/library/Neovim.hs) module ([hackage](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html)). 
+All you need to know is inside the [Neovim](https://github.com/saep/nvim-hs/blob/master/library/Neovim.hs) module ([hackage](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html)).
 
 There are also some additional examples:
 * There is low [level example](https://github.com/saep/nvim-hs/blob/master/TestPlugins.hs)
@@ -31,8 +31,8 @@ There are also some additional examples:
 * A more high [level plugin](https://github.com/saep/nvim-hs/blob/master/library/Neovim/Plugin/ConfigHelper.hs)
   is currently developed that is specifically
   designed to help in writing new plugins using this plugin provider.
-* A simple configuration which tests new features and helps 
-  finding issues in our API is hosted here: 
+* A simple configuration which tests new features and helps
+  finding issues in our API is hosted here:
   https://github.com/saep/nvim-hs-config-example
   This should be in sync with the master branch most of the time.
   Feel free to poke me on irc or create an issue it that is not the case.
@@ -40,7 +40,7 @@ There are also some additional examples:
 If you import the `Neovim` module into ghci, you can tab-complete the list
 of generated neovim functions by typing `vim_` and hitting `<Tab>`. The functions
 are meant to be self-explanatory, but if they aren't feel free to link to the documentation
-on the [neovim](https://github.com/neovim/neovim) side. 
+on the [neovim](https://github.com/neovim/neovim) side.
 
 # Coordinate your work
 
@@ -59,31 +59,66 @@ You can also just create an issue here on github.
 # Installation
 
 As this is still very much a prototype and changes are most certainly
-necessary, the only recommended way to install this is within a sandbox.
+necessary, the only recommended way to install this is within a sandbox
+or with stack.
 If you encounter any issues while following these steps, please let us
 know!
 
 ## Sandbox
 
-1. Make sure that the `nvim` executable is on your path
-2. `cd` to the project directory (e.g. `~/sandboxes/nvim-hs`)
-3. Initialize the sandbox with `cabal sandbox init`
-4. Install to the sandbox `cabal install`
-5. Create this script
-  ```bash
-  #!/bin/sh
+1. Make sure that the `nvim` executable is on your `PATH`
 
-  sandbox_directory=$HOME/sandboxes/nvim-hs
-  old_pwd="`pwd`"
-  cd "$sandbox_directory"
-  env CABAL_SANDBOX_CONFIG="$sandbox_directory"/cabal.sandbox.config cabal \
-      exec "$sandbox_directory/.cabal-sandbox/bin/nvim-hs" -- "$@"
-  cd "$old_pwd"
-  ```
-6. Follow the instructions at https://github.com/saep/nvim-hs-config-example/blob/master/README.md
+2. Clone this repository
+
+   > git clone https://github.com/saep/nvim-hs ~/sandboxes/nvim-hs
+
+3. `cd` to the project directory
+
+   > cd `~/sandboxes/nvim-hs`
+
+4. Initialize the sandbox
+
+   > cabal sandbox init
+
+5. Install to the sandbox
+
+   > cabal install
+
+6. Put the script `nvim-hs-devel.sh` at a place of your
+   convenience and edit it according to its comments
+   (which should take less than a minute).
+
+7. A tutorial is inside the
+   [Neovim module](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html).
+
+## Stack
+
+1. Make sure that the `nvim` executable is on your `PATH`
+
+2. Clone this repository
+
+   > git clone https://github.com/saep/nvim-hs ~/sandboxes/nvim-hs
+
+3. `cd` to the project directory
+
+   > cd `~/sandboxes/nvim-hs`
+
+4. Build the project
+
+   > stack build
+
+5. Put the script `nvim-hs-devel.sh` at a place of your
+   convenience and edit it according to its comments
+   (which should take less than a minute).
+
+6. A tutorial is inside the
+   [Neovim module](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html).
 
 ## Normal installation
 
-1. Make sure that the `nvim` executable is on your path
-2. `cabal install /path/to/where/you/cloned/this/repository`
-3. Follow the instructions at https://github.com/saep/nvim-hs-config-example/blob/master/README.md
+1. Make sure that the `nvim` executable is on your `PATH`
+
+2. `cabal install nvim-hs`
+
+3. A tutorial is inside the
+   [Neovim module](http://hackage.haskell.org/package/nvim-hs-0.0.2/docs/Neovim.html).
