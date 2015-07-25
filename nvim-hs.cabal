@@ -23,7 +23,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:    TestPlugins.vim
                      , TestPlugins.hs
-                     , nvim-hs.sh
+                     , TestPlugins.sh
+                     , nvim-hs-devel.sh
                      , test-files/compile-error-for-quickfix-test1
                      , test-files/compile-error-for-quickfix-test2
                      , test-files/compile-error-for-quickfix-test3
