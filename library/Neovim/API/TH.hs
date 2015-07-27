@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {- |
 Module      :  Neovim.API.TH
@@ -18,6 +19,7 @@ module Neovim.API.TH
     , command'
     , autocmd
     , defaultAPITypeToHaskellTypeMap
+
     , module Control.Exception.Lifted
     , module Neovim.Classes
     , module Data.Data
@@ -269,10 +271,10 @@ function' functionName =
 -- 'ByteString' for a value of type.
 data ArgType = StringyType
              | ListOfStringyTypes
-             | OptionalStringyType
+             | Optional ArgType
              | CommandArgumentsType
              | OtherType
-             deriving (Eq, Ord, Show, Read, Enum, Bounded)
+             deriving (Eq, Ord, Show, Read)
 
 
 -- | Given a value of type 'Type', test whether it can be classified according
@@ -282,19 +284,19 @@ classifyArgType t = do
     set <- genStringTypesSet
     maybeType <- [t|Maybe|]
     cmdArgsType <- [t|CommandArguments|]
-    return $ case t of
+    case t of
         AppT ListT (ConT str) | str `Set.member` set
-            -> ListOfStringyTypes
+            -> return ListOfStringyTypes
 
-        AppT m (ConT str) | m == maybeType && str `Set.member` set
-            -> OptionalStringyType
+        AppT m mt@(ConT _) | m == maybeType
+            -> Optional <$> classifyArgType mt
 
         ConT str | str `Set.member` set
-            -> StringyType
+            -> return StringyType
         cmd | cmd == cmdArgsType
-            -> CommandArgumentsType
+            -> return CommandArgumentsType
 
-        _ -> OtherType
+        _ -> return OtherType
 
   where
     genStringTypesSet = do
@@ -313,14 +315,13 @@ command customFunctionName@(c:_) functionName
     | otherwise = do
         (argTypes, fun) <- functionImplementation functionName
         -- See :help :command-nargs for what the result strings mean
-        cts <- mapM classifyArgType argTypes
-        case cts of
+        case argTypes of
             (CommandArgumentsType:_) -> return ()
             _ -> error "First argument for a function exported as a command must be CommandArguments!"
-        let nargs = case tail cts of
+        let nargs = case tail argTypes of
                 []                                -> [|CmdNargs "0"|]
                 [StringyType]                     -> [|CmdNargs "1"|]
-                [OptionalStringyType]             -> [|CmdNargs "?"|]
+                [Optional StringyType]            -> [|CmdNargs "?"|]
                 [ListOfStringyTypes]              -> [|CmdNargs "*"|]
                 [StringyType, ListOfStringyTypes] -> [|CmdNargs "+"|]
                 _                                 -> error $ unlines
@@ -371,15 +372,17 @@ autocmd functionName =
 --     _ -> err $ "Wrong number of arguments for add: " ++ show xs
 -- @
 --
-functionImplementation :: Name -> Q ([Type], Exp)
+functionImplementation :: Name -> Q ([ArgType], Exp)
 functionImplementation functionName = do
     fInfo <- reify functionName
-    -- We only need the number of arguments to generate the appropriate function
-    let nargs = case fInfo of
-            VarI _ functionType _ _ -> determineNumberOfArguments functionType
-            x -> error $ "Value given to function is (likely) not the name of a function.\n"
-                            <> show x
-    e <- topLevelCase (length nargs)
+    nargs <- mapM classifyArgType $ case fInfo of
+            VarI _ functionType _ _ ->
+                determineNumberOfArguments functionType
+
+            x ->
+                error $ "Value given to function is (likely) not the name of a function.\n" <> show x
+
+    e <- topLevelCase nargs
     return (nargs, e)
 
   where
@@ -389,9 +392,13 @@ functionImplementation functionName = do
         AppT (AppT ArrowT t) r -> t : determineNumberOfArguments r
         _ -> []
     -- \args -> case args of ...
-    topLevelCase :: Int -> Q Exp
-    topLevelCase n = newName "args" >>= \args ->
-        lamE [varP args] (caseE (varE args) [matchingCase n, errorCase])
+    topLevelCase :: [ArgType] -> Q Exp
+    topLevelCase ts = do
+        let n = length ts
+            minLength = length [ () | Optional _ <- reverse ts ]
+        args <- newName "args"
+        lamE [varP args] (caseE (varE args)
+            (zipWith matchingCase [n,n-1..] [0..minLength] ++ [errorCase]))
 
     -- _ -> err "Wrong number of arguments"
     errorCase :: Q Match
@@ -400,18 +407,24 @@ functionImplementation functionName = do
                         ++ $(litE (StringL (nameBase functionName))) |]) []
 
     -- [x,y] -> case pure add <*> fromObject x <*> fromObject y of ...
-    matchingCase :: Int -> Q Match
-    matchingCase n = mapM (\_ -> newName "x") [1..n] >>= \vars ->
-        match (listP (map varP vars))
+    matchingCase :: Int -> Int -> Q Match
+    matchingCase n x = do
+        vars <- mapM (\_ -> Just <$> newName "x") [1..n]
+        let optVars = replicate x (Nothing :: Maybe Name)
+        match (listP (map varP [ v | Just v <- vars]))
               (normalB
                 (caseE
                     (foldl genArgumentCast [|pure $(varE functionName)|]
-                        (zip vars (repeat [|(<*>)|])))
+                        (zip (vars ++ optVars) (repeat [|(<*>)|])))
                   [successfulEvaluation, failedEvaluation]))
               []
 
-    genArgumentCast :: Q Exp -> (Name, Q Exp) -> Q Exp
-    genArgumentCast e (v,op) = infixE (Just e) op (Just [|fromObject $(varE v)|])
+    genArgumentCast :: Q Exp -> (Maybe Name, Q Exp) -> Q Exp
+    genArgumentCast e = \case
+        (Just v,op) ->
+            infixE (Just e) op (Just [|fromObject $(varE v)|])
+        (Nothing, op) ->
+            infixE (Just e) op (Just [|pure Nothing|])
 
     successfulEvaluation :: Q Match
     successfulEvaluation = newName "action" >>= \action ->

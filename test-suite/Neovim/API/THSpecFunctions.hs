@@ -15,3 +15,8 @@ testFunctionMap m k = return $ Map.lookup k m
 
 testSucc :: Int -> Neovim r st Int
 testSucc = return . succ
+
+testCommandOptArgument :: CommandArguments -> Maybe String -> Neovim' String
+testCommandOptArgument _ ms = case ms of
+    Just x  -> return x
+    Nothing -> return "default"
