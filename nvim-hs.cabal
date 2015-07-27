@@ -45,6 +45,7 @@ executable nvim-hs
 
 library
   exposed-modules:      Neovim
+                      , Neovim.Quickfix
   -- Note that every module below this is considered internal and if you have to
   -- import it somewhere in your code and you think it should be generally
   -- available , you should open a ticket about inclusion in the export list of
@@ -66,7 +67,7 @@ library
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.ConfigHelper
-                      , Neovim.Quickfix
+                      , Neovim.Util
 
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.API.Parser
