@@ -28,6 +28,8 @@ import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 import           Options.Applicative
 import           System.IO                  (stdin, stdout)
+import           System.Environment
+import           System.SetEnv
 
 data CommandLineOptions =
     Opt { providerName :: String
@@ -112,11 +114,16 @@ runPluginProvider os = case (hostPort os, unix os) of
 
   where
     run evHandlerSocket sockreaderSocket cfg = do
+        ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
+            val <- lookupEnv var
+            unsetEnv var
+            return (var, val)
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
         quitter <- newEmptyMVar
-        let conf = ConfigWrapper q quitter (providerName os) ()
-            allPlugins = maybe id ((:) . ConfigHelper.plugin) (dyreParams cfg) $ plugins cfg
+        let conf = ConfigWrapper q quitter (providerName os) Nothing ()
+            allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
+                            plugins cfg
         startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
             Right pluginTidsWithQueues -> do

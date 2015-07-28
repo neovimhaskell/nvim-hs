@@ -83,6 +83,7 @@ module Neovim (
     -- This section contains just a bunch of more or less useful functions which
     -- were not introduced in any of the previous sections.
     liftIO,
+    withCustomEnvironment,
     Priority(..),
     module Control.Applicative,
     module Data.Monoid,
@@ -111,6 +112,7 @@ import           Neovim.Plugin.Classes   (AutocmdOptions (..),
                                           RangeSpecification (..),
                                           Synchronous (..), wrapPlugin)
 import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
+import           Neovim.Util             (withCustomEnvironment)
 import           System.Log.Logger       (Priority (..))
 
 -- Installation {{{1

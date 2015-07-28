@@ -23,15 +23,19 @@ import           Neovim.Plugin.ConfigHelper.Internal
 
 -- | Note that you cannot really use this plugin by hand. It is automatically
 -- loaded for all Neovim instances.
-plugin :: Params NeovimConfig -> IO NeovimPlugin
-plugin params = do
+--
+-- The first argument is a set of environment variables that is needed to
+-- recompile /nvim-hs/. They are temporarily set during the recompilation
+-- function call.
+plugin :: [(String, Maybe String)] -> Params NeovimConfig -> IO NeovimPlugin
+plugin ghcEnv params = do
     (_, _, cfgFile, _, libsDir) <- getPaths params
     wrapPlugin Plugin
         { exports =
             [ $(function' 'pingNvimhs) Sync
             ]
         , statefulExports =
-            [ (params, [],
+            [ ((params, ghcEnv), [],
                 [ $(autocmd 'recompileNvimhs) "BufWritePost" def
                         { acmdSync    = Async
                         , acmdPattern = cfgFile

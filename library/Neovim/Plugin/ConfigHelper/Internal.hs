@@ -20,6 +20,7 @@ import           Neovim.Context
 import           Neovim.Plugin.Classes
 import           Neovim.Quickfix
 import           Neovim.RPC.FunctionCall
+import           Neovim.Util             (withCustomEnvironment)
 
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
@@ -37,9 +38,8 @@ pingNvimhs = return "Pong"
 
 
 -- | Recompile the plugin provider and put comile errors in the quickfix list.
-recompileNvimhs :: Neovim (Params NeovimConfig) [QuickfixListItem String] ()
-recompileNvimhs = do
-    cfg <- ask
+recompileNvimhs :: Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
+recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
     mErrString <- liftIO (customCompile cfg >> getErrorString cfg)
     let qs = maybe [] parseQuickfixItems mErrString
     put qs
@@ -52,7 +52,7 @@ recompileNvimhs = do
 -- compiled bynary is executed. This essentially means that restarting may take
 -- more time then you might expect.
 restartNvimhs :: CommandArguments
-              -> Neovim (Params NeovimConfig) [QuickfixListItem String] ()
+              -> Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
 restartNvimhs CommandArguments{..} = do
     case bang of
         Just True -> recompileNvimhs
