@@ -6,7 +6,6 @@ module Neovim.API.THSpec
 import           Neovim.API.THSpecFunctions
 
 import           Neovim.API.TH
-import           Neovim.Classes
 import           Neovim.Context
 import           Neovim.Plugin.Classes
 
@@ -17,21 +16,15 @@ import           Test.Hspec
 import           Test.QuickCheck
 
 import           Control.Applicative
-import           Control.Concurrent
-import           Control.Concurrent.STM
 
 call :: ([Object] -> Neovim () () Object) -> [Object]
      -> IO Object
 call f args = do
-    cfg <- ConfigWrapper <$> newTQueueIO
-                         <*> newEmptyMVar
-                         <*> pure "nvim-hs-test-suite"
-                         <*> pure ()
+    cfg <- newConfigWrapper (pure "nvim-hs-test-suite") (pure ())
     res <- fmap fst <$> runNeovim cfg () (f args)
     case res of
         Right x -> return x
         Left e -> throw $ ErrorMessage e
-
 
 
 isNeovimException :: NeovimException -> Bool

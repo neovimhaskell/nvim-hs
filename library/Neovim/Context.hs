@@ -24,6 +24,7 @@ module Neovim.Context (
     Neovim',
     NeovimException(..),
     ConfigWrapper(..),
+    newConfigWrapper,
     runNeovim,
     forkNeovim,
     err,
@@ -36,7 +37,8 @@ module Neovim.Context (
     ) where
 
 
-import           Control.Concurrent     (MVar, ThreadId, forkIO, putMVar)
+import           Control.Applicative
+import           Control.Concurrent     (MVar, ThreadId, forkIO, putMVar, newEmptyMVar)
 import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad.Except
@@ -44,28 +46,67 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Reader   hiding (ask, asks)
 import qualified Control.Monad.Reader   as R
 import           Control.Monad.State
+import           Data.Char              (isDigit)
 import           Data.Data              (Typeable)
+import           Data.Text              (Text)
+import qualified Data.Text              as Text
 import           Neovim.Plugin.IPC      (SomeMessage)
 import           System.Log.Logger
 
 
 -- | A wrapper for a reader value that contains extra fields required to
--- communicate with the messagepack-rpc components.
+-- communicate with the messagepack-rpc components and provide necessary data to
+-- provide other globally available operations.
+--
+-- Note that you most probably do not want to change the fields prefixed with an
+-- underscore.
+--
+-- TODO create lenses for access and hide constructor
 data ConfigWrapper a = ConfigWrapper
-    { _eventQueue   :: TQueue SomeMessage
+    -- Global settings; initialized once
+    { _eventQueue      :: TQueue SomeMessage
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
-    , _quit         :: MVar QuitAction
+
+    , _quit            :: MVar QuitAction
     -- ^ The main thread will wait for this 'MVar' to be filled with a value
     -- and then perform an action appropriate for the value of type
     -- 'QuitAction'.
-    , _providerName :: String
+
+    , _providerName    :: String
     -- ^ Name that is used to identify this provider. Assigning such a name is
     -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
-    , customConfig  :: a
+
+    , _uniqueCounter   :: TVar Integer
+    -- ^ This 'TVar' is used to generate uniqe function names on the side of
+    -- /nvim-hs/. This is useful if you don't want to overwrite existing
+    -- functions or if you create autocmd functions.
+
+    -- Local settings; intialized for each stateful component
+    , _statefulChannel :: Maybe (TQueue SomeMessage)
+    -- ^ This field is currently only used to properly register autocmd actions
+    -- from within a plugin. It is the channel that the stateful plugin listens
+    -- on or 'Nothing' if it is not a stateful plugin.
+
+    , customConfig     :: a
     -- ^ Plugin author supplyable custom configuration. It can be queried via
     -- 'myConf'.
     }
+
+
+-- | Create a new 'ConfigWrapper' object by providing the minimal amount of
+-- necessary information.
+--
+-- This function should only be called once per /nvim-hs/ session since the
+-- arguments are shared across processes.
+newConfigWrapper :: IO String -> IO a -> IO (ConfigWrapper a)
+newConfigWrapper providerName a = ConfigWrapper
+    <$> newTQueueIO
+    <*> newEmptyMVar
+    <*> providerName
+    <*> newTVarIO 100
+    <*> pure Nothing
+    <*> a
 
 
 data QuitAction = Quit
@@ -75,6 +116,10 @@ data QuitAction = Quit
                 deriving (Show, Read, Eq, Ord, Enum, Bounded)
 
 
+-- | Retrieve the reference for the local message queue. This can be ussed to
+-- send arbitrary messages to other stateful threads.
+--
+-- TODO implement listening mechanism
 eventQueue :: Neovim r st (TQueue SomeMessage)
 eventQueue = R.asks _eventQueue
 

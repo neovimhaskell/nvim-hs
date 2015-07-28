@@ -40,6 +40,7 @@ data CommandLineOptions =
         , logOpts      :: Maybe (FilePath, Priority)
         }
 
+
 optParser :: Parser CommandLineOptions
 optParser = Opt
     <$> strArgument
@@ -99,12 +100,14 @@ neovim conf =
             }
     in Dyre.wrapMain params (conf { dyreParams = Just params })
 
+
 realMain :: NeovimConfig -> IO ()
 realMain cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
         logM "Neovim.Main" DEBUG "Starting up neovim haskell plguin provider"
         runPluginProvider os cfg
+
 
 runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
 runPluginProvider os = case (hostPort os, unix os) of
@@ -119,11 +122,11 @@ runPluginProvider os = case (hostPort os, unix os) of
             val <- lookupEnv var
             unsetEnv var
             return (var, val)
+
         rpcConfig <- newRPCConfig
-        q <- newTQueueIO
-        quitter <- newEmptyMVar
-        let conf = ConfigWrapper q quitter (providerName os) Nothing
-            allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
+        conf <- newConfigWrapper (pure (providerName os)) (pure ())
+
+        let allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
                             plugins cfg
         startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
@@ -134,7 +137,8 @@ runPluginProvider os = case (hostPort os, unix os) of
                 let pluginTids = concatMap (map fst . snd) pluginTidsWithQueues
                 rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
                 debugM "Neovim.Main" "Waiting for threads to finish."
-                finish (rTid:ehTid:pluginTids) =<< readMVar quitter
+                finish (rTid:ehTid:pluginTids) =<< readMVar (_quit conf)
+
 
 finish :: [ThreadId] -> QuitAction -> IO ()
 finish threads = \case
@@ -143,3 +147,4 @@ finish threads = \case
         mapM_ killThread threads
         Dyre.relaunchMaster Nothing
     Quit -> return ()
+

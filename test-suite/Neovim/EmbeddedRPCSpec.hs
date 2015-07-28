@@ -6,7 +6,7 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
-import           Neovim.Context          (ConfigWrapper (..))
+import           Neovim.Context          (ConfigWrapper (..), newConfigWrapper)
 import           Neovim.Quickfix
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
@@ -52,10 +52,8 @@ withNeovimEmbedded file testCase = do
                 , std_out = CreatePipe
                 }
 
-        e <- ConfigWrapper <$> newTQueueIO
-                           <*> newEmptyMVar
-                           <*> pure "nvim-hs-test-suite"
-                           <*> newRPCConfig
+        e <- newConfigWrapper (pure "nvim-hs-test-suite") newRPCConfig
+
         _ <- forkIO $ runSocketReader (Stdout hout) e
         _ <- forkIO $ runEventHandler (Stdout hin)  e
 
