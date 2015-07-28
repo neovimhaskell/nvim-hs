@@ -14,6 +14,7 @@ module Neovim.Context (
     asks,
     ask,
     eventQueue,
+    newUniqueFunctionName,
 
     get,
     put,
@@ -122,6 +123,20 @@ data QuitAction = Quit
 -- TODO implement listening mechanism
 eventQueue :: Neovim r st (TQueue SomeMessage)
 eventQueue = R.asks _eventQueue
+
+
+-- | Create a new unique function name. To prevent possible name clashes, digits
+-- are stripped from the given suffix.
+newUniqueFunctionName :: String -> Neovim r st Text
+newUniqueFunctionName suffix = do
+    let suffix' = filter isDigit suffix
+    tu <- R.asks _uniqueCounter
+    -- reverseing the integer string should distribute the first character more
+    -- evently and hence cause faster termination for comparisons.
+    fmap (Text.pack . (++suffix') . reverse . show) . liftIO . atomically $ do
+        u <- readTVar tu
+        modifyTVar' tu succ
+        return u
 
 
 -- | This is the environment in which all plugins are initially started.
