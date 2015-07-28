@@ -302,11 +302,7 @@ instance NvimObject CommandArguments where
 
 
 data AutocmdOptions = AutocmdOptions
-    { acmdSync    :: Synchronous
-    -- ^ Option to indicate whether vim shuould block until the function has
-    -- completed. (default: 'Sync')
-
-    , acmdPattern :: String
+    { acmdPattern :: String
     -- ^ Pattern to match on. (default: \"*\")
 
     , acmdNested  :: Bool
@@ -319,8 +315,7 @@ data AutocmdOptions = AutocmdOptions
 
 instance Default AutocmdOptions where
     def = AutocmdOptions
-        { acmdSync    = Sync
-        , acmdPattern = "*"
+        { acmdPattern = "*"
         , acmdNested  = False
         }
 

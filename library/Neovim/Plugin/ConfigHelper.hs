@@ -37,12 +37,10 @@ plugin ghcEnv params = do
         , statefulExports =
             [ ((params, ghcEnv), [],
                 [ $(autocmd 'recompileNvimhs) "BufWritePost" def
-                        { acmdSync    = Async
-                        , acmdPattern = cfgFile
+                        { acmdPattern = cfgFile
                         }
                 , $(autocmd 'recompileNvimhs) "BufWritePost" def
-                        { acmdSync    = Async
-                        , acmdPattern = libsDir++"/*"
+                        { acmdPattern = libsDir++"/*"
                         }
                 , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
                 ])

@@ -107,7 +107,7 @@ registerWithNeovim = \case
     Autocmd acmdType functionName opts -> do
         pName <- R.asks _providerName
         ret <- wait $ vim_call_function "remote#define#AutocmdOnHost"
-            [ toObject pName, toObject functionName, toObject (acmdSync opts)
+            [ toObject pName, toObject functionName, toObject Async
             , toObject acmdType , toObject opts
             ]
         case ret of
