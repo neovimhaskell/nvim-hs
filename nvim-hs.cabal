@@ -83,6 +83,7 @@ library
                       , data-default
                       , directory
                       , dyre
+                      , exceptions
                       , filepath
                       , hslogger
                       , messagepack >= 0.4
@@ -129,6 +130,7 @@ test-suite hspec
                       , data-default
                       , directory
                       , dyre
+                      , exceptions
                       , filepath
                       , hslogger
                       , lifted-base

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Util
 Description :  Utility functions
@@ -9,11 +10,13 @@ Stability   :  experimental
 Portability :  GHC
 
 -}
-module Neovim.Util
-    where
+module Neovim.Util (
+    withCustomEnvironment,
+    ) where
 
 import Neovim.Context
 import Control.Monad (forM, forM_)
+import Control.Monad.Catch (bracket, MonadMask)
 import System.Environment
 import System.SetEnv
 
@@ -23,18 +26,21 @@ import System.SetEnv
 --
 -- TODO use some lifted vriant of bracket since the environment variables are
 --      not reset if @action@ has thrown an error.
-withCustomEnvironment :: MonadIO io => [(String, Maybe String)] -> io a -> io a
-withCustomEnvironment modifiedEnvironment action = do
-    preservedValues <- forM modifiedEnvironment $ \(var, val) -> liftIO $ do
-        old <- lookupEnv var
+withCustomEnvironment :: (MonadMask io, MonadIO io)
+                      => [(String, Maybe String)] -> io a -> io a
+withCustomEnvironment modifiedEnvironment action =
+    bracket saveAndSet unset (\_ -> action)
+
+  where
+    saveAndSet = do
+        preservedValues <- forM modifiedEnvironment $ \(var, val) -> liftIO $ do
+            old <- lookupEnv var
+            maybe (unsetEnv var) (setEnv var) val
+            return (var, old)
+        return preservedValues
+
+    unset preservedValues = forM_ preservedValues $ \(var, val) -> liftIO $
         maybe (unsetEnv var) (setEnv var) val
-        return (var, old)
 
-    a <- action
-
-    forM_ preservedValues $ \(var, val) -> liftIO $
-        maybe (unsetEnv var) (setEnv var) val
-
-    return a
 
 
