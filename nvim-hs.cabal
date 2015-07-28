@@ -91,7 +91,7 @@ library
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3
                       , optparse-applicative
-                      , parsec ==3.*
+                      , parsec >= 3.1.9
                       , process
                       , resourcet
                       , setenv >= 0.1.1.3
@@ -136,7 +136,7 @@ test-suite hspec
                       , messagepack >= 0.4
                       , network
                       , optparse-applicative
-                      , parsec
+                      , parsec >= 3.1.9
                       , process
                       , resourcet
                       , setenv >= 0.1.1.3
