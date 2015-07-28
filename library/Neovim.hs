@@ -83,6 +83,7 @@ module Neovim (
     -- This section contains just a bunch of more or less useful functions which
     -- were not introduced in any of the previous sections.
     liftIO,
+    Priority(..),
     module Control.Applicative,
     module Data.Monoid,
     module Data.Int,
@@ -105,12 +106,12 @@ import           Neovim.Context          (Neovim, Neovim', ask, asks, err, get,
                                           gets, modify, put)
 import           Neovim.Main             (neovim)
 import           Neovim.Plugin.Classes   (AutocmdOptions (..),
-                                          CommandArguments (..),
-                                          CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
+                                          CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
                                           NeovimPlugin (..), Plugin (..),
                                           RangeSpecification (..),
                                           Synchronous (..), wrapPlugin)
 import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
+import           System.Log.Logger       (Priority (..))
 
 -- Installation {{{1
 -- tl;dr installation {{{2

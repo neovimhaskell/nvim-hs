@@ -62,7 +62,7 @@ spec = do
               lnumOrPattern q1 `shouldBe` Left 25
               lnumOrPattern q2 `shouldBe` Left 11
               lnumOrPattern q3 `shouldBe` Left 25
-          qs -> assertFailure "Expected three quickfix list items."
+          _ -> assertFailure "Expected three quickfix list items."
 
   describe "pShortDesrciption" $ do
     it "should fail for an empty input" $
