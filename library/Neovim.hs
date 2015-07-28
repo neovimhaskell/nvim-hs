@@ -130,7 +130,7 @@ using a sandbox:
 \$ mkdir -p ~\/git ; cd ~\/git
 \$ git clone https:\/\/github.com\/saep\/nvim-hs
 \$ cd nvim-hs
-\$ git sandbox init
+\$ cabal sandbox init
 \$ cabal install
 @
 
@@ -172,7 +172,7 @@ endif
 
 You essentially have to follow the instructions of the tl;dr subsection above,
 but this subsections tells you why you need those steps and it gives you the
-required knowledge do deviate from those instructions.
+required knowledge to deviate from those instructions.
 
 If you want to use or write plugins written in haskell for /nvim-hs/, you first
 have to make sure that neovim is installed and that it is available on your
@@ -183,7 +183,7 @@ plugins. Also, some internal functionality requires some of these functions.
 
 The instructions to install /nvim-hs/ should be self-explanatory. In any case, I
 (saep) recommend using a sandbox for now since there is no stable hackage
-release yet and a few librarier are newer than what is currently in stackage
+release yet and a few libraries are newer than what is currently in stackage
 (namely mtl, which is a big deal). Using a sandbox requires you to install all
 the libraries you want or have to use in your plugins to be installed inside the
 sandbox! Some Vim plugins (e.g. ghc-mod) may show weird errors inside neovim for
@@ -201,7 +201,7 @@ The Vim-script snippet is a bit lengthy, but the comments should explain how it
 works. In any case, the snippet can be put anywhere in your neovim configuration
 file and the last call of `rpcrequest` is not needed if you don't call any
 functionality before /nvim-hs/ has started properly. Removing the call can
-improve the startup time. If you only need some functionality for haskell source
+improve the startup time. If you only need some functionality for Haskell source
 files, you could move those last (or the last two) lines at the top of
 @\$HOME\/.nvim\/ftplugin\/haskell.vim@. You may wonder why we have to explicitly
 call 'PingNvimhs' with the function `rpcrequest` here. The short answer is:
