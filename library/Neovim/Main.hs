@@ -20,6 +20,7 @@ import qualified Config.Dyre                as Dyre
 import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM
+import           Control.Monad
 import           Data.Monoid
 import           Neovim.Context
 import           Neovim.Debug
@@ -121,7 +122,7 @@ runPluginProvider os = case (hostPort os, unix os) of
         rpcConfig <- newRPCConfig
         q <- newTQueueIO
         quitter <- newEmptyMVar
-        let conf = ConfigWrapper q quitter (providerName os) Nothing ()
+        let conf = ConfigWrapper q quitter (providerName os) Nothing
             allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
                             plugins cfg
         startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
