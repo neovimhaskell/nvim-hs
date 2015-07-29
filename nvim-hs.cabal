@@ -12,7 +12,7 @@ description:
   .
   If you spot any errors or if you have great ideas, feel free to open an issue
   on github.
-homepage:            https://github.com/saep/nvim-hs
+homepage:            https://github.com/neovimhaskell/nvim-hs
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Sebastian Witte
@@ -34,7 +34,7 @@ extra-source-files:    TestPlugins.vim
                      , CHANGELOG.md
 source-repository head
     type:            git
-    location:        https://github.com/saep/nvim-hs
+    location:        https://github.com/neovimhaskell/nvim-hs
 
 executable nvim-hs
   main-is:              Main.hs
