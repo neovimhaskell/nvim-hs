@@ -7,7 +7,7 @@ import Test.HUnit (assertFailure)
 import Neovim.Quickfix
 import Neovim.Plugin.ConfigHelper.Internal
 
-import Text.Parsec
+import Text.Parsec hiding (Error)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True
@@ -26,7 +26,8 @@ spec = do
       lnumOrPattern qs `shouldBe` Left 25
       col qs `shouldBe` Just (30, True)
       nr qs `shouldBe` Nothing
-      errorType qs `shouldBe` "E"
+      errorType qs `shouldBe` Error
+
     it "should match this test file 2" $ do
       e <- readFile "./test-files/compile-error-for-quickfix-test2"
       let [qs] = parseQuickfixItems e
@@ -34,7 +35,8 @@ spec = do
       lnumOrPattern qs `shouldBe` Left 11
       col qs `shouldBe` Just (18, True)
       nr qs `shouldBe` Nothing
-      errorType qs `shouldBe` "E"
+      errorType qs `shouldBe` Error
+
     it "should match this test file 3" $ do
       e <- readFile "./test-files/compile-error-for-quickfix-test3"
       let [qs] = parseQuickfixItems e
@@ -42,7 +44,8 @@ spec = do
       lnumOrPattern qs `shouldBe` Left 25
       col qs `shouldBe` Just (30, True)
       nr qs `shouldBe` Nothing
-      errorType qs `shouldBe` "E"
+      errorType qs `shouldBe` Error
+
     it "should match this test file 4" $ do
       e <- readFile "./test-files/compile-error-for-quickfix-test4"
       let [qs] = parseQuickfixItems e
@@ -50,7 +53,22 @@ spec = do
       lnumOrPattern qs `shouldBe` Left 23
       col qs `shouldBe` Just (9, True)
       nr qs `shouldBe` Nothing
-      errorType qs `shouldBe` "E"
+      errorType qs `shouldBe` Error
+
+    it "should match this test file 5" $ do
+      e <- readFile "./test-files/compile-error-for-quickfix-test5"
+      let [q1,q2] = parseQuickfixItems e
+      bufOrFile q1 `shouldBe` Right "/.config/nvim/lib/TestPlugins.hs"
+      bufOrFile q2 `shouldBe` Right "/.config/nvim/lib/TestPlugins.hs"
+      lnumOrPattern q1 `shouldBe` Left 23
+      lnumOrPattern q2 `shouldBe` Left 23
+      col q1 `shouldBe` Just (9, True)
+      col q2 `shouldBe` Just (32, True)
+      nr q1 `shouldBe` Nothing
+      nr q2 `shouldBe` Nothing
+      errorType q1 `shouldBe` Warning
+      errorType q2 `shouldBe` Warning
+
     it "should parse all files concatenated" $ do
       e1 <- readFile "./test-files/compile-error-for-quickfix-test1"
       e2 <- readFile "./test-files/compile-error-for-quickfix-test2"
@@ -67,8 +85,6 @@ spec = do
   describe "pShortDesrciption" $ do
     it "should fail for an empty input" $
       parse pShortDesrciption "" "" `shouldSatisfy` isLeft
-    it "should fail for an imput solely consistting of spaces" $
-      parse pShortDesrciption "" "  \t " `shouldSatisfy` isLeft
     it "should fail for an input solely consisting of spaces followed by a newline" $
       parse pShortDesrciption "" " \t \t\t \n" `shouldSatisfy` isLeft
     it "should parse this simple expression" $

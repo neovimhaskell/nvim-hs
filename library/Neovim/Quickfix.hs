@@ -52,9 +52,25 @@ data QuickfixListItem strType = QFItem
     -- ^ Error number.
     , text          :: strType
     -- ^ Description of the error.
-    , errorType     :: strType
-    -- ^ TODO replace with enum, but too lazy for now.
+    , errorType     :: QuickfixErrorType
+    -- ^ Type of error.
     } deriving (Eq, Show)
+
+
+data QuickfixErrorType = Warning | Error
+    deriving (Eq, Ord, Show, Read, Enum, Bounded)
+
+
+instance NvimObject QuickfixErrorType where
+    toObject = \case
+        Warning -> ObjectBinary "W"
+        Error   -> ObjectBinary "E"
+
+    fromObject o = case fromObject o :: Either String String of
+        Right "W" -> return Warning
+        Right "E" -> return Error
+        _         -> return Error
+
 
 -- | Create a 'QuickfixListItem' by providing the minimal amount of arguments
 -- needed.
@@ -68,8 +84,9 @@ quickfixListItem bufferOrFile lineOrPattern = QFItem
     , col = Nothing
     , nr = Nothing
     , text = mempty
-    , errorType = mempty
+    , errorType = Error
     }
+
 
 instance (Monoid strType, NvimObject strType)
             => NvimObject (QuickfixListItem strType) where
@@ -119,7 +136,7 @@ instance (Monoid strType, NvimObject strType)
                     0 -> Nothing
                     _ -> Just (c',v')
         text <- fromMaybe mempty <$> l' "text"
-        errorType <- fromMaybe mempty <$> l' "type"
+        errorType <- fromMaybe Error <$> l' "type"
         return QFItem{..}
     fromObject o = throwError $ "Could not deserialize QuickfixListItem, expected a map but received: " ++ show o
 

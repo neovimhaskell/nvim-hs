@@ -27,7 +27,7 @@ import           Config.Dyre.Compile
 import           Control.Applicative     hiding (many, (<|>))
 import           Control.Monad           (void)
 import           Data.Char
-import           Text.Parsec             hiding (count)
+import           Text.Parsec             hiding (count, Error)
 import           Text.Parsec.String
 
 
@@ -73,17 +73,22 @@ pQuickfixListItem :: Parser (QuickfixListItem String)
 pQuickfixListItem = do
     _ <- many blankLine
     (f,l,c) <- pLocation
+
+    void $ many spaceChar
+    e <- option Error $ do
+        void . try $ string "Warning:"
+        return Warning
     desc <- try pShortDesrciption <|> pLongDescription
     return $ (quickfixListItem (Right f) (Left l))
         { col = Just (c, True)
         , text = desc
-        , errorType = "E" -- TODO determine actual type
+        , errorType = e
         }
 
 
 pShortDesrciption :: Parser String
 pShortDesrciption = (:)
-    <$> (many spaceChar *> notFollowedBy blankLine *> anyChar)
+    <$> (notFollowedBy blankLine *> anyChar)
     <*> anyChar `manyTill` (void (many1 blankLine) <|> eof)
 
 

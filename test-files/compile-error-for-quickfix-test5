@@ -1,5 +1,5 @@
 
-/.config/nvim/lib/TestPlugins.hs:23:9:
+/.config/nvim/lib/TestPlugins.hs:23:9: Warning:
     Couldn't match type ‘STM (Either Object Object)’ with ‘[Char]’
     Expected type: Neovim () () String
       Actual type: Neovim () () (STM (Either Object Object))
@@ -10,7 +10,7 @@
           = vim_call_dict_function
               "g:mydict" False "Greet" [toObject "World"]
 
-/.config/nvim/lib/TestPlugins.hs:23:32:
+/.config/nvim/lib/TestPlugins.hs:23:32:Warning:
     Couldn't match expected type ‘Object’ with actual type ‘[Char]’
     In the first argument of ‘vim_call_dict_function’, namely
       ‘"g:mydict"’
