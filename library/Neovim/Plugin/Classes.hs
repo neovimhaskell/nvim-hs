@@ -24,6 +24,7 @@ module Neovim.Plugin.Classes (
     wrapPlugin,
     Synchronous(..),
     CommandOption(..),
+    CommandOptions,
     RangeSpecification(..),
     CommandArguments(..),
     getCommandOptions,
@@ -44,6 +45,7 @@ import           Data.MessagePack
 import           Data.String
 import           Data.Text           (Text)
 import           Data.Traversable    (sequence)
+import           Data.Word           (Word)
 import           Prelude             hiding (sequence)
 
 -- | This data type is used in the plugin registration to properly register the
@@ -162,7 +164,7 @@ data CommandOption = CmdSync Synchronous
                    -- Stringliterals: \"%\" for 'WholeFile', \",\" for line
                    --                 and \",123\" for 123 lines.
 
-                   | CmdCount Int
+                   | CmdCount Word
                    -- ^ Command handles a count. The argument defines the
                    -- default count.
                    --
