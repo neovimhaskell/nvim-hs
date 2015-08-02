@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {- |
 Module      :  Neovim.Plugin.ConfigHelper
 Description :  Helper plugin to ease recompiling the nvim-hs config
@@ -20,6 +20,7 @@ import           Neovim.API.TH
 import           Neovim.Config
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.ConfigHelper.Internal
+import           Neovim.Plugin.Internal
 
 -- | Note that you cannot really use this plugin by hand. It is automatically
 -- loaded for all Neovim instances.

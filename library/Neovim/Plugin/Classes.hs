@@ -1,7 +1,6 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE LambdaCase                #-}
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -14,14 +13,8 @@ Portability :  GHC
 
 -}
 module Neovim.Plugin.Classes (
-    ExportedFunctionality(..),
-    getFunction,
-    getDescription,
     FunctionalityDescription(..),
     FunctionName(..),
-    NeovimPlugin(..),
-    Plugin(..),
-    wrapPlugin,
     Synchronous(..),
     CommandOption(..),
     CommandOptions,
@@ -33,35 +26,19 @@ module Neovim.Plugin.Classes (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Context
 
-import           Control.Applicative ((<$>))
-import           Data.Char           (isDigit)
+import           Control.Applicative       ((<$>))
+import           Control.Monad.Error.Class
+import           Data.Char                 (isDigit)
 import           Data.Default
-import           Data.List           (groupBy, sort)
-import qualified Data.Map            as Map
+import           Data.List                 (groupBy, sort)
+import qualified Data.Map                  as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.String
-import           Data.Text           (Text)
-import           Data.Traversable    (sequence)
-import           Data.Word           (Word)
-import           Prelude             hiding (sequence)
-
--- | This data type is used in the plugin registration to properly register the
--- functions.
-newtype ExportedFunctionality r st
-    = EF (FunctionalityDescription, [Object] -> Neovim r st Object)
-
-
--- | Extract the description of an 'ExportedFunctionality'.
-getDescription :: ExportedFunctionality r st -> FunctionalityDescription
-getDescription (EF (d,_)) = d
-
-
--- | Extract the function of an 'ExportedFunctionality'.
-getFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
-getFunction (EF (_, f)) = f
+import           Data.Text                 (Text)
+import           Data.Traversable          (sequence)
+import           Prelude                   hiding (sequence)
 
 
 -- | Functionality specific functional description entries.
@@ -311,6 +288,9 @@ data AutocmdOptions = AutocmdOptions
     -- ^ Nested autocmd. (default: False)
     --
     -- See @:h autocmd-nested@
+
+    , acmdGroup       :: Maybe String
+    -- ^ Group in which the autocmd should be registered.
     }
     deriving (Show, Read, Eq, Ord)
 
@@ -319,6 +299,7 @@ instance Default AutocmdOptions where
     def = AutocmdOptions
         { acmdPattern = "*"
         , acmdNested  = False
+        , acmdGroup   = Nothing
         }
 
 
@@ -327,6 +308,8 @@ instance NvimObject AutocmdOptions where
         (toObject :: Dictionary -> Object) . Map.fromList $
             [ ("pattern", toObject acmdPattern)
             , ("nested", toObject acmdNested)
+            ] ++ catMaybes
+            [ acmdGroup >>= \g -> return ("group", toObject g)
             ]
     fromObject o = throwError $
         "Did not expect to receive an AutocmdOptions object: " ++ show o
@@ -341,25 +324,4 @@ instance FunctionName FunctionalityDescription where
         Function  n _ -> n
         Command   n _ -> n
         Autocmd _ n _ -> n
-
-
-instance FunctionName (ExportedFunctionality r st) where
-    name = name . getDescription
-
-
--- | This data type contains meta information for the plugin manager.
---
-data Plugin r st = Plugin
-    { exports         :: [ExportedFunctionality () ()]
-    , statefulExports :: [(r, st, [ExportedFunctionality r  st])]
-    }
-
-
-data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
-
-
--- | Wrap a 'Plugin' in some nice blankets, so that we can put them in a simple
--- list.
-wrapPlugin :: Monad m => Plugin r st -> m NeovimPlugin
-wrapPlugin = return . NeovimPlugin
 

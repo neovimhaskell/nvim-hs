@@ -18,33 +18,34 @@ module Neovim.RPC.SocketReader (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Context               hiding (ask, asks)
-import           Neovim.Plugin.Classes        (CommandArguments (..),
-                                               CommandOption (..),
-                                               FunctionalityDescription (..),
-                                               getCommandOptions)
+import           Neovim.Context
+import qualified Neovim.Context.Internal    as Internal
+import           Neovim.Plugin.Classes      (CommandArguments (..),
+                                             CommandOption (..),
+                                             FunctionalityDescription (..),
+                                             getCommandOptions)
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative
-import           Control.Concurrent           (forkIO)
+import           Control.Concurrent         (forkIO)
 import           Control.Concurrent.STM
-import           Control.Monad                (void)
-import           Control.Monad.Reader         (MonadReader, ask, asks)
-import           Control.Monad.Trans.Resource hiding (register)
-import           Data.Conduit                 as C
+import           Control.Monad              (void)
+import           Control.Monad.Trans.Class  (lift)
+import           Data.Conduit               as C
 import           Data.Conduit.Binary
 import           Data.Conduit.Cereal
-import           Data.Default                 (def)
-import           Data.Foldable                (foldl', forM_)
-import qualified Data.Map                     as Map
+import           Data.Default               (def)
+import           Data.Foldable              (foldl', forM_)
+import qualified Data.Map                   as Map
 import           Data.MessagePack
 import           Data.Monoid
-import qualified Data.Serialize               (get)
-import           Data.Text                    (Text, unpack)
-import           System.IO                    (IOMode (ReadMode))
+import qualified Data.Serialize             (get)
+import           Data.Set                   (Set, member)
+import           Data.Text                  (Text, unpack)
+import           System.IO                  (IOMode (ReadMode))
 import           System.Log.Logger
 
 import           Prelude
@@ -52,12 +53,19 @@ import           Prelude
 logger :: String
 logger = "Socket Reader"
 
+
+type SocketHandler = Neovim RPCConfig (Set Text)
+
+
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
-runSocketReader :: SocketType -> ConfigWrapper RPCConfig -> IO ()
-runSocketReader socketType env = do
+runSocketReader :: SocketType
+                -> Internal.Config RPCConfig (Set Text)
+                -> Set Text
+                -> IO ()
+runSocketReader socketType env fs = do
     h <- createHandle ReadMode socketType
-    runSocketHandler env $
+    void . runNeovim env fs $ do
         -- addCleanup (cleanUpHandle h) (sourceHandle h)
         -- TODO test whether/how this should be handled
         -- this has been commented out because I think that restarting the
@@ -68,15 +76,6 @@ runSocketReader socketType env = do
             $= conduitGet Data.Serialize.get
             $$ messageHandlerSink
 
--- | Convenient transformer stack for the socket reader.
-newtype SocketHandler a =
-    SocketHandler (ResourceT (Neovim RPCConfig ()) a)
-    deriving ( Functor, Applicative, Monad , MonadIO
-             , MonadReader (ConfigWrapper RPCConfig), MonadThrow)
-
-runSocketHandler :: ConfigWrapper RPCConfig -> SocketHandler a -> IO ()
-runSocketHandler r (SocketHandler a) =
-    void $ runNeovim r () (runResourceT a >> quit)
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
@@ -92,7 +91,7 @@ messageHandlerSink = awaitForever $ \rpc -> do
             "Unhandled rpc message: " <> show obj
 
 handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
-                        -> Sink a SocketHandler ()
+                        -> Sink Object SocketHandler ()
 handleResponseOrRequest msgType i
     | msgType == 1 = handleResponse i
     | msgType == 0 = handleRequestOrNotification (Just i)
@@ -102,7 +101,7 @@ handleResponseOrRequest msgType i
 
 handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
 handleResponse i e result = do
-    answerMap <- asks (recipients . customConfig)
+    answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
         Nothing -> liftIO $ warningM logger
@@ -126,31 +125,48 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
     -- threads. Maybe we should gather the ThreadIds and kill them after some
     -- amount of time if they are still around. Maybe resourcet provides such a
     -- facility for threads already.
-    Right m -> void . liftIO . forkIO . handle m =<< ask
+    Right m -> do
+        cfg <- lift Internal.ask'
+        fs  <- lift get
+        void . liftIO . forkIO $ handle m cfg fs
 
   where
-    lookupFunction :: Text -> RPCConfig -> STM (Maybe (FunctionalityDescription, FunctionType))
-    lookupFunction m rpc = Map.lookup m <$> readTMVar (functions rpc)
+    lookupFunction
+        :: Text
+        -> TVar Internal.FunctionMap
+        -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
+    lookupFunction m funMap = Map.lookup m <$> readTVar funMap
 
-    handle m rpc = atomically (lookupFunction m (customConfig rpc)) >>= \case
+    handle :: Text -> Internal.Config RPCConfig (Set Text) -> Set Text -> IO ()
+    handle m rpc fs = atomically (lookupFunction m (Internal.globalFunctionMap rpc)) >>= \case
+        Nothing | m `member` fs -> do
+            atomically $ lookupFunction m (Internal.globalFunctionMap rpc) >>= \case
+                Nothing -> retry
+                Just _  -> return ()
+            handle m rpc fs
+
         Nothing -> do
             let errM = "No provider for: " <> unpack m
             debugM logger errM
-            forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
+            forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage $ Response i (toObject errM) ObjectNil
-        Just (copts, Stateless f) -> do
+        Just (copts, Internal.Stateless f) -> do
             liftIO . debugM logger $ "Executing stateless function with ID: " <> show mi
             -- Stateless function: Create a boring state object for the
             -- Neovim context.
             -- drop the state of the result with (fmap fst <$>)
-            res <- fmap fst <$> runNeovim (rpc { customConfig = () }) () (f $ parseParams copts params)
+            let rpc' = rpc
+                    { Internal.customConfig = ()
+                    , Internal.pluginSettings = Nothing -- FIXME
+                    }
+            res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
             -- Send the result to the event handler
-            forM_ mi $ \i -> atomically' . writeTQueue (_eventQueue rpc)
+            forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage . uncurry (Response i) $ responseResult res
-        Just (copts, Stateful c) -> do
+        Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO
-            let q = (recipients . customConfig) rpc
+            let q = (recipients . Internal.customConfig) rpc
             liftIO . debugM logger $ "Executing stateful function with ID: " <> show mi
             case mi of
                 Just i -> do

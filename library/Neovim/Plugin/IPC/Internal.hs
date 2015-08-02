@@ -64,7 +64,7 @@ data Notification = Notification
     { notMethod :: Text
     -- ^ Name of the function to call.
     , notArgs   :: [Object]
-    -- ^ Argumentse for the function.
+    -- ^ Arguments for the function.
     } deriving (Typeable)
 
 instance Message Notification

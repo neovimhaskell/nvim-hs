@@ -1,14 +1,14 @@
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE LambdaCase #-}
 module Neovim.Plugin.ClassesSpec
     where
 
-import Neovim
-import Neovim.Plugin.Classes
+import           Neovim
+import           Neovim.Plugin.Classes
 
-import Test.Hspec
-import Test.QuickCheck
+import           Test.Hspec
+import           Test.QuickCheck
 
 
 newtype RandomCommandArguments = RCA { getRandomCommandArguments :: CommandArguments }

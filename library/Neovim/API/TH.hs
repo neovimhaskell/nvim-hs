@@ -1,5 +1,5 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {- |
 Module      :  Neovim.API.TH
@@ -31,9 +31,9 @@ import           Neovim.Classes
 import           Neovim.Context
 import           Neovim.Plugin.Classes    (CommandArguments (..),
                                            CommandOption (..),
-                                           ExportedFunctionality (..),
                                            FunctionalityDescription (..),
                                            mkCommandOptions)
+import           Neovim.Plugin.Internal   (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
 
 import           Language.Haskell.TH
@@ -411,7 +411,7 @@ functionImplementation functionName = do
     matchingCase n x = do
         vars <- mapM (\_ -> Just <$> newName "x") [1..n]
         let optVars = replicate x (Nothing :: Maybe Name)
-        match (listP (map varP [ v | Just v <- vars]))
+        match ((listP . map varP . catMaybes) vars)
               (normalB
                 (caseE
                     (foldl genArgumentCast [|pure $(varE functionName)|]

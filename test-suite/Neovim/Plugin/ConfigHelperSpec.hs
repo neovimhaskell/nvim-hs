@@ -1,13 +1,13 @@
 module Neovim.Plugin.ConfigHelperSpec
     where
 
-import Test.Hspec
-import Test.HUnit (assertFailure)
+import           Test.Hspec
+import           Test.HUnit                          (assertFailure)
 
-import Neovim.Quickfix
-import Neovim.Plugin.ConfigHelper.Internal
+import           Neovim.Plugin.ConfigHelper.Internal
+import           Neovim.Quickfix
 
-import Text.Parsec hiding (Error)
+import           Text.Parsec                         hiding (Error)
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True

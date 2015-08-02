@@ -1,5 +1,13 @@
 # 0.0.3
 
+* Neovim context is no longer a type synonym, but a newtype wrapper around
+  the previous type synonym with an added `ResourceT` wrapper. The functions
+  from `MonadReader` are now actually exported as those.
+
+  As a consequence, some of your code may break if you lack some specific
+  instances which were auto-derived before. Send a PR or open a ticket to
+  resolve this.
+
 * Add handling for some kind of variadic arguments handling.
 
   A command or function will be passed `Nothing` as it's

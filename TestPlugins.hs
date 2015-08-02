@@ -2,6 +2,7 @@
 import           Neovim
 import           Neovim.Main           (realMain)
 import           Neovim.Plugin.Classes
+import           Neovim.Plugin.Internal (ExportedFunctionality(..))
 
 import           System.Log.Logger
 

@@ -21,20 +21,19 @@ module Neovim.Classes
     , module Data.Int
     ) where
 
-import           Neovim.Context
 
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Monad.Except
 import           Data.ByteString      (ByteString)
-import           Data.Int             (Int8, Int16, Int32, Int64)
+import           Data.Int             (Int16, Int32, Int64, Int8)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text            as Text (Text)
 import           Data.Traversable     hiding (forM, mapM)
-import           Data.Word            (Word, Word8, Word16, Word32, Word64)
+import           Data.Word            (Word16, Word32, Word64, Word8)
 
 import           Prelude
 

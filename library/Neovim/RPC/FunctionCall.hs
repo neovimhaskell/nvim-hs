@@ -25,6 +25,7 @@ module Neovim.RPC.FunctionCall (
 
 import           Neovim.Classes
 import           Neovim.Context
+import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 
@@ -55,7 +56,7 @@ acall :: (NvimObject result)
      -> [Object]
      -> Neovim r st (STM (Either Object result))
 acall fn parameters = do
-    q <- eventQueue
+    q <- Internal.asks' Internal.eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
     atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
@@ -127,7 +128,7 @@ waitErr' loc = void . waitErr loc
 -- | Send the result back to the neovim instance.
 respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
 respond Request{..} result = do
-    q <- eventQueue
+    q <- Internal.asks' Internal.eventQueue
     atomically' . writeTQueue q . SomeMessage $ uncurry (Response reqId) oResult
 
   where

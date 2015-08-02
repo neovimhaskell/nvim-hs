@@ -27,7 +27,7 @@ import           Config.Dyre.Compile
 import           Control.Applicative     hiding (many, (<|>))
 import           Control.Monad           (void)
 import           Data.Char
-import           Text.Parsec             hiding (count, Error)
+import           Text.Parsec             hiding (Error, count)
 import           Text.Parsec.String
 
 

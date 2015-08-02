@@ -54,8 +54,10 @@ library
                       , Neovim.API.String
                       , Neovim.Classes
                       , Neovim.Context
+                      , Neovim.Context.Internal
                       , Neovim.Plugin
                       , Neovim.Plugin.Classes
+                      , Neovim.Plugin.Internal
                       , Neovim.Plugin.IPC
                       , Neovim.Plugin.IPC.Internal
                       , Neovim.Plugin.IPC.Classes
@@ -148,6 +150,7 @@ test-suite hspec
                       , template-haskell
                       , time
                       , transformers
+                      , transformers-base
                       , utf8-string
                       , HUnit
 

@@ -56,6 +56,8 @@ module Neovim (
     RangeSpecification(..),
     CommandArguments(..),
     AutocmdOptions(..),
+    addAutocmd,
+    addAutocmd',
 
     -- TODO make Neovim a newtype wrapper with MonadReader and MonadState
     -- implementation?
@@ -106,11 +108,13 @@ import           Neovim.Config           (NeovimConfig (..))
 import           Neovim.Context          (Neovim, Neovim', ask, asks, err, get,
                                           gets, modify, put)
 import           Neovim.Main             (neovim)
+import           Neovim.Plugin           (addAutocmd, addAutocmd')
 import           Neovim.Plugin.Classes   (AutocmdOptions (..),
                                           CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
-                                          NeovimPlugin (..), Plugin (..),
                                           RangeSpecification (..),
-                                          Synchronous (..), wrapPlugin)
+                                          Synchronous (..))
+import           Neovim.Plugin.Internal  (NeovimPlugin (..), Plugin (..),
+                                          wrapPlugin)
 import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
 import           Neovim.Util             (withCustomEnvironment)
 import           System.Log.Logger       (Priority (..))

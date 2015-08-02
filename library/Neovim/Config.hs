@@ -14,11 +14,11 @@ module Neovim.Config (
     module System.Log,
     ) where
 
-import           Neovim.Plugin.Classes (NeovimPlugin)
+import           Neovim.Plugin.Internal (NeovimPlugin)
 
-import qualified Config.Dyre           as Dyre
-import           Data.Default          (Default (def))
-import           System.Log            (Priority (..))
+import qualified Config.Dyre            as Dyre
+import           Data.Default           (Default (def))
+import           System.Log             (Priority (..))
 
 data NeovimConfig = Config
     { plugins      :: [IO NeovimPlugin]

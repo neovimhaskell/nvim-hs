@@ -7,7 +7,9 @@ import           Neovim.API.THSpecFunctions
 
 import           Neovim.API.TH
 import           Neovim.Context
+import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes
+import           Neovim.Plugin.Internal
 
 import           Data.Default
 import qualified Data.Map                   as Map
@@ -20,7 +22,7 @@ import           Control.Applicative
 call :: ([Object] -> Neovim () () Object) -> [Object]
      -> IO Object
 call f args = do
-    cfg <- newConfigWrapper (pure "nvim-hs-test-suite") (pure ())
+    cfg <- Internal.newConfig (pure "nvim-hs-test-suite") (pure ())
     res <- fmap fst <$> runNeovim cfg () (f args)
     case res of
         Right x -> return x

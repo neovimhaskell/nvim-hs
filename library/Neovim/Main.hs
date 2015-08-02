@@ -13,23 +13,24 @@ module Neovim.Main
     where
 
 import           Neovim.Config
+import qualified Neovim.Context.Internal    as Internal
+import           Neovim.Debug
 import           Neovim.Plugin              as P
 import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
+import           Neovim.Plugin.Internal     (getAllFunctionNames)
+import           Neovim.RPC.Common          as RPC
+import           Neovim.RPC.EventHandler
+import           Neovim.RPC.SocketReader
 
 import qualified Config.Dyre                as Dyre
 import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
-import           Control.Concurrent.STM
 import           Control.Monad
 import           Data.Monoid
-import           Neovim.Context
-import           Neovim.Debug
-import           Neovim.RPC.Common          as RPC
-import           Neovim.RPC.EventHandler
-import           Neovim.RPC.SocketReader
+import qualified Data.Set                   as Set
 import           Options.Applicative
-import           System.IO                  (stdin, stdout)
 import           System.Environment
+import           System.IO                  (stdin, stdout)
 import           System.SetEnv
 
 data CommandLineOptions =
@@ -124,27 +125,38 @@ runPluginProvider os = case (hostPort os, unix os) of
             return (var, val)
 
         rpcConfig <- newRPCConfig
-        conf <- newConfigWrapper (pure (providerName os)) (pure ())
+        conf <- Internal.newConfig (pure (providerName os)) (pure ())
 
         let allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
                             plugins cfg
-        startPluginThreads (conf { customConfig = RPC.functions rpcConfig }) allPlugins >>= \case
+            startupConf = conf { Internal.customConfig = ()
+                               , Internal.pluginSettings = Nothing
+                               }
+        startPluginThreads startupConf allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
-            Right pluginTidsWithQueues -> do
-                let rpcEnv = conf { customConfig = rpcConfig }
+            Right pluginsAndTids -> do
+                let allFunctions = Set.fromList $
+                        concatMap (getAllFunctionNames . fst) pluginsAndTids
+                let rpcEnv = conf { Internal.customConfig = rpcConfig
+                                  , Internal.pluginSettings = Nothing
+                                  }
                 ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-                _ <- forkIO $ register (conf { customConfig = RPC.functions rpcConfig }) pluginTidsWithQueues
-                let pluginTids = concatMap (map fst . snd) pluginTidsWithQueues
-                rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
+                let registerConf = conf
+                        { Internal.customConfig = ()
+                        , Internal.pluginSettings = Nothing
+                        }
+                _ <- forkIO $ register registerConf (map fst pluginsAndTids)
+                rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv allFunctions
                 debugM "Neovim.Main" "Waiting for threads to finish."
-                finish (rTid:ehTid:pluginTids) =<< readMVar (_quit conf)
+                let pluginTids = concatMap snd pluginsAndTids
+                finish (rTid:ehTid:pluginTids) =<< readMVar (Internal.quit conf)
 
 
-finish :: [ThreadId] -> QuitAction -> IO ()
+finish :: [ThreadId] -> Internal.QuitAction -> IO ()
 finish threads = \case
-    Restart -> do
+    Internal.Restart -> do
         debugM "Neovim.Main" "Trying to restart nvim-hs"
         mapM_ killThread threads
         Dyre.relaunchMaster Nothing
-    Quit -> return ()
+    Internal.Quit -> return ()
 

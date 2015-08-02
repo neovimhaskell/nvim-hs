@@ -14,11 +14,11 @@ module Neovim.Util (
     withCustomEnvironment,
     ) where
 
-import Neovim.Context
-import Control.Monad (forM, forM_)
-import Control.Monad.Catch (bracket, MonadMask)
-import System.Environment
-import System.SetEnv
+import           Control.Monad       (forM, forM_)
+import           Control.Monad.Catch (MonadMask, bracket)
+import           Neovim.Context
+import           System.Environment
+import           System.SetEnv
 
 
 -- | Execute the given action with a changed set of environment variables and
@@ -29,7 +29,7 @@ import System.SetEnv
 withCustomEnvironment :: (MonadMask io, MonadIO io)
                       => [(String, Maybe String)] -> io a -> io a
 withCustomEnvironment modifiedEnvironment action =
-    bracket saveAndSet unset (\_ -> action)
+    bracket saveAndSet unset (const action)
 
   where
     saveAndSet = do
@@ -41,6 +41,4 @@ withCustomEnvironment modifiedEnvironment action =
 
     unset preservedValues = forM_ preservedValues $ \(var, val) -> liftIO $
         maybe (unsetEnv var) (setEnv var) val
-
-
 

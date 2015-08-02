@@ -6,27 +6,29 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
-import           Neovim.Context          (ConfigWrapper (..), newConfigWrapper)
+import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Quickfix
 import           Neovim.RPC.Common
 import           Neovim.RPC.EventHandler
-import           Neovim.RPC.FunctionCall (atomically')
+import           Neovim.RPC.FunctionCall      (atomically')
 import           Neovim.RPC.SocketReader
 
 import           Control.Concurrent
 import           Control.Concurrent.STM
-import           Control.Monad.Reader    (runReaderT)
+import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.State
-import qualified Data.Map                as Map
+import           Control.Monad.Trans.Resource (runResourceT)
+import qualified Data.Map                     as Map
 import           System.Directory
-import           System.Exit             (ExitCode (..))
-import           System.IO               (hClose)
+import           System.Exit                  (ExitCode (..))
+import           System.IO                    (hClose)
 import           System.Process
 
-testNeovim :: ConfigWrapper r
+testNeovim :: Internal.Config r ()
           -> Neovim r () a
           -> IO (a, ())
-testNeovim r a = runReaderT (runStateT a ()) r
+testNeovim r (Internal.Neovim a) = runReaderT (runStateT (runResourceT a) ()) r
+
 
 withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> Assertion
 withNeovimEmbedded file testCase = do
@@ -52,10 +54,10 @@ withNeovimEmbedded file testCase = do
                 , std_out = CreatePipe
                 }
 
-        e <- newConfigWrapper (pure "nvim-hs-test-suite") newRPCConfig
+        e <- Internal.newConfig (pure "nvim-hs-test-suite") newRPCConfig
 
-        _ <- forkIO $ runSocketReader (Stdout hout) e
-        _ <- forkIO $ runEventHandler (Stdout hin)  e
+        _ <- forkIO $ runSocketReader (Stdout hout) (e { Internal.pluginSettings = Nothing }) mempty
+        _ <- forkIO $ runEventHandler (Stdout hin)  (e { Internal.pluginSettings = Nothing })
 
         -- We give the test 3 seconds
         -- TODO: Maybe make timeout a function parameter
@@ -65,8 +67,8 @@ withNeovimEmbedded file testCase = do
 
         return (hin, hout, ph, e)
 
-    runTest = do _ <- testCase
-                 void $ vim_command "qa!"
+    runTest = void $ testCase >> vim_command "qa!"
+
 
 spec :: Spec
 spec = parallel $ do
