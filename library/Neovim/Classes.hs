@@ -19,6 +19,7 @@ module Neovim.Classes
     , Dictionary
 
     , module Data.Int
+    , module Data.Word
     ) where
 
 
@@ -33,7 +34,7 @@ import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text            as Text (Text)
 import           Data.Traversable     hiding (forM, mapM)
-import           Data.Word            (Word16, Word32, Word64, Word8)
+import           Data.Word            (Word, Word16, Word32, Word64, Word8)
 
 import           Prelude
 

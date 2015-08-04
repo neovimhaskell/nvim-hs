@@ -84,7 +84,9 @@ register :: Internal.Config () ()
          -> IO ()
 register cfg ps =
     let cfg' = cfg
-            { Internal.pluginSettings = Just (Internal.StatelessSettings registerInStatelessContext) }
+            { Internal.pluginSettings = Just $ Internal.StatelessSettings
+                                                registerInStatelessContext
+            }
     in void . runNeovim cfg' () $ do
         forM_ ps $ \(NeovimPlugin p) -> do
             forM_ (exports p) $ \e ->
@@ -223,7 +225,7 @@ addAutocmd :: Text
 addAutocmd event (opts@AutocmdOptions{..}) f = do
     n <- newUniqueFunctionName
     mn <- registerFunctionality (Autocmd event n opts) (\_ -> toObject <$> f)
-    forM mn $ \registeredName -> do
+    forM mn $ \_ {-registeredName-} -> do
         -- Redefine fields so that it gains a new type
         cfg' <- Internal.ask'
         let cfg = cfg'
@@ -234,7 +236,7 @@ addAutocmd event (opts@AutocmdOptions{..}) f = do
 
   where
     free cfg = const . void . liftIO . runNeovim cfg () $ do
-        vim_call_function "autocmd!" $ catMaybes
+        wait' . vim_call_function "autocmd!" $ catMaybes
             [ toObject <$> acmdGroup, Just (toObject event)
             , Just (toObject acmdPattern)
             ]

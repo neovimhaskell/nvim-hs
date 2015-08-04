@@ -55,6 +55,19 @@ if notsorandomvalue != 42
 	cq!
 endif
 
+call Lazy()
+
+" Well, this doesn't initialize a function (yet), but it will modify the
+" state of the random numbers!
+call InitLazy()
+
+call Lazy()
+
+if Random() != 1337
+	echom 'Expected the next random number to be 1337'
+	cq!
+endif
+
 " Everything works, exit normally
 q!
 

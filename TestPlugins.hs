@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 import           Neovim
-import           Neovim.Main           (realMain)
+import           Neovim.Main            (realMain)
 import           Neovim.Plugin.Classes
-import           Neovim.Plugin.Internal (ExportedFunctionality(..))
+import           TestPlugins.TestFunctions
 
-import           System.Log.Logger
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
@@ -21,48 +21,20 @@ randPlugin = do
     -- don't use this for cryptography!
     let randomNumbers = cycle [42,17,-666] :: [Int16]
     wrapPlugin Plugin
-      { exports = [ EF (Function "Randoom" Sync, randoom)
-                  , EF (Function "Const42" Sync, const42)
-                  , EF (Function "PingNvimhs" Sync, pingNvimhs)
-                  , EF (Command "ComplicatedSpecialArgsHandling"
-                            (mkCommandOptions [ CmdSync Sync, CmdRange WholeFile
-                                              , CmdBang , CmdNargs "+"
-                                              ])
-                        , complicatedCommand)
+      { exports = [ $(function' 'randoom) Sync
+                  , $(function' 'const42) Sync
+                  , $(function "PingNvimhs" 'pingNvimhs) Sync
+                  , $(command "ComplicatedSpecialArgsHandling" 'complicatedCommand)
+                      [ CmdSync Sync, CmdRange WholeFile
+                      , CmdBang , CmdNargs "+"
+                      ]
                   ]
       , statefulExports =
           [((), randomNumbers,
-            [ EF (Function "Random" Sync, rf)
-            , EF (Function "InjectNumber" Sync, inj)
+            [ $(function "Random" 'rf) Sync
+            , $(function "InjectNumber" 'inj) Sync
+            , $(function "InitLazy" 'registerFunctionLazily) Sync
             ])
           ]
       }
 
-complicatedCommand :: [Object] -> Neovim r st Object
-complicatedCommand = undefined
-
-rf :: [Object] -> Neovim cfg [Int16] Object
-rf _ = do
-    r <- gets head
-    modify tail
-    return $ ObjectInt (fromIntegral r)
-
-inj :: [Object] -> Neovim cfg [Int16] Object
-inj [x] = case fromObject x of
-    Right n -> do
-        liftIO . debugM "TestPlugins.hs" $ "updating map"
-        modify (n:)
-        startofints <- gets (take 10)
-        liftIO . debugM "TestPlugins.hs" $ "Updated map to: " <> show startofints
-        return ObjectNil
-    Left _  -> liftIO (debugM "TestPlugin.hs" ("wrong argument type " ++ show x)) >> return ObjectNil
-inj x = liftIO (debugM "TestPlugin.hs" ("wrong argument form " ++ show x)) >> return ObjectNil
-
-randoom :: [Object] -> Neovim cfg st Object
-randoom _ = err "Function not supported"
-
-const42 :: [Object] -> Neovim cfg st Object
-const42 _ = return $ ObjectInt 42
-
-pingNvimhs :: [Object] -> Neovim cfg st Object
-pingNvimhs _ = return $ ObjectString "Pong"

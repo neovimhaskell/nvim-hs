@@ -87,6 +87,7 @@ module Neovim (
     liftIO,
     withCustomEnvironment,
     Priority(..),
+    module Control.Monad,
     module Control.Applicative,
     module Data.Monoid,
     module Data.Int,
@@ -94,6 +95,7 @@ module Neovim (
     ) where
 
 import           Control.Applicative
+import           Control.Monad           (void)
 import           Control.Monad.IO.Class  (liftIO)
 import           Data.Default            (def)
 import           Data.Int                (Int16, Int32, Int64, Int8)
