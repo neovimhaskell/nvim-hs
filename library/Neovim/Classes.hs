@@ -264,16 +264,16 @@ instance NvimObject Object where
 
 
 -- By the magic of vim, i will create these.
-instance NvimObject o => NvimObject (o, o) where
-    toObject (o1, o2) = ObjectArray $ map toObject [o1, o2]
+instance (NvimObject o1, NvimObject o2) => NvimObject (o1, o2) where
+    toObject (o1, o2) = ObjectArray $ [toObject o1, toObject o2]
 
     fromObject (ObjectArray [o1, o2]) = (,)
         <$> fromObject o1
         <*> fromObject o2
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
-instance NvimObject o => NvimObject (o, o, o) where
-    toObject (o1, o2, o3) = ObjectArray $ map toObject [o1, o2, o3]
+instance (NvimObject o1, NvimObject o2, NvimObject o3) => NvimObject (o1, o2, o3) where
+    toObject (o1, o2, o3) = ObjectArray $ [toObject o1, toObject o2, toObject o3]
 
     fromObject (ObjectArray [o1, o2, o3]) = (,,)
         <$> fromObject o1
@@ -282,8 +282,8 @@ instance NvimObject o => NvimObject (o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o) where
-    toObject (o1, o2, o3, o4) = ObjectArray $ map toObject [o1, o2, o3, o4]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4) => NvimObject (o1, o2, o3, o4) where
+    toObject (o1, o2, o3, o4) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4]
 
     fromObject (ObjectArray [o1, o2, o3, o4]) = (,,,)
         <$> fromObject o1
@@ -293,8 +293,8 @@ instance NvimObject o => NvimObject (o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o, o) where
-    toObject (o1, o2, o3, o4, o5) = ObjectArray $ map toObject [o1, o2, o3, o4, o5]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5) => NvimObject (o1, o2, o3, o4, o5) where
+    toObject (o1, o2, o3, o4, o5) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5]) = (,,,,)
         <$> fromObject o1
@@ -305,8 +305,8 @@ instance NvimObject o => NvimObject (o, o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o, o, o) where
-    toObject (o1, o2, o3, o4, o5, o6) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6) => NvimObject (o1, o2, o3, o4, o5, o6) where
+    toObject (o1, o2, o3, o4, o5, o6) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6]) = (,,,,,)
         <$> fromObject o1
@@ -318,8 +318,8 @@ instance NvimObject o => NvimObject (o, o, o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o, o, o, o) where
-    toObject (o1, o2, o3, o4, o5, o6, o7) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7) => NvimObject (o1, o2, o3, o4, o5, o6, o7) where
+    toObject (o1, o2, o3, o4, o5, o6, o7) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7]) = (,,,,,,)
         <$> fromObject o1
@@ -332,8 +332,8 @@ instance NvimObject o => NvimObject (o, o, o, o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o) where
-    toObject (o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8) where
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8]) = (,,,,,,,)
         <$> fromObject o1
@@ -347,8 +347,8 @@ instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o) where
     fromObject o = throwError $ "Expected ObjectArray, but got " <> show o
 
 
-instance NvimObject o => NvimObject (o, o, o, o, o, o, o, o, o) where
-    toObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray $ map toObject [o1, o2, o3, o4, o5, o6, o7, o8, o9]
+instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8, NvimObject o9) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) where
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8, toObject o9]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9]) = (,,,,,,,,)
         <$> fromObject o1
