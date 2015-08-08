@@ -26,7 +26,8 @@ import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
 import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal
+import           Neovim.Plugin.IPC.Internal as IPC
+import           Neovim.RPC.Classes         as Msgpack
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -82,25 +83,22 @@ runSocketReader socketType env fs = do
 messageHandlerSink :: Sink Object SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> do
     liftIO . debugM logger $ "Received: " <> show rpc
-    case rpc of
-        ObjectArray [ObjectInt msgType, ObjectInt fi, e, result] ->
-            handleResponseOrRequest msgType fi e result
-        ObjectArray [ObjectInt msgType, method, params] ->
-            handleNotification msgType method params
-        obj -> liftIO . errorM logger $
-            "Unhandled rpc message: " <> show obj
+    case fromObject rpc of
+        Right (Msgpack.Request i fn ps) ->
+            handleRequestOrNotification (Just i) fn ps
 
-handleResponseOrRequest :: Int64 -> Int64 -> Object -> Object
-                        -> Sink Object SocketHandler ()
-handleResponseOrRequest msgType i
-    | msgType == 1 = handleResponse i
-    | msgType == 0 = handleRequestOrNotification (Just i)
-    | otherwise = \_ _ -> do
-        liftIO . errorM logger $ "Invalid message type: " <> show msgType
-        return ()
+        Right (Msgpack.Response i r) ->
+            handleResponse i r
 
-handleResponse :: Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleResponse i e result = do
+        Right (Msgpack.Notification fn ps) ->
+            handleRequestOrNotification Nothing fn ps
+
+        Left e -> liftIO . errorM logger $
+            "Unhandled rpc message: " <> show e
+
+
+handleResponse :: Int64 -> Either Object Object -> Sink a SocketHandler ()
+handleResponse i result = do
     answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
@@ -108,48 +106,37 @@ handleResponse i e result = do
             "Received response but could not find a matching recipient."
         Just (_,reply) -> do
             atomically' . modifyTVar' answerMap $ Map.delete i
-            atomically' . putTMVar reply $ case e of
-                ObjectNil -> Right result
-                _         -> Left e
+            atomically' $ putTMVar reply result
 
 -- | Act upon the received request or notification. The main difference between
 -- the two is that a notification does not generate a reply. The distinction
 -- between those two cases is done via the first paramater which is 'Maybe' the
 -- function call identifier.
-handleRequestOrNotification :: Maybe Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleRequestOrNotification mi method (ObjectArray params) = case fromObject method of
-    Left e -> liftIO . errorM logger $ show e
-    -- Fork everything so that we do not block.
-    --
-    -- XXX If the functions never return, we may end up with a lot of idle
-    -- threads. Maybe we should gather the ThreadIds and kill them after some
-    -- amount of time if they are still around. Maybe resourcet provides such a
-    -- facility for threads already.
-    Right m -> do
-        cfg <- lift Internal.ask'
-        fs  <- lift get
-        void . liftIO . forkIO $ handle (F m) cfg fs
+handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object] -> Sink a SocketHandler ()
+handleRequestOrNotification mi m params = do
+    cfg <- lift Internal.ask'
+    fs  <- lift get
+    void . liftIO . forkIO $ handle cfg fs
 
   where
     lookupFunction
-        :: FunctionName
-        -> TVar Internal.FunctionMap
+        :: TVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
-    lookupFunction m funMap = Map.lookup m <$> readTVar funMap
+    lookupFunction funMap = Map.lookup m <$> readTVar funMap
 
-    handle :: FunctionName -> Internal.Config RPCConfig (Set FunctionName) -> Set FunctionName -> IO ()
-    handle m rpc fs = atomically (lookupFunction m (Internal.globalFunctionMap rpc)) >>= \case
+    handle :: Internal.Config RPCConfig (Set FunctionName) -> Set FunctionName -> IO ()
+    handle rpc fs = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
         Nothing | m `member` fs -> do
-            atomically $ lookupFunction m (Internal.globalFunctionMap rpc) >>= \case
+            atomically $ lookupFunction (Internal.globalFunctionMap rpc) >>= \case
                 Nothing -> retry
                 Just _  -> return ()
-            handle m rpc fs
+            handle rpc fs
 
         Nothing -> do
             let errM = "No provider for: " <> show m
             debugM logger errM
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage $ Response i (toObject errM) ObjectNil
+                . SomeMessage $ Response i (Left (toObject errM))
         Just (copts, Internal.Stateless f) -> do
             liftIO . debugM logger $ "Executing stateless function with ID: " <> show mi
             -- Stateless function: Create a boring state object for the
@@ -162,7 +149,7 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage . uncurry (Response i) $ responseResult res
+                . SomeMessage . Response i $ either (Left . toObject) Right res
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO
@@ -171,14 +158,13 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             case mi of
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
-                    atomically' . writeTQueue c . SomeMessage $ Request m i (parseParams copts params)
-                Nothing ->
-                    atomically' . writeTQueue c . SomeMessage $ Notification m (parseParams copts params)
-    responseResult (Left !e) = (toObject e, ObjectNil)
-    responseResult (Right !res) = (ObjectNil, toObject res)
+                    atomically' . writeTQueue c . SomeMessage $
+                        IPC.Request m i (parseParams copts params)
 
-handleRequestOrNotification _ _ params = liftIO . errorM logger $
-    "Parmaeters in request are not in an object array: " <> show params
+                Nothing ->
+                    atomically' . writeTQueue c . SomeMessage $
+                        IPC.Notification m (parseParams copts params)
+
 
 -- TODO implement proper handling for additional parameters
 parseParams :: FunctionalityDescription -> [Object] -> [Object]
@@ -253,15 +239,4 @@ parseParams cmd@(Command _ opts) args = case args of
 parseParams (Autocmd _ _ _) args = case args of
     [ObjectArray fArgs] -> fArgs
     _ -> args
-
-
-handleNotification :: Int64 -> Object -> Object -> Sink a SocketHandler ()
-handleNotification 2 method params = do
-    liftIO . debugM logger $ "Received notification: " <> show method <> show params
-    handleRequestOrNotification Nothing method params
-handleNotification msgType fn params = liftIO . errorM logger $
-    "Message is not a noticiation. Received msgType: " <> show msgType
-    <> " The expected value was 2. The following arguments were given: "
-    <> show fn <> " and " <> show params
-
 

@@ -11,7 +11,7 @@ Portability :  GHC
 
 -}
 module Neovim.Plugin.IPC.Internal
-    ( RPCMessage(..)
+    ( FunctionCall(..)
     , Request(..)
     , Notification(..)
 
@@ -29,20 +29,12 @@ import           Data.Time
 import           Neovim.Plugin.IPC.Classes
 
 -- | Haskell representation of supported Remote Procedure Call messages.
-data RPCMessage
+data FunctionCall
     = FunctionCall FunctionName [Object] (TMVar (Either Object Object)) UTCTime
     -- ^ Method name, parameters, callback, timestamp
-    | Response !Int64 Object Object
-    -- ^ Response sent to indicate the result of a function call.
-    --
-    -- * identfier of the message as 'Word32'
-    -- * Error value
-    -- * Result value
-    | NotificationCall FunctionName [Object]
-    -- ^ Method name and parameters.
     deriving (Typeable)
 
-instance Message RPCMessage
+instance Message FunctionCall
 
 -- | A request is a data type containing the method to call, its arguments and
 -- an identifier used to map the result to the function that has been called.

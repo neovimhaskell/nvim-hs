@@ -17,9 +17,9 @@ module Neovim.RPC.EventHandler (
 import           Neovim.Classes
 import           Neovim.Context
 import qualified Neovim.Context.Internal      as Internal
-import           Neovim.Plugin.Classes        (FunctionName(..))
 import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal
+import           Neovim.Plugin.IPC.Internal   (FunctionCall (..))
+import           Neovim.RPC.Classes
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -32,7 +32,6 @@ import           Data.ByteString              (ByteString)
 import           Data.Conduit                 as C
 import           Data.Conduit.Binary          (sinkHandle)
 import qualified Data.Map                     as Map
-import           Data.MessagePack
 import           Data.Serialize               (encode)
 import           System.IO                    (IOMode (WriteMode))
 import           System.Log.Logger
@@ -73,41 +72,35 @@ eventHandlerSource = asks Internal.eventQueue >>= \q ->
 
 eventHandler :: ConduitM SomeMessage ByteString EventHandler ()
 eventHandler = await >>= \case
-    Nothing -> return () -- i.e. close the conduit -- TODO signal shutdown globally
-    Just message -> handleMessage (fromMessage message) >> eventHandler
+    Nothing ->
+        return () -- i.e. close the conduit -- TODO signal shutdown globally
+
+    Just message -> do
+        handleMessage (fromMessage message, fromMessage message)
+        eventHandler
 
 
-yield' :: (MonadIO io) => Object -> ConduitM i ByteString io ()
+yield' :: (MonadIO io) => MsgpackRPCMessage -> ConduitM i ByteString io ()
 yield' o = do
     liftIO . debugM "EventHandler" $ "Sending: " ++ show o
-    yield $ encode o
+    yield . encode $ toObject o
 
 
-handleMessage :: Maybe RPCMessage -> ConduitM i ByteString EventHandler ()
+handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPCMessage)
+              -> ConduitM i ByteString EventHandler ()
 handleMessage = \case
-    Just (FunctionCall (F fn) params reply time) -> do
+    (Just (FunctionCall fn params reply time), _) -> do
         i <- get
         modify succ
         rs <- asks (recipients . Internal.customConfig)
         atomically' . modifyTVar rs $ Map.insert i (time, reply)
-        yield' $ ObjectArray
-            [ toObject (0 :: Int64)
-            , ObjectInt i
-            , toObject fn
-            , toObject params
-            ]
-    Just (Response i e res) ->
-        yield' $ ObjectArray
-            [ toObject (1 :: Int64)
-            , ObjectInt i
-            , toObject e
-            , toObject res
-            ]
-    Just (NotificationCall (F fn) params) ->
-        yield' $ ObjectArray
-            [ ObjectInt 2
-            , toObject fn
-            , toObject params
-            ]
-    Nothing -> return () -- i.e. skip to next message
+        yield' $ Request i fn params
+
+    (_, Just r@Response{}) ->
+        yield' $ r
+
+    (_, Just n@Notification{}) ->
+        yield' $ n
+
+    _ -> return () -- i.e. skip to next message
 

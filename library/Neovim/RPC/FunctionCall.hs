@@ -29,10 +29,11 @@ import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes      (FunctionName)
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
+import qualified Neovim.RPC.Classes         as MsgpackRPC (MsgpackRPCMessage (..))
 
 import           Control.Applicative
 import           Control.Concurrent.STM
-import           Control.Monad.Reader       as R
+import           Control.Monad.Reader
 import           Data.MessagePack
 import           Data.Monoid
 
@@ -130,10 +131,6 @@ waitErr' loc = void . waitErr loc
 respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
 respond Request{..} result = do
     q <- Internal.asks' Internal.eventQueue
-    atomically' . writeTQueue q . SomeMessage $ uncurry (Response reqId) oResult
-
-  where
-    oResult = case result of
-        Left e   -> (toObject e, toObject ())
-        Right r  -> (toObject (), toObject r)
+    atomically' . writeTQueue q . SomeMessage . MsgpackRPC.Response reqId $
+        either (Left . toObject) (Right . toObject) result
 

@@ -64,6 +64,7 @@ library
                       , Neovim.Config
                       , Neovim.Debug
                       , Neovim.Main
+                      , Neovim.RPC.Classes
                       , Neovim.RPC.Common
                       , Neovim.RPC.EventHandler
                       , Neovim.RPC.FunctionCall
