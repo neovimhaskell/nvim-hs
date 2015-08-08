@@ -27,6 +27,8 @@ import           Neovim.Classes
 import           Neovim.Context
 import           Neovim.RPC.FunctionCall
 
+import           Prelude
+
 setqflist :: (Monoid strType, NvimObject strType)
           => [QuickfixListItem strType] -> QuickfixAction -> Neovim r st ()
 setqflist qs a =

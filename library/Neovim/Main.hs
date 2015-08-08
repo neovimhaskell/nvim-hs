@@ -29,9 +29,11 @@ import           Control.Monad
 import           Data.Monoid
 import qualified Data.Set                   as Set
 import           Options.Applicative
-import           System.Environment
 import           System.IO                  (stdin, stdout)
 import           System.SetEnv
+
+import           System.Environment
+import           Prelude
 
 data CommandLineOptions =
     Opt { providerName :: String

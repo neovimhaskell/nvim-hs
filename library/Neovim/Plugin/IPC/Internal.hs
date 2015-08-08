@@ -19,17 +19,18 @@ module Neovim.Plugin.IPC.Internal
     , module Data.Time
     ) where
 
+import           Neovim.Plugin.Classes     (FunctionName)
+
 import           Control.Concurrent.STM
 import           Data.Data                 (Typeable)
 import           Data.Int                  (Int64)
 import           Data.MessagePack
-import           Data.Text                 (Text)
 import           Data.Time
 import           Neovim.Plugin.IPC.Classes
 
 -- | Haskell representation of supported Remote Procedure Call messages.
 data RPCMessage
-    = FunctionCall Text [Object] (TMVar (Either Object Object)) UTCTime
+    = FunctionCall FunctionName [Object] (TMVar (Either Object Object)) UTCTime
     -- ^ Method name, parameters, callback, timestamp
     | Response !Int64 Object Object
     -- ^ Response sent to indicate the result of a function call.
@@ -37,7 +38,7 @@ data RPCMessage
     -- * identfier of the message as 'Word32'
     -- * Error value
     -- * Result value
-    | NotificationCall Text [Object]
+    | NotificationCall FunctionName [Object]
     -- ^ Method name and parameters.
     deriving (Typeable)
 
@@ -46,7 +47,7 @@ instance Message RPCMessage
 -- | A request is a data type containing the method to call, its arguments and
 -- an identifier used to map the result to the function that has been called.
 data Request = Request
-    { reqMethod :: Text
+    { reqMethod :: FunctionName
     -- ^ Name of the function to call.
     , reqId     :: !Int64
     -- ^ Identifier to map the result to a function call invocation.
@@ -61,7 +62,7 @@ instance Message Request
 -- message is sent by neovim if the caller there does not care about the result
 -- of the computation.
 data Notification = Notification
-    { notMethod :: Text
+    { notMethod :: FunctionName
     -- ^ Name of the function to call.
     , notArgs   :: [Object]
     -- ^ Arguments for the function.

@@ -22,6 +22,7 @@ import           Neovim.Context
 import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              CommandOption (..),
+                                             FunctionName (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
 import           Neovim.Plugin.IPC
@@ -44,7 +45,6 @@ import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize             (get)
 import           Data.Set                   (Set, member)
-import           Data.Text                  (Text, unpack)
 import           System.IO                  (IOMode (ReadMode))
 import           System.Log.Logger
 
@@ -54,14 +54,14 @@ logger :: String
 logger = "Socket Reader"
 
 
-type SocketHandler = Neovim RPCConfig (Set Text)
+type SocketHandler = Neovim RPCConfig (Set FunctionName)
 
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
 runSocketReader :: SocketType
-                -> Internal.Config RPCConfig (Set Text)
-                -> Set Text
+                -> Internal.Config RPCConfig (Set FunctionName)
+                -> Set FunctionName
                 -> IO ()
 runSocketReader socketType env fs = do
     h <- createHandle ReadMode socketType
@@ -128,16 +128,16 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
     Right m -> do
         cfg <- lift Internal.ask'
         fs  <- lift get
-        void . liftIO . forkIO $ handle m cfg fs
+        void . liftIO . forkIO $ handle (F m) cfg fs
 
   where
     lookupFunction
-        :: Text
+        :: FunctionName
         -> TVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
     lookupFunction m funMap = Map.lookup m <$> readTVar funMap
 
-    handle :: Text -> Internal.Config RPCConfig (Set Text) -> Set Text -> IO ()
+    handle :: FunctionName -> Internal.Config RPCConfig (Set FunctionName) -> Set FunctionName -> IO ()
     handle m rpc fs = atomically (lookupFunction m (Internal.globalFunctionMap rpc)) >>= \case
         Nothing | m `member` fs -> do
             atomically $ lookupFunction m (Internal.globalFunctionMap rpc) >>= \case
@@ -146,7 +146,7 @@ handleRequestOrNotification mi method (ObjectArray params) = case fromObject met
             handle m rpc fs
 
         Nothing -> do
-            let errM = "No provider for: " <> unpack m
+            let errM = "No provider for: " <> show m
             debugM logger errM
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage $ Response i (toObject errM) ObjectNil

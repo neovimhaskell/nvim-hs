@@ -26,6 +26,7 @@ module Neovim.RPC.FunctionCall (
 import           Neovim.Classes
 import           Neovim.Context
 import qualified Neovim.Context.Internal    as Internal
+import           Neovim.Plugin.Classes      (FunctionName)
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 
@@ -34,7 +35,8 @@ import           Control.Concurrent.STM
 import           Control.Monad.Reader       as R
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Text
+
+import           Prelude
 
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $
@@ -43,16 +45,15 @@ unexpectedException fn _ = error $
 
 
 withIgnoredException :: (Functor f, NvimObject result)
-                     => Text -- ^ Function name for better error messages
+                     => FunctionName -- ^ For better error messages
                      -> f (Either err result)
                      -> f result
-withIgnoredException fn = fmap (either ((unexpectedException . unpack) fn) id)
+withIgnoredException fn = fmap (either ((unexpectedException . show) fn) id)
 
 
--- | Helper function that concurrently puts a 'Message' in the event queue
--- and returns an 'STM' action that returns the result.
+-- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall :: (NvimObject result)
-     => Text
+     => FunctionName
      -> [Object]
      -> Neovim r st (STM (Either Object result))
 acall fn parameters = do
@@ -70,7 +71,7 @@ acall fn parameters = do
 
 
 acall' :: (NvimObject result)
-       => Text
+       => FunctionName
        -> [Object]
        -> Neovim r st (STM result)
 acall' fn parameters = withIgnoredException fn <$> acall fn parameters
@@ -79,14 +80,14 @@ acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 -- | Call a neovim function synchronously. This function blocks until the
 -- result is available.
 scall :: (NvimObject result)
-      => Text        -- ^ Function name
+      => FunctionName
       -> [Object]      -- ^ Parameters in an 'Object' array
       -> Neovim r st (Either Object result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
 
 
-scall' :: NvimObject result => Text -> [Object] -> Neovim r st result
+scall' :: NvimObject result => FunctionName -> [Object] -> Neovim r st result
 scall' fn = withIgnoredException fn . scall fn
 
 

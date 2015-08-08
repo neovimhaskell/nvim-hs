@@ -32,6 +32,7 @@ import           Neovim.Context
 import           Neovim.Plugin.Classes    (CommandArguments (..),
                                            CommandOption (..),
                                            FunctionalityDescription (..),
+                                           FunctionName(..),
                                            mkCommandOptions)
 import           Neovim.Plugin.Internal   (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
@@ -45,6 +46,7 @@ import           Control.Exception
 import           Control.Exception.Lifted
 import           Control.Monad
 import           Data.ByteString          (ByteString)
+import           Data.ByteString.UTF8     (fromString)
 import           Data.Char                (isUpper, toUpper)
 import           Data.Data                (Data, Typeable)
 import           Data.Map                 (Map)
@@ -53,7 +55,7 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Set                 as Set
-import           Data.Text                (Text, pack)
+import           Data.Text                (Text)
 
 import           Prelude
 
@@ -161,7 +163,7 @@ createFunction typeMap nf = do
             [ clause
                 (map (varP . snd) vars)
                 (normalB (callFn
-                    `appE` ([| pack |] `appE` (litE . stringL . name) nf)
+                    `appE` ([| (F . fromString) |] `appE` (litE . stringL . name) nf)
                     `appE` listE (map (toObjVar . snd) vars)))
                 []
             ]
@@ -255,7 +257,7 @@ function customName@(c:_) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
     | otherwise = do
         (_, fun) <- functionImplementation functionName
-        [|\funOpts -> EF (Function (pack $(litE (StringL customName))) funOpts, $(return fun)) |]
+        [|\funOpts -> EF (Function (F (fromString $(litE (StringL customName)))) funOpts, $(return fun)) |]
 
 
 -- | Define an exported function. This function works exactly like 'function',
@@ -332,7 +334,7 @@ command customFunctionName@(c:_) functionName
                     , "explanation."
                     ]
         [|\copts -> EF (Command
-                            (pack $(litE (StringL customFunctionName)))
+                            (F (fromString $(litE (StringL customFunctionName))))
                             (mkCommandOptions ($(nargs) : copts))
                        , $(return fun))|]
 
@@ -352,7 +354,7 @@ autocmd functionName =
     let (c:cs) = nameBase functionName
     in do
         (_, fun) <- functionImplementation functionName
-        [|\t acmdOpts -> EF (Autocmd t (pack $(litE (StringL (toUpper c : cs)))) acmdOpts, $(return fun))|]
+        [|\t acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) acmdOpts, $(return fun))|]
 
 
 -- | Generate a function of type @[Object] -> Neovim' Object@ from the argument

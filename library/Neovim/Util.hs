@@ -17,8 +17,8 @@ module Neovim.Util (
 import           Control.Monad       (forM, forM_)
 import           Control.Monad.Catch (MonadMask, bracket)
 import           Neovim.Context
-import           System.Environment
 import           System.SetEnv
+import           System.Environment
 
 
 -- | Execute the given action with a changed set of environment variables and

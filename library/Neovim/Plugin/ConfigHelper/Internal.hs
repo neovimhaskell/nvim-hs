@@ -30,6 +30,8 @@ import           Data.Char
 import           Text.Parsec             hiding (Error, count)
 import           Text.Parsec.String
 
+import           Prelude
+
 
 -- | Simple function that will return @"Pong"@ if the plugin provider is
 -- running.

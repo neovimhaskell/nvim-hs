@@ -15,24 +15,24 @@ spec = do
   describe "parseParams" $ do
 
     it "should pass the inner argument list as is for functions" $ do
-      parseParams (Function "" Sync) [ObjectArray [ObjectNil, ObjectBinary "ABC"]]
+      parseParams (Function (F "") Sync) [ObjectArray [ObjectNil, ObjectBinary "ABC"]]
         `shouldBe` [ObjectNil, ObjectBinary "ABC"]
-      parseParams (Function "" Sync) [ObjectNil, ObjectBinary "ABC"]
+      parseParams (Function (F "") Sync) [ObjectNil, ObjectBinary "ABC"]
         `shouldBe` [ObjectNil, ObjectBinary "ABC"]
-      parseParams (Function "" Sync) []
+      parseParams (Function (F "") Sync) []
         `shouldBe` []
 
     let defCmdArgs = def :: CommandArguments
     it "should filter out implicit arguments" $ do
-      parseParams (Command "" (mkCommandOptions [CmdSync Sync, CmdNargs "*"]))
+      parseParams (Command (F "") (mkCommandOptions [CmdSync Sync, CmdNargs "*"]))
           [ObjectArray []]
         `shouldBe` [toObject defCmdArgs]
-      parseParams (Command "" (mkCommandOptions [CmdSync Sync, CmdNargs "*"]))
+      parseParams (Command (F "") (mkCommandOptions [CmdSync Sync, CmdNargs "*"]))
           [ObjectArray [ObjectBinary "7", ObjectInt 7]]
         `shouldBe` [toObject defCmdArgs, ObjectBinary "7", ObjectInt 7]
 
     it "should set the CommandOptions argument as expected" $ do
-      parseParams (Command "" (mkCommandOptions
+      parseParams (Command (F "") (mkCommandOptions
                     [ CmdRange WholeFile, CmdBang, CmdNargs "*"]))
           [ ObjectArray [ObjectBinary "7", ObjectBinary "8", ObjectNil]
           , ObjectArray [ObjectInt 1, ObjectInt 12]
@@ -44,7 +44,7 @@ spec = do
                    , ObjectNil]
 
     it "should pass this test" $ do
-        parseParams (Command "" (mkCommandOptions [CmdNargs "+", CmdRange WholeFile, CmdBang]))
+        parseParams (Command (F "") (mkCommandOptions [CmdNargs "+", CmdRange WholeFile, CmdBang]))
             [ ObjectArray [ ObjectBinary "me"
                           , ObjectBinary "up"
                           , ObjectBinary "before"

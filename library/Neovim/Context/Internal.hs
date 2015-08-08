@@ -31,12 +31,13 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
+import           Data.ByteString.UTF8         (fromString)
 import           Data.Map                     (Map)
 import           Data.MessagePack             (Object)
 import           Data.Monoid
-import           Data.Text                    (Text)
-import qualified Data.Text                    as Text
 import           System.Log.Logger
+
+import           Prelude
 
 
 -- | This is the environment in which all plugins are initially started.
@@ -111,12 +112,12 @@ forkNeovim r st a = do
 
 -- | Create a new unique function name. To prevent possible name clashes, digits
 -- are stripped from the given suffix.
-newUniqueFunctionName :: Neovim r st Text
+newUniqueFunctionName :: Neovim r st FunctionName
 newUniqueFunctionName = do
     tu <- asks' uniqueCounter
     -- reverseing the integer string should distribute the first character more
     -- evently and hence cause faster termination for comparisons.
-    fmap (Text.pack . reverse . show) . liftIO . atomically $ do
+    fmap (F . fromString . reverse . show) . liftIO . atomically $ do
         u <- readTVar tu
         modifyTVar' tu succ
         return u
@@ -145,7 +146,7 @@ data FunctionType
 -- state is stored for as long as the plugin provider is running and not
 -- restarted.)
 type FunctionMap =
-    Map Text (FunctionalityDescription, FunctionType)
+    Map FunctionName (FunctionalityDescription, FunctionType)
 
 
 -- | A wrapper for a reader value that contains extra fields required to
@@ -191,7 +192,7 @@ data PluginSettings r st where
     StatelessSettings
         :: (FunctionalityDescription
             -> ([Object] -> Neovim' Object)
-            -> Neovim' (Maybe Text))
+            -> Neovim' (Maybe FunctionName))
         -- ^ Registration function
         -> PluginSettings () ()
 
@@ -199,11 +200,11 @@ data PluginSettings r st where
         :: (FunctionalityDescription
             -> ([Object] -> Neovim r st Object)
             -> TQueue SomeMessage
-            -> TVar (Map Text ([Object] -> Neovim r st Object))
-            -> Neovim r st (Maybe Text))
+            -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
+            -> Neovim r st (Maybe FunctionName))
         -- ^ Registration function
         -> TQueue SomeMessage
-        -> TVar (Map Text ([Object] -> Neovim r st Object))
+        -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
         -> PluginSettings r st
 
 

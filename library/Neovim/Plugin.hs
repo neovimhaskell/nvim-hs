@@ -38,20 +38,22 @@ import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.FunctionCall
 
-import           Control.Applicative          ((<$>))
+import           Control.Applicative
 import           Control.Concurrent           (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad                (foldM, void)
 import           Control.Monad.Catch          (SomeException, try)
 import           Control.Monad.Trans.Resource hiding (register)
+import           Data.ByteString
 import           Data.Foldable                (forM_)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes)
 import           Data.MessagePack
-import           Data.Text                    (Text, unpack)
 import           Data.Traversable             (forM)
 import           System.Log.Logger
+
+import           Prelude
 
 
 logger :: String
@@ -99,7 +101,7 @@ register cfg ps =
 -- Note that this does not have any effect on the side of /nvim-hs/.
 registerWithNeovim :: FunctionalityDescription -> Neovim anyConfig anyState Bool
 registerWithNeovim = \case
-    Function functionName s -> do
+    Function (F functionName) s -> do
         pName <- Internal.asks' Internal.providerName
         ret <- wait $ vim_call_function "remote#define#FunctionOnHost"
             [ toObject pName, toObject functionName, toObject s
@@ -108,14 +110,14 @@ registerWithNeovim = \case
         case ret of
             Left e -> do
                 liftIO . errorM logger $
-                    "Failed to register function: " ++ unpack functionName ++ show e
+                    "Failed to register function: " ++ show functionName ++ show e
                 return False
             Right _ -> do
                 liftIO . debugM logger $
-                    "Registered function: " ++ unpack functionName
+                    "Registered function: " ++ show functionName
                 return True
 
-    Command functionName copts -> do
+    Command (F functionName) copts -> do
         let sync = case getCommandOptions copts of
                     -- This works because CommandOptions are sorted and CmdSync is
                     -- the smallest element in the sorting
@@ -130,14 +132,14 @@ registerWithNeovim = \case
         case ret of
             Left e -> do
                 liftIO . errorM logger $
-                    "Failed to register command: " ++ unpack functionName ++ show e
+                    "Failed to register command: " ++ show functionName ++ show e
                 return False
             Right _ -> do
                 liftIO . debugM logger $
-                    "Registered command: " ++ unpack functionName
+                    "Registered command: " ++ show functionName
                 return True
 
-    Autocmd acmdType functionName opts -> do
+    Autocmd acmdType (F functionName) opts -> do
         pName <- Internal.asks' Internal.providerName
         ret <- wait $ vim_call_function "remote#define#AutocmdOnHost"
             [ toObject pName, toObject functionName, toObject Async
@@ -146,17 +148,17 @@ registerWithNeovim = \case
         case ret of
             Left e -> do
                 liftIO . errorM logger $
-                    "Failed to register autocmd: " ++ unpack functionName ++ show e
+                    "Failed to register autocmd: " ++ show functionName ++ show e
                 return False
             Right _ -> do
                 liftIO . debugM logger $
-                    "Registered autocmd: " ++ unpack functionName
+                    "Registered autocmd: " ++ show functionName
                 return True
 
 
 registerFunctionality :: FunctionalityDescription
                       -> ([Object] -> Neovim r st Object)
-                      -> Neovim r st (Maybe Text)
+                      -> Neovim r st (Maybe FunctionName)
 registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
     Nothing -> do
         liftIO $ errorM logger "Cannot register functionality in this context."
@@ -172,7 +174,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
 registerInStatelessContext
     :: FunctionalityDescription
     -> ([Object] -> Neovim' Object)
-    -> Neovim r st (Maybe Text)
+    -> Neovim r st (Maybe FunctionName)
 registerInStatelessContext d f = registerWithNeovim d >>= \case
     False ->
         return Nothing
@@ -188,8 +190,8 @@ registerInStatefulContext
     :: FunctionalityDescription
     -> ([Object] -> Neovim r st Object)
     -> TQueue SomeMessage
-    -> TVar (Map Text ([Object] -> Neovim r st Object))
-    -> Neovim r st (Maybe Text)
+    -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
+    -> Neovim r st (Maybe FunctionName)
 registerInStatefulContext d f q tm = registerWithNeovim d >>= \case
     True -> do
         let n = name d
@@ -215,7 +217,7 @@ registerInStatefulContext d f q tm = registerWithNeovim d >>= \case
 --
 -- Note that this function is equivalent to 'addAutocmd'' if called from a
 -- stateless plugin thread.
-addAutocmd :: Text
+addAutocmd :: ByteString
            -- ^ The event to register to (e.g. BufWritePost)
            -> AutocmdOptions
            -> (Neovim r st ())
@@ -246,7 +248,10 @@ addAutocmd event (opts@AutocmdOptions{..}) f = do
 -- | Add a stateless autocmd.
 --
 -- See 'addAutocmd' for more details.
-addAutocmd' :: Text -> AutocmdOptions -> Neovim' () -> Neovim r st (Maybe Text)
+addAutocmd' :: ByteString
+            -> AutocmdOptions
+            -> Neovim' ()
+            -> Neovim r st (Maybe FunctionName)
 addAutocmd' event opts f = do
     n <- newUniqueFunctionName
     registerInStatelessContext (Autocmd event n opts) (\_ -> toObject <$> f)
@@ -286,7 +291,7 @@ registerStatefulFunctionality (r, st, fs) = do
             Right res -> return $ Right res
 
     listeningThread :: TQueue SomeMessage
-                    -> TVar (Map Text ([Object] -> Neovim r st Object))
+                    -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
                     -> Neovim r st loop
     listeningThread q route = do
         msg <- liftIO . atomically $ readTQueue q

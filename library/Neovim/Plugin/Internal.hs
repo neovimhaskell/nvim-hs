@@ -25,7 +25,6 @@ import           Neovim.Context
 import           Neovim.Plugin.Classes
 
 import           Data.MessagePack
-import           Data.Text             (Text)
 
 
 -- | This data type is used in the plugin registration to properly register the
@@ -44,7 +43,7 @@ getFunction :: ExportedFunctionality r st -> [Object] -> Neovim r st Object
 getFunction (EF (_, f)) = f
 
 
-instance FunctionName (ExportedFunctionality r st) where
+instance HasFunctionName (ExportedFunctionality r st) where
     name = name . getDescription
 
 
@@ -59,7 +58,7 @@ data Plugin r st = Plugin
 data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
 
 
-getAllFunctionNames :: NeovimPlugin -> [Text]
+getAllFunctionNames :: NeovimPlugin -> [FunctionName]
 getAllFunctionNames (NeovimPlugin p) =
     map name (exports p) ++ concatMap (map name . _3) (statefulExports p)
   where

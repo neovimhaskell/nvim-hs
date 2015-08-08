@@ -23,12 +23,14 @@ module Neovim.Plugin.Classes (
     getCommandOptions,
     mkCommandOptions,
     AutocmdOptions(..),
+    HasFunctionName(..),
     ) where
 
 import           Neovim.Classes
 
-import           Control.Applicative       ((<$>))
+import           Control.Applicative
 import           Control.Monad.Error.Class
+import           Data.ByteString           (ByteString)
 import           Data.Char                 (isDigit)
 import           Data.Default
 import           Data.List                 (groupBy, sort)
@@ -36,10 +38,14 @@ import qualified Data.Map                  as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.String
-import           Data.Text                 (Text)
 import           Data.Traversable          (sequence)
+
 import           Prelude                   hiding (sequence)
 
+
+-- | Essentially just a string.
+newtype FunctionName = F ByteString
+    deriving (Eq, Ord, Show, Read)
 
 -- | Functionality specific functional description entries.
 --
@@ -48,19 +54,19 @@ import           Prelude                   hiding (sequence)
 -- The last field is a data type that contains all relevant options with
 -- sensible defaults, hence 'def' can be used as an argument.
 data FunctionalityDescription
-    = Function Text Synchronous
+    = Function FunctionName Synchronous
     -- ^ Exported function. Callable via @call name(arg1,arg2)@.
     --
     -- * Name of the function (must start with an uppercase letter)
     -- * Option to indicate how neovim should behave when calling this function
 
-    | Command Text CommandOptions
+    | Command FunctionName CommandOptions
     -- ^ Exported Command. Callable via @:Name arg1 arg2@.
     --
     -- * Name of the command (must start with an uppercase letter)
     -- * Options to configure neovim's behavior for calling the command
 
-    | Autocmd Text Text AutocmdOptions
+    | Autocmd ByteString FunctionName AutocmdOptions
     -- ^ Exported autocommand. Will call the given function if the type and
     -- filter match.
     --
@@ -70,6 +76,7 @@ data FunctionalityDescription
     --
     -- * Type of the autocmd (e.g. \"BufWritePost\")
     -- * Name for the function to call
+    -- * Options for the autocmd (use 'def' here if you don't want to change anything)
 
     deriving (Show, Read, Eq, Ord)
 
@@ -289,7 +296,7 @@ data AutocmdOptions = AutocmdOptions
     --
     -- See @:h autocmd-nested@
 
-    , acmdGroup       :: Maybe String
+    , acmdGroup   :: Maybe String
     -- ^ Group in which the autocmd should be registered.
     }
     deriving (Show, Read, Eq, Ord)
@@ -315,11 +322,11 @@ instance NvimObject AutocmdOptions where
         "Did not expect to receive an AutocmdOptions object: " ++ show o
 
 -- | Conveniennce class to extract a name from some value.
-class FunctionName a where
-    name :: a -> Text
+class HasFunctionName a where
+    name :: a -> FunctionName
 
 
-instance FunctionName FunctionalityDescription where
+instance HasFunctionName FunctionalityDescription where
     name = \case
         Function  n _ -> n
         Command   n _ -> n

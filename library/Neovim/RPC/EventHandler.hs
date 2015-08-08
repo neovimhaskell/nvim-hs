@@ -17,6 +17,7 @@ module Neovim.RPC.EventHandler (
 import           Neovim.Classes
 import           Neovim.Context
 import qualified Neovim.Context.Internal      as Internal
+import           Neovim.Plugin.Classes        (FunctionName(..))
 import           Neovim.Plugin.IPC
 import           Neovim.Plugin.IPC.Internal
 import           Neovim.RPC.Common
@@ -84,7 +85,7 @@ yield' o = do
 
 handleMessage :: Maybe RPCMessage -> ConduitM i ByteString EventHandler ()
 handleMessage = \case
-    Just (FunctionCall fn params reply time) -> do
+    Just (FunctionCall (F fn) params reply time) -> do
         i <- get
         modify succ
         rs <- asks (recipients . Internal.customConfig)
@@ -102,7 +103,7 @@ handleMessage = \case
             , toObject e
             , toObject res
             ]
-    Just (NotificationCall fn params) ->
+    Just (NotificationCall (F fn) params) ->
         yield' $ ObjectArray
             [ ObjectInt 2
             , toObject fn
