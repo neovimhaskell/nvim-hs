@@ -10,14 +10,15 @@ Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 Portability :  GHC
 
+Import this module qualified as @MsgpackRPC@
 -}
 module Neovim.RPC.Classes
-    ( MsgpackRPCMessage (..),
+    ( Message (..),
     ) where
 
 import           Neovim.Classes            (NvimObject (..))
 import           Neovim.Plugin.Classes     (FunctionName (..))
-import           Neovim.Plugin.IPC.Classes
+import qualified Neovim.Plugin.IPC.Classes as IPC
 
 import           Control.Monad.Error.Class
 import           Data.Data                 (Typeable)
@@ -27,8 +28,8 @@ import           Data.MessagePack          (Object (..))
 
 -- | See https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md for
 -- details about the msgpack rpc specification.
-data MsgpackRPCMessage
-    = Request !Int64 !FunctionName [Object]
+data Message
+    = Request IPC.Request
     -- ^ Request in the sense of the msgpack rpc specification
     --
     -- Parameters
@@ -43,20 +44,16 @@ data MsgpackRPCMessage
     -- * Mesage identifier which matches a request
     -- * 'Either' an error 'Object' or a result 'Object'
 
-    | Notification !FunctionName [Object]
+    | Notification IPC.Notification
     -- ^ Notification in the sense of the msgpack rpc specification
-    --
-    -- Parameters
-    -- * Function name
-    -- * Function arguments
     deriving (Eq, Ord, Show, Typeable)
 
 
-instance Message MsgpackRPCMessage
+instance IPC.Message Message
 
-instance NvimObject MsgpackRPCMessage where
+instance NvimObject Message where
     toObject = \case
-        Request i (F m) ps ->
+        Request (IPC.Request (F m) i ps) ->
             ObjectArray [ ObjectInt 0, ObjectInt i, ObjectBinary m, ObjectArray ps ]
 
         Response i (Left e) ->
@@ -65,15 +62,17 @@ instance NvimObject MsgpackRPCMessage where
         Response i (Right r) ->
             ObjectArray [ ObjectInt 1, ObjectInt i, ObjectNil, r]
 
-        Notification (F m) ps ->
+        Notification (IPC.Notification (F m) ps) ->
             ObjectArray [ ObjectInt 2, ObjectBinary m, ObjectArray ps ]
 
 
     fromObject = \case
-        ObjectArray [ObjectInt 0, i, m, ps] ->
-            Request <$> fromObject i
-                    <*> (fmap F (fromObject m))
+        ObjectArray [ObjectInt 0, i, m, ps] -> do
+            r <- IPC.Request
+                    <$> (fmap F (fromObject m))
+                    <*> fromObject i
                     <*> fromObject ps
+            return $ Request r
 
         ObjectArray [ObjectInt 1, i, e, r] ->
             let eer = case e of
@@ -82,9 +81,11 @@ instance NvimObject MsgpackRPCMessage where
             in Response <$> fromObject i
                         <*> pure eer
 
-        ObjectArray [ObjectInt 2, m, ps] ->
-            Notification <$> (fmap F (fromObject m))
-                         <*> fromObject ps
+        ObjectArray [ObjectInt 2, m, ps] -> do
+            n <- IPC.Notification
+                    <$> (fmap F (fromObject m))
+                    <*> fromObject ps
+            return $ Notification n
 
         o ->
             throwError $ "Not a known/valid msgpack-rpc message" ++ show o

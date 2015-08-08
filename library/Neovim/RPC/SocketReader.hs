@@ -25,9 +25,8 @@ import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              FunctionName (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
-import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal as IPC
-import           Neovim.RPC.Classes         as Msgpack
+import           Neovim.Plugin.IPC.Classes
+import qualified Neovim.RPC.Classes         as MsgpackRPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -84,13 +83,13 @@ messageHandlerSink :: Sink Object SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> do
     liftIO . debugM logger $ "Received: " <> show rpc
     case fromObject rpc of
-        Right (Msgpack.Request i fn ps) ->
+        Right (MsgpackRPC.Request (Request fn i ps)) ->
             handleRequestOrNotification (Just i) fn ps
 
-        Right (Msgpack.Response i r) ->
+        Right (MsgpackRPC.Response i r) ->
             handleResponse i r
 
-        Right (Msgpack.Notification fn ps) ->
+        Right (MsgpackRPC.Notification (Notification fn ps)) ->
             handleRequestOrNotification Nothing fn ps
 
         Left e -> liftIO . errorM logger $
@@ -136,7 +135,7 @@ handleRequestOrNotification mi m params = do
             let errM = "No provider for: " <> show m
             debugM logger errM
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage $ Response i (Left (toObject errM))
+                . SomeMessage $ MsgpackRPC.Response i (Left (toObject errM))
         Just (copts, Internal.Stateless f) -> do
             liftIO . debugM logger $ "Executing stateless function with ID: " <> show mi
             -- Stateless function: Create a boring state object for the
@@ -149,7 +148,7 @@ handleRequestOrNotification mi m params = do
             res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage . Response i $ either (Left . toObject) Right res
+                . SomeMessage . MsgpackRPC.Response i $ either (Left . toObject) Right res
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO
@@ -159,11 +158,11 @@ handleRequestOrNotification mi m params = do
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
                     atomically' . writeTQueue c . SomeMessage $
-                        IPC.Request m i (parseParams copts params)
+                        Request m i (parseParams copts params)
 
                 Nothing ->
                     atomically' . writeTQueue c . SomeMessage $
-                        IPC.Notification m (parseParams copts params)
+                        Notification m (parseParams copts params)
 
 
 -- TODO implement proper handling for additional parameters

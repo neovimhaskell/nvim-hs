@@ -27,9 +27,8 @@ import           Neovim.Classes
 import           Neovim.Context
 import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes      (FunctionName)
-import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal
-import qualified Neovim.RPC.Classes         as MsgpackRPC (MsgpackRPCMessage (..))
+import           Neovim.Plugin.IPC.Classes
+import qualified Neovim.RPC.Classes         as MsgpackRPC
 
 import           Control.Applicative
 import           Control.Concurrent.STM

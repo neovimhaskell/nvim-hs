@@ -17,9 +17,8 @@ module Neovim.RPC.EventHandler (
 import           Neovim.Classes
 import           Neovim.Context
 import qualified Neovim.Context.Internal      as Internal
-import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal   (FunctionCall (..))
-import           Neovim.RPC.Classes
+import           Neovim.Plugin.IPC.Classes
+import qualified Neovim.RPC.Classes           as MsgpackRPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
@@ -80,13 +79,13 @@ eventHandler = await >>= \case
         eventHandler
 
 
-yield' :: (MonadIO io) => MsgpackRPCMessage -> ConduitM i ByteString io ()
+yield' :: (MonadIO io) => MsgpackRPC.Message -> ConduitM i ByteString io ()
 yield' o = do
     liftIO . debugM "EventHandler" $ "Sending: " ++ show o
     yield . encode $ toObject o
 
 
-handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPCMessage)
+handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPC.Message)
               -> ConduitM i ByteString EventHandler ()
 handleMessage = \case
     (Just (FunctionCall fn params reply time), _) -> do
@@ -94,13 +93,14 @@ handleMessage = \case
         modify succ
         rs <- asks (recipients . Internal.customConfig)
         atomically' . modifyTVar rs $ Map.insert i (time, reply)
-        yield' $ Request i fn params
+        yield' $ MsgpackRPC.Request (Request fn i params)
 
-    (_, Just r@Response{}) ->
+    (_, Just r@MsgpackRPC.Response{}) ->
         yield' $ r
 
-    (_, Just n@Notification{}) ->
+    (_, Just n@MsgpackRPC.Notification{}) ->
         yield' $ n
 
-    _ -> return () -- i.e. skip to next message
+    _ ->
+        return () -- i.e. skip to next message
 

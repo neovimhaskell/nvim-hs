@@ -34,8 +34,7 @@ import           Neovim.Context.Internal      (FunctionType (..))
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Plugin.Classes        hiding (register)
 import           Neovim.Plugin.Internal
-import           Neovim.Plugin.IPC
-import           Neovim.Plugin.IPC.Internal
+import           Neovim.Plugin.IPC.Classes
 import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative

@@ -59,7 +59,6 @@ library
                       , Neovim.Plugin.Classes
                       , Neovim.Plugin.Internal
                       , Neovim.Plugin.IPC
-                      , Neovim.Plugin.IPC.Internal
                       , Neovim.Plugin.IPC.Classes
                       , Neovim.Config
                       , Neovim.Debug
