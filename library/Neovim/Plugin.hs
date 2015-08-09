@@ -67,15 +67,15 @@ logger = "Neovim.Plugin"
 
 
 startPluginThreads :: Internal.Config () ()
-                   -> [IO NeovimPlugin]
+                   -> [Neovim' NeovimPlugin]
                    -> IO (Either String ([FunctionMapEntry],[ThreadId]))
 startPluginThreads cfg = fmap (fmap fst) . runNeovim cfg () . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [ThreadId])
-       -> IO NeovimPlugin
-       -> Neovim () () ([FunctionMapEntry], [ThreadId])
+       -> Neovim' NeovimPlugin
+       -> Neovim' ([FunctionMapEntry], [ThreadId])
     go acc iop = do
-        NeovimPlugin p <- liftIO iop
+        NeovimPlugin p <- iop
 
         (es, tids) <- foldl (\(es, tids) (es', tid) -> (es'++es, tid:tids)) acc
             <$> mapM registerStatefulFunctionality (statefulExports p)

@@ -14,6 +14,7 @@ module Neovim.Config (
     module System.Log,
     ) where
 
+import           Neovim.Context         (Neovim')
 import           Neovim.Plugin.Internal (NeovimPlugin)
 
 import qualified Config.Dyre            as Dyre
@@ -21,7 +22,7 @@ import           Data.Default           (Default (def))
 import           System.Log             (Priority (..))
 
 data NeovimConfig = Config
-    { plugins      :: [IO NeovimPlugin]
+    { plugins      :: [Neovim' NeovimPlugin]
     -- ^ The list of plugins. The IO type inside the list allows the plugin
     -- author to run some arbitrary startup code before creating a value of
     -- type 'NeovimPlugin'.

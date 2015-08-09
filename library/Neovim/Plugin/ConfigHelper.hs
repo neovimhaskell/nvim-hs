@@ -18,6 +18,7 @@ import           Config.Dyre                         (Params)
 import           Config.Dyre.Paths                   (getPaths)
 import           Neovim.API.TH
 import           Neovim.Config
+import           Neovim.Context
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.ConfigHelper.Internal
 import           Neovim.Plugin.Internal
@@ -28,8 +29,8 @@ import           Neovim.Plugin.Internal
 -- The first argument is a set of environment variables that is needed to
 -- recompile /nvim-hs/. They are temporarily set during the recompilation
 -- function call.
-plugin :: [(String, Maybe String)] -> Params NeovimConfig -> IO NeovimPlugin
-plugin ghcEnv params = do
+plugin :: [(String, Maybe String)] -> Params NeovimConfig -> Neovim' NeovimPlugin
+plugin ghcEnv params = liftIO $ do
     (_, _, cfgFile, _, libsDir) <- getPaths params
     wrapPlugin Plugin
         { exports =

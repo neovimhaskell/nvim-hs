@@ -13,8 +13,8 @@ main = realMain def
     { plugins = [ randPlugin ]
     }
 
-randPlugin :: IO NeovimPlugin
-randPlugin = do
+randPlugin :: Neovim' NeovimPlugin
+randPlugin = liftIO $ do
     -- This plugin was intended to use a real random number generator, but
     -- unfortunately a Travis build with other GHC versions failed to reproduce
     -- the same numbers. So we just chose from these three numbers. You better
