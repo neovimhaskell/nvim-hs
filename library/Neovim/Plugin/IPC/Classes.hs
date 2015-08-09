@@ -26,7 +26,6 @@ import           Neovim.Plugin.Classes  (FunctionName)
 
 import           Control.Concurrent.STM
 import           Data.Data              (Typeable, cast)
-import           Data.Data              (Typeable)
 import           Data.Int               (Int64)
 import           Data.MessagePack
 import           Data.Time

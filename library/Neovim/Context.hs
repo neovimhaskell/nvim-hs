@@ -16,6 +16,9 @@ module Neovim.Context (
     Neovim,
     Neovim',
     NeovimException(..),
+    FunctionMap,
+    FunctionMapEntry,
+    mkFunctionMap,
     runNeovim,
     forkNeovim,
     err,
@@ -34,7 +37,8 @@ module Neovim.Context (
     ) where
 
 
-import           Neovim.Context.Internal (Neovim, Neovim', forkNeovim,
+import           Neovim.Context.Internal (FunctionMap, FunctionMapEntry, Neovim,
+                                          Neovim', forkNeovim, mkFunctionMap,
                                           newUniqueFunctionName, runNeovim)
 import qualified Neovim.Context.Internal as Internal
 

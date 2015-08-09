@@ -33,8 +33,8 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import           Data.ByteString.UTF8         (fromString)
 import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
 import           Data.MessagePack             (Object)
-import           Data.Monoid
 import           System.Log.Logger
 
 import           Prelude
@@ -134,6 +134,9 @@ data FunctionType
     -- is the communication endpoint for the arguments we have to pass.
 
 
+type FunctionMapEntry = (FunctionalityDescription, FunctionType)
+
+
 -- | A function map is a map containing the names of functions as keys and some
 -- context dependent value which contains all the necessary information to
 -- execute that function in the intended way.
@@ -145,8 +148,12 @@ data FunctionType
 -- a thread that reads from a 'TQueue'. (NB: persistent currently means, that
 -- state is stored for as long as the plugin provider is running and not
 -- restarted.)
-type FunctionMap =
-    Map FunctionName (FunctionalityDescription, FunctionType)
+type FunctionMap = Map FunctionName FunctionMapEntry
+
+
+-- | Create a new function map from the given list of 'FunctionMapEntry' values.
+mkFunctionMap :: [FunctionMapEntry] -> FunctionMap
+mkFunctionMap = Map.fromList . map (\e -> (name (fst e), e))
 
 
 -- | A wrapper for a reader value that contains extra fields required to
@@ -175,7 +182,7 @@ data Config r st = Config
     -- /nvim-hs/. This is useful if you don't want to overwrite existing
     -- functions or if you create autocmd functions.
 
-    , globalFunctionMap :: TVar FunctionMap
+    , globalFunctionMap :: TMVar FunctionMap
     -- ^ This map is used to dispatch received messagepack function calls to
     -- it's appropriate targets.
 
@@ -192,7 +199,7 @@ data PluginSettings r st where
     StatelessSettings
         :: (FunctionalityDescription
             -> ([Object] -> Neovim' Object)
-            -> Neovim' (Maybe FunctionName))
+            -> Neovim' (Maybe FunctionMapEntry))
         -- ^ Registration function
         -> PluginSettings () ()
 
@@ -201,7 +208,7 @@ data PluginSettings r st where
             -> ([Object] -> Neovim r st Object)
             -> TQueue SomeMessage
             -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-            -> Neovim r st (Maybe FunctionName))
+            -> Neovim r st (Maybe FunctionMapEntry))
         -- ^ Registration function
         -> TQueue SomeMessage
         -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
@@ -214,14 +221,14 @@ data PluginSettings r st where
 -- This function should only be called once per /nvim-hs/ session since the
 -- arguments are shared across processes.
 newConfig :: IO String -> IO r -> IO (Config r context)
-newConfig ioProviderName a = Config
+newConfig ioProviderName r = Config
     <$> newTQueueIO
     <*> newEmptyMVar
     <*> ioProviderName
     <*> newTVarIO 100
-    <*> newTVarIO mempty
+    <*> atomically newEmptyTMVar
     <*> pure Nothing
-    <*> a
+    <*> r
 
 
 data QuitAction = Quit

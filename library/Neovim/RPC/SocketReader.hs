@@ -44,7 +44,6 @@ import qualified Data.Map                   as Map
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize             (get)
-import           Data.Set                   (Set, member)
 import           System.IO                  (IOMode (ReadMode))
 import           System.Log.Logger
 
@@ -54,18 +53,17 @@ logger :: String
 logger = "Socket Reader"
 
 
-type SocketHandler = Neovim RPCConfig (Set FunctionName)
+type SocketHandler = Neovim RPCConfig ()
 
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
 runSocketReader :: SocketType
-                -> Internal.Config RPCConfig (Set FunctionName)
-                -> Set FunctionName
+                -> Internal.Config RPCConfig ()
                 -> IO ()
-runSocketReader socketType env fs = do
+runSocketReader socketType env = do
     h <- createHandle ReadMode socketType
-    void . runNeovim env fs $ do
+    void . runNeovim env () $ do
         -- addCleanup (cleanUpHandle h) (sourceHandle h)
         -- TODO test whether/how this should be handled
         -- this has been commented out because I think that restarting the
@@ -114,22 +112,16 @@ handleResponse i result = do
 handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object] -> Sink a SocketHandler ()
 handleRequestOrNotification mi m params = do
     cfg <- lift Internal.ask'
-    fs  <- lift get
-    void . liftIO . forkIO $ handle cfg fs
+    void . liftIO . forkIO $ handle cfg
 
   where
     lookupFunction
-        :: TVar Internal.FunctionMap
+        :: TMVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
-    lookupFunction funMap = Map.lookup m <$> readTVar funMap
+    lookupFunction funMap = Map.lookup m <$> readTMVar funMap
 
-    handle :: Internal.Config RPCConfig (Set FunctionName) -> Set FunctionName -> IO ()
-    handle rpc fs = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
-        Nothing | m `member` fs -> do
-            atomically $ lookupFunction (Internal.globalFunctionMap rpc) >>= \case
-                Nothing -> retry
-                Just _  -> return ()
-            handle rpc fs
+    handle :: Internal.Config RPCConfig () -> IO ()
+    handle rpc = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
 
         Nothing -> do
             let errM = "No provider for: " <> show m

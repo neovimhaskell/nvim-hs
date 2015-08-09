@@ -17,7 +17,6 @@ import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Debug
 import           Neovim.Plugin              as P
 import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
-import           Neovim.Plugin.Internal     (getAllFunctionNames)
 import           Neovim.RPC.Common          as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
@@ -25,9 +24,9 @@ import           Neovim.RPC.SocketReader
 import qualified Config.Dyre                as Dyre
 import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
+import           Control.Concurrent.STM     (putTMVar, atomically)
 import           Control.Monad
 import           Data.Monoid
-import qualified Data.Set                   as Set
 import           Options.Applicative
 import           System.IO                  (stdin, stdout)
 import           System.SetEnv
@@ -134,23 +133,18 @@ runPluginProvider os = case (hostPort os, unix os) of
             startupConf = conf { Internal.customConfig = ()
                                , Internal.pluginSettings = Nothing
                                }
+        let rpcEnv = conf { Internal.customConfig = rpcConfig
+                          , Internal.pluginSettings = Nothing
+                          }
+        ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
+        rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
-            Right pluginsAndTids -> do
-                let allFunctions = Set.fromList $
-                        concatMap (getAllFunctionNames . fst) pluginsAndTids
-                let rpcEnv = conf { Internal.customConfig = rpcConfig
-                                  , Internal.pluginSettings = Nothing
-                                  }
-                ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-                let registerConf = conf
-                        { Internal.customConfig = ()
-                        , Internal.pluginSettings = Nothing
-                        }
-                _ <- forkIO $ register registerConf (map fst pluginsAndTids)
-                rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv allFunctions
+            Right (funMapEntries, pluginTids) -> do
+                atomically $ putTMVar
+                                (Internal.globalFunctionMap conf)
+                                (Internal.mkFunctionMap funMapEntries)
                 debugM "Neovim.Main" "Waiting for threads to finish."
-                let pluginTids = concatMap snd pluginsAndTids
                 finish (rTid:ehTid:pluginTids) =<< readMVar (Internal.quit conf)
 
 
