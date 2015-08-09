@@ -137,7 +137,7 @@ runPluginProvider os = case (hostPort os, unix os) of
                           , Internal.pluginSettings = Nothing
                           }
         ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-        rTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
+        srTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
             Right (funMapEntries, pluginTids) -> do
@@ -145,7 +145,7 @@ runPluginProvider os = case (hostPort os, unix os) of
                                 (Internal.globalFunctionMap conf)
                                 (Internal.mkFunctionMap funMapEntries)
                 debugM "Neovim.Main" "Waiting for threads to finish."
-                finish (rTid:ehTid:pluginTids) =<< readMVar (Internal.quit conf)
+                finish (srTid:ehTid:pluginTids) =<< readMVar (Internal.quit conf)
 
 
 finish :: [ThreadId] -> Internal.QuitAction -> IO ()

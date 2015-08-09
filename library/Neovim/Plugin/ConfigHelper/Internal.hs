@@ -25,10 +25,12 @@ import           Neovim.Util             (withCustomEnvironment)
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
 import           Control.Applicative     hiding (many, (<|>))
-import           Control.Monad           (void)
+import           Control.Monad           (void, forM_)
 import           Data.Char
 import           Text.Parsec             hiding (Error, count)
 import           Text.Parsec.String
+import           System.SetEnv
+import           System.Environment
 
 import           Prelude
 
@@ -59,6 +61,9 @@ restartNvimhs CommandArguments{..} = do
     case bang of
         Just True -> recompileNvimhs
         _         -> return ()
+    (_, env) <- ask
+    forM_ env $ \(var, val) -> liftIO $ do
+        maybe (unsetEnv var) (setEnv var) val
     restart
 
 -- Parsing {{{1
