@@ -59,8 +59,6 @@ module Neovim (
     addAutocmd,
     addAutocmd',
 
-    -- TODO make Neovim a newtype wrapper with MonadReader and MonadState
-    -- implementation?
     ask,
     asks,
     put,

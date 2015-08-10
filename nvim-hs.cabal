@@ -61,7 +61,7 @@ library
                       , Neovim.Plugin.IPC
                       , Neovim.Plugin.IPC.Classes
                       , Neovim.Config
-                      , Neovim.Debug
+                      , Neovim.Log
                       , Neovim.Main
                       , Neovim.RPC.Classes
                       , Neovim.RPC.Common

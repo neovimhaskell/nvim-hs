@@ -14,7 +14,7 @@ module Neovim.Main
 
 import           Neovim.Config
 import qualified Neovim.Context.Internal    as Internal
-import           Neovim.Debug
+import           Neovim.Log
 import           Neovim.Plugin              as P
 import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
 import           Neovim.RPC.Common          as RPC

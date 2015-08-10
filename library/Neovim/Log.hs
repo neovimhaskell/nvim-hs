@@ -1,14 +1,15 @@
 {- |
-Module      :  Neovim.Debug
-Description :  Debugging facilities
+Module      :  Neovim.Log
+Description :  Logging utilities and reexports
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
 
 Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
+Portability :  GHC
 
 -}
-module Neovim.Debug (
+module Neovim.Log (
     disableLogger,
     withLogger,
 
@@ -54,3 +55,5 @@ withLogger fp p action = bracket
         logM "Neovim.Debug" DEBUG $
             unwords ["Initialized root looger with priority", show p, "and file: ", fp]
         return fh'
+
+
