@@ -133,7 +133,7 @@ runPluginProvider os cfg = case (hostPort os, unix os) of
             startupConf = conf { Internal.customConfig = ()
                                , Internal.pluginSettings = Nothing
                                }
-        let rpcEnv = conf { Internal.customConfig = rpcConfig
+            rpcEnv = conf { Internal.customConfig = rpcConfig
                           , Internal.pluginSettings = Nothing
                           }
         ehTid <- forkIO $ runEventHandler evHandlerHandle rpcEnv
