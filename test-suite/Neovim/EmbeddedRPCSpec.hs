@@ -56,8 +56,8 @@ withNeovimEmbedded file testCase = do
 
         e <- Internal.newConfig (pure "nvim-hs-test-suite") newRPCConfig
 
-        _ <- forkIO $ runSocketReader (Stdout hout) (e { Internal.pluginSettings = Nothing })
-        _ <- forkIO $ runEventHandler (Stdout hin)  (e { Internal.pluginSettings = Nothing })
+        _ <- forkIO $ runSocketReader hout (e { Internal.pluginSettings = Nothing })
+        _ <- forkIO $ runEventHandler hin  (e { Internal.pluginSettings = Nothing })
 
         -- We give the test 3 seconds
         -- TODO: Maybe make timeout a function parameter

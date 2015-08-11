@@ -30,7 +30,6 @@ import           Data.Char
 import           Text.Parsec             hiding (Error, count)
 import           Text.Parsec.String
 import           System.SetEnv
-import           System.Environment
 
 import           Prelude
 

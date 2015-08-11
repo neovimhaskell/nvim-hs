@@ -20,11 +20,13 @@ import           Neovim.Classes            (NvimObject (..))
 import           Neovim.Plugin.Classes     (FunctionName (..))
 import qualified Neovim.Plugin.IPC.Classes as IPC
 
+import           Control.Applicative
 import           Control.Monad.Error.Class
 import           Data.Data                 (Typeable)
 import           Data.Int                  (Int64)
 import           Data.MessagePack          (Object (..))
 
+import           Prelude
 
 -- | See https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md for
 -- details about the msgpack rpc specification.

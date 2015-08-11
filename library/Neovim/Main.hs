@@ -28,7 +28,7 @@ import           Control.Concurrent.STM     (putTMVar, atomically)
 import           Control.Monad
 import           Data.Monoid
 import           Options.Applicative
-import           System.IO                  (stdin, stdout)
+import           System.IO                  (stdin, stdout, IOMode(ReadWriteMode))
 import           System.SetEnv
 
 import           System.Environment
@@ -112,14 +112,14 @@ realMain cfg = do
 
 
 runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
-runPluginProvider os = case (hostPort os, unix os) of
-    (Just (h,p), _) -> let s = TCP p h in run s s
-    (_, Just fp)    -> let s = UnixSocket fp in run s s
-    _ | env os      -> run Environment Environment
-    _               -> run (Stdout stdout) (Stdout stdin)
+runPluginProvider os cfg = case (hostPort os, unix os) of
+    (Just (h,p), _) -> createHandle ReadWriteMode (TCP p h) >>= \s -> run s s
+    (_, Just fp)    -> createHandle ReadWriteMode (UnixSocket fp) >>= \s -> run s s
+    _ | env os      -> createHandle ReadWriteMode Environment >>= \s -> run s s
+    _               -> run stdout stdin
 
   where
-    run evHandlerSocket sockreaderSocket cfg = do
+    run evHandlerHandle sockreaderHandle = do
         ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
             val <- lookupEnv var
             unsetEnv var
@@ -136,8 +136,8 @@ runPluginProvider os = case (hostPort os, unix os) of
         let rpcEnv = conf { Internal.customConfig = rpcConfig
                           , Internal.pluginSettings = Nothing
                           }
-        ehTid <- forkIO $ runEventHandler evHandlerSocket rpcEnv
-        srTid <- forkIO $ runSocketReader sockreaderSocket rpcEnv
+        ehTid <- forkIO $ runEventHandler evHandlerHandle rpcEnv
+        srTid <- forkIO $ runSocketReader sockreaderHandle rpcEnv
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
             Right (funMapEntries, pluginTids) -> do

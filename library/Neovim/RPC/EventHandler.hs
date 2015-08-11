@@ -32,7 +32,7 @@ import           Data.Conduit                 as C
 import           Data.Conduit.Binary          (sinkHandle)
 import qualified Data.Map                     as Map
 import           Data.Serialize               (encode)
-import           System.IO                    (IOMode (WriteMode))
+import           System.IO                    (Handle)
 import           System.Log.Logger
 
 import           Prelude
@@ -40,15 +40,16 @@ import           Prelude
 
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
-runEventHandler :: SocketType
+runEventHandler :: Handle
                 -> Internal.Config RPCConfig Int64
                 -> IO ()
-runEventHandler socketType env =
+runEventHandler writeableHandle env =
     runEventHandlerContext env $ do
-        h <- createHandle WriteMode socketType
         eventHandlerSource
             $= eventHandler
-            $$ addCleanup (cleanUpHandle h) (sinkHandle h)
+            $$ addCleanup
+                (cleanUpHandle writeableHandle)
+                (sinkHandle writeableHandle)
 
 
 -- | Convenient monad transformer stack for the event handler

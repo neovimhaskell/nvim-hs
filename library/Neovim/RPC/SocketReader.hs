@@ -44,7 +44,7 @@ import qualified Data.Map                   as Map
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Serialize             (get)
-import           System.IO                  (IOMode (ReadMode))
+import           System.IO                  (Handle)
 import           System.Log.Logger
 
 import           Prelude
@@ -58,11 +58,10 @@ type SocketHandler = Neovim RPCConfig ()
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
-runSocketReader :: SocketType
+runSocketReader :: Handle
                 -> Internal.Config RPCConfig ()
                 -> IO ()
-runSocketReader socketType env = do
-    h <- createHandle ReadMode socketType
+runSocketReader readableHandle env = do
     void . runNeovim env () $ do
         -- addCleanup (cleanUpHandle h) (sourceHandle h)
         -- TODO test whether/how this should be handled
@@ -70,7 +69,7 @@ runSocketReader socketType env = do
         -- plugin provider should not cause the stdin and stdout handles to be
         -- closed since that would cause neovim to stop the plugin provider (I
         -- think).
-        sourceHandle h
+        sourceHandle readableHandle
             $= conduitGet Data.Serialize.get
             $$ messageHandlerSink
 
