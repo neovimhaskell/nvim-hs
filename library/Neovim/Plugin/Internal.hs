@@ -17,8 +17,6 @@ module Neovim.Plugin.Internal (
     NeovimPlugin(..),
     Plugin(..),
     wrapPlugin,
-
-    getAllFunctionNames,
     ) where
 
 import           Neovim.Context
@@ -58,13 +56,6 @@ data Plugin r st = Plugin
 -- | 'Plugin' values are wraped inside this data type via 'wrapPlugin' so that
 -- we can put plugins in an ordinary list.
 data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
-
-
-getAllFunctionNames :: NeovimPlugin -> [FunctionName]
-getAllFunctionNames (NeovimPlugin p) =
-    map name (exports p) ++ concatMap (map name . _3) (statefulExports p)
-  where
-    _3 (_,_,x) = x
 
 
 -- | Wrap a 'Plugin' in some nice blankets, so that we can put them in a simple
