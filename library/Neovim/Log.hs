@@ -31,9 +31,10 @@ disableLogger action = do
 -- | Initialize the root logger to avoid stderr and set it to log the given
 -- file instead. Simply wrap the main entry point with this function to
 -- initialze the logger.
+--
 -- @
--- main = withLogger "/home/dude/nvim.log" Debug $ do
---     putStrLn "Hello, World!"
+-- main = 'withLogger' "\/home\/dude\/nvim.log" 'Debug' \$ do
+--     'putStrLn' "Hello, World!"
 -- @
 withLogger :: FilePath -> Priority -> IO a -> IO a
 withLogger fp p action = bracket

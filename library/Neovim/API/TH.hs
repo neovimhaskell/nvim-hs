@@ -65,7 +65,7 @@ import           Prelude
 -- The provided map allows the use of different Haskell types for the types
 -- defined in the API. The types must be an instance of 'NvimObject' and they
 -- must form an isomorphism with the sent messages types. Currently, it
--- provides a Convenient way to replace the String@ type with 'Text',
+-- provides a Convenient way to replace the /String/ type with 'Text',
 -- 'ByteString' or 'String'.
 generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
@@ -190,7 +190,7 @@ createDataTypeWithByteStringComponent nme cs = do
 
 
 -- | If the first parameter is @mkName NeovimException@, this function will
--- generate  @instance Exception NeovimException"@.
+-- generate  @instance Exception NeovimException@.
 exceptionInstance :: Name -> Q [Dec]
 exceptionInstance exceptionName = return <$>
     instanceD
@@ -250,7 +250,7 @@ customTypeInstance typeName nis =
 --
 -- Note that the name must start with an upper case letter.
 --
--- Example: @ $(function "MyExportedFunction" 'myDefinedFunction) def @
+-- Example: @ $(function \"MyExportedFunction\" 'myDefinedFunction) 'Sync' @
 function :: String -> Name -> Q Exp
 function [] _ = error "Empty names are not allowed for exported functions."
 function customName@(c:_) functionName
@@ -310,6 +310,26 @@ classifyArgType t = do
 -- custom name.
 --
 -- Note that commands must start with an upper case letter.
+--
+-- Due to limitations on the side of (neo)vim, commands can only have one of the
+-- following five signatures, where you can replace 'String' with 'ByteString'
+-- or 'Text' if you wish:
+--
+-- * 'CommandArguments' -> 'Neovim' r st ()
+--
+-- * 'CommandArguments' -> 'Maybe' 'String' -> 'Neovim' r st ()
+--
+-- * 'CommandArguments' -> 'String' -> 'Neovim' r st ()
+--
+-- * 'CommandArguments' -> ['String'] -> 'Neovim' r st ()
+--
+-- * 'CommandArguments' -> 'String' -> ['String'] -> 'Neovim' r st ()
+--
+-- Example: @ $(command \"RememberThePrime\" 'someFunction) ['CmdBang'] @
+--
+-- Note that the list of command options (i.e. the last argument) removes
+-- duplicate options by means of some internally convienient sorting. You should
+-- simply not defined the same option twice.
 command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
@@ -346,9 +366,27 @@ command' functionName =
     in command (toUpper c:cs) functionName
 
 
--- | Define an autocmd. This function generates an export for autocmd. Since
--- this is a static registration, arguments are not allowed here. You can of
--- course define a fully applied functions and pass it as an arguments.
+-- | This function generates an export for autocmd. Since this is a static
+-- registration, arguments are not allowed here. You can, of course, define a
+-- fully applied function and pass it as an argument. If you have to add
+-- autocmds dynamically, it can be done with 'addAutocmd'.
+--
+-- Example:
+--
+-- @
+-- someFunction :: a -> b -> c -> d -> Neovim r st res
+-- someFunction = ...
+--
+-- theFunction :: Neovim r st res
+-- theFunction = someFunction 1 2 3 4
+--
+-- $(autocmd 'theFunction) def
+-- @
+--
+-- @def@ is of type 'AutocmdOptions'.
+--
+-- Note that you have to define @theFunction@ in a different module due to
+-- the use of Template Haskell.
 autocmd :: Name -> Q Exp
 autocmd functionName =
     let (c:cs) = nameBase functionName

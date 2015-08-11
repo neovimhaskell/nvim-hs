@@ -90,7 +90,7 @@ opts = info (helper <*> optParser)
 
 
 -- | This is essentially the main function for /nvim-hs/, at least if you want
--- to use the "Config.Dyre" for the configuration..
+-- to use "Config.Dyre" for the configuration.
 neovim :: NeovimConfig -> IO ()
 neovim conf =
     let params = Dyre.defaultParams

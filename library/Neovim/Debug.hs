@@ -10,8 +10,10 @@ Stability   :  experimental
 Portability :  GHC
 
 -}
-module Neovim.Debug
-    where
+module Neovim.Debug (
+    debug,
+    debug',
+    ) where
 
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log              (disableLogger)
@@ -29,6 +31,14 @@ import           System.IO               (IOMode (ReadWriteMode))
 
 import           Prelude
 
+
+-- | Run a 'Neovim' function.
+--
+-- This function connects to the socket pointed to by the environment variabe
+-- @$NVIM_LISTEN_ADDRESS@ and executes the command.
+--
+-- Tip: If you run a terminal inside a neovim instance, then this variable is
+-- automatically set.
 debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
     h <- createHandle ReadWriteMode Environment
@@ -60,5 +70,9 @@ debug r st a = disableLogger $ do
             return res
 
 
+-- | Run a 'Neovim'' function.
+--
+-- See documentation for 'debug'.
 debug' :: Internal.Neovim' a -> IO (Either String a)
 debug' a = fmap fst <$> debug () () a
+

@@ -200,7 +200,6 @@ data PluginSettings r st where
         :: (FunctionalityDescription
             -> ([Object] -> Neovim' Object)
             -> Neovim' (Maybe FunctionMapEntry))
-        -- ^ Registration function
         -> PluginSettings () ()
 
     StatefulSettings
@@ -209,7 +208,6 @@ data PluginSettings r st where
             -> TQueue SomeMessage
             -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
             -> Neovim r st (Maybe FunctionMapEntry))
-        -- ^ Registration function
         -> TQueue SomeMessage
         -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
         -> PluginSettings r st

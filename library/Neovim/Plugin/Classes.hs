@@ -93,10 +93,8 @@ data Synchronous
 
     | Sync
     -- ^ Call the function and wait for its result. This is only synchronous on
-    -- the neovim side. For comands it means that the GUI will (probably) not
-    -- allow any user input until a reult is received. Functions run
-    -- asynchronously inside neovim (or in one of its plugin providers) can use
-    -- these functions concurrently.
+    -- the neovim side. This means that the GUI will (probably) not
+    -- allow any user input until a reult is received.
     deriving (Show, Read, Eq, Ord, Enum)
 
 
@@ -126,14 +124,12 @@ instance NvimObject Synchronous where
 -- place for a 'CommandOption' value. See the documentation for each value on
 -- how these strings should look like (Both versions are compile time checked.)
 data CommandOption = CmdSync Synchronous
-                   -- ^ Should neovim wait for an answer ('Sync')?
-                   --
-                   -- Stringliteral: \"sync\" or "\async\"
+                   -- ^ Stringliteral "sync" or "async"
 
                    | CmdRegister
                    -- ^ Register passed to the command.
                    --
-                   -- Stringliteral: \"\"\"
+                   -- Stringliteral: @\"\\\"\"@
 
                    | CmdNargs String
                    -- ^ Command takes a specific amount of arguments
@@ -233,7 +229,7 @@ instance NvimObject RangeSpecification where
 -- attributes a command can take.
 data CommandArguments = CommandArguments
     { bang     :: Maybe Bool
-    -- ^ Nothing means that the function was not defined to handle a bang,
+    -- ^ 'Nothing' means that the function was not defined to handle a bang,
     -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
     -- was not passed when called (@'Just' 'False'@).
 
@@ -241,7 +237,8 @@ data CommandArguments = CommandArguments
     -- ^ Range passed from neovim. Only set if 'CmdRange' was used in the export
     -- declaration of the command.
     --
-    -- Examples:
+    -- Example:
+    --
     -- * @Just (1,12)@
 
     , count    :: Maybe Int
@@ -249,7 +246,7 @@ data CommandArguments = CommandArguments
     -- declaration of the command.
 
     , register :: Maybe String
-    -- ^ Register that the command can/should/must use.
+    -- ^ Register that the command can\/should\/must use.
     }
     deriving (Eq, Ord, Show, Read)
 

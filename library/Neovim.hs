@@ -40,11 +40,9 @@ module Neovim (
     -- $creatingplugins
     NeovimPlugin(..),
     Plugin(..),
-    NvimObject,
+    NvimObject(..),
     Dictionary,
     Object(..),
-    toObject,
-    fromObject,
     wrapPlugin,
     function,
     function',
@@ -99,7 +97,6 @@ import           Data.Default            (def)
 import           Data.Int                (Int16, Int32, Int64, Int8)
 import           Data.MessagePack        (Object (..))
 import           Data.Monoid
-import           Data.Text               ()
 import           Neovim.API.String
 import           Neovim.API.TH           (autocmd, command, command', function,
                                           function')
@@ -125,39 +122,35 @@ import           System.Log.Logger       (Priority (..))
 
 Since this is still very volatile, I recommend using a sandbox.
 
-__Make sure that neovim's executable (@nvim@) is on your @\$PATH@ during the following steps!__
+Make sure that neovim's executable (@nvim@) is on your @\$PATH@ during the following steps!
 
 Install `nvim-hs` from git (example assumes you clone to @\$HOME\/git\/nvim-hs@)
 using a sandbox:
 
 @
 \$ mkdir -p ~\/git ; cd ~\/git
-\$ git clone https:\/\/github.com\/saep\/nvim-hs
+\$ git clone https:\/\/github.com\/neovimhaskell\/nvim-hs
 \$ cd nvim-hs
 \$ cabal sandbox init
 \$ cabal install
 @
 
-Create this executable script (e.g. @\$HOME\/bin\/nvim-hs@):
+Copy the script @nvim-hs-devel.sh@ to a location you like, make it executable
+and follow the brief instructions in the comments.
 
 @
-\#!\/bin\/sh
-
-sandbox_directory=\$HOME\/git\/nvim-hs
-old_pwd="`pwd`"
-cd "$sandbox_directory"
-env CABAL_SANDBOX_CONFIG="$sandbox_directory"\/cabal.sandbox.config cabal \\
-    exec "$sandbox_directory\/.cabal-sandbox\/bin\/nvim-hs" -- "$@"
-cd "$old_pwd"
+\$ cp nvim-hs-devel.sh ~\/bin\/
+\$ chmod +x ~\/bin\/nvim-hs-devel.sh
 @
 
-Put this in your neovim config file (typically @~\/.nvimrc@ or @~\/.nvim\/nvimrc@):
+Assuming you have copied the script to @\$HOME\/bin\/nvim-hs-devel.sh@,
+put this in your neovim config file (typically @~\/.nvimrc@ or @~\/.nvim\/nvimrc@):
 
 @
 if has(\'nvim\') \" This way you can also put it in your vim config file
   function! s:RequireHaskellHost(name)
-    \" If the nvim-hs script/executable is not on your path, you should give the full path here
-    return rpcstart(\'nvim-hs\', [a:name.name])
+    \" If the nvim-hs script\/executable is not on your path, you should give the full path here
+    return rpcstart(expand(\'$HOME\/bin\/nvim-hs-devel.sh\'), [a:name.name])
   endfunction
 
   \" You can replace \'haskell\' in the following lines with any name you like.
@@ -175,7 +168,7 @@ endif
 {- $explainedinstallation
 
 You essentially have to follow the instructions of the tl;dr subsection above,
-but this subsections tells you why you need those steps and it gives you the
+but this subsection tells you why you need those steps and it gives you the
 required knowledge to deviate from those instructions.
 
 If you want to use or write plugins written in haskell for /nvim-hs/, you first
@@ -197,9 +190,7 @@ builtin plugin which puts all compile-errors in the quickfix
 list automatically after you save your configuration file, so you don't need
 another plugin to detect compile time errors here. But we will discuss this
 later in more detail. The executable script sets up the build environment for
-/nvim-hs/ to use the sandbox. You should only have to adjust the path for the
-`sandbox_directory` variable there if you did not install /nvim-hs/ in a sandbox
-located at `\$HOME\/git\/nvim-hs`.
+/nvim-hs/ to use the sandbox.
 
 The Vim-script snippet is a bit lengthy, but the comments should explain how it
 works. In any case, the snippet can be put anywhere in your neovim configuration
@@ -225,7 +216,7 @@ which takes no arguments and returns @\"Pong\"@.
 
 Using /nvim-hs/ essentially means to use a static binary that incorporates all
 plugins. It is generated using the 'Dyre' library and the binary itself is found
-in @\$XDG_CACHE_DIR\/nvim@ (usually @~\/.cache\/nvim). The 'Dyre' library makes
+in @\$XDG_CACHE_DIR\/nvim@ (usually @~\/.cache\/nvim@). The 'Dyre' library makes
 it feel more like a scripting language, because the binary is automatically
 created and executed without having to restart neovim.
 
@@ -315,7 +306,7 @@ fibonacci :: 'Int' -> Neovim' 'String'
 fibonacci n = 'show' $ fibs !! n
   where
     fibs :: ['Integer']
-    fibs = 1:1:'scanl1' (+) fibs
+    fibs = 0:1:'scanl1' (+) fibs
 @
 
 File @~\/.config\/nvim\/nvim.hs@:
@@ -378,7 +369,7 @@ neovim wait for its result or not. Internally, the expression
 necessary information to properly register the function with neovim. Note the
 prime symbol before the function name! This would have probably caused you
 some trouble if I haven't mentioned it here! Template Haskell simply requires
-you to put that in from of function names that are passed in a splice.
+you to put that in front of function names that are passed in a splice.
 
 If you compile this (which should happen automatically if you have put those
 files at the appropriate places), you can calculate the 287323rd Fibonacci number

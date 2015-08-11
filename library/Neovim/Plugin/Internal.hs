@@ -55,6 +55,8 @@ data Plugin r st = Plugin
     }
 
 
+-- | 'Plugin' values are wraped inside this data type via 'wrapPlugin' so that
+-- we can put plugins in an ordinary list.
 data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
 
 

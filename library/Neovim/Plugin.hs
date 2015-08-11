@@ -210,8 +210,8 @@ registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
 -- | Register an autocmd in the current context. This means that, if you are
 -- currently in a stateful plugin, the function will be called in the current
 -- thread and has access to the configuration and state of this thread. If you
--- need that information, but do not want to block the other functoins in this
--- thread, you have to maunally fork a thread and make the state you need
+-- need that information, but do not want to block the other functions in this
+-- thread, you have to manually fork a thread and make the state you need
 -- available there. If you don't care abou the state (or your function has been
 -- appield to all the necessary state (e.g. a 'TVar' to share the rusult), then
 -- you can also call 'addAutocmd'' which will register a stateless function that
