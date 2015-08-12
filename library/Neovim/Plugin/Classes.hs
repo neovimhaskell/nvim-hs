@@ -72,7 +72,6 @@ data FunctionalityDescription
     --
     -- NB: Since we are registering this on the Haskell side of things, the
     -- number of accepted arguments should be 0.
-    -- TODO Should this be enforced somehow? Possibly via the TH generator.
     --
     -- * Type of the autocmd (e.g. \"BufWritePost\")
     -- * Name for the function to call

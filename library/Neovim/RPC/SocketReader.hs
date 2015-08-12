@@ -156,7 +156,6 @@ handleRequestOrNotification mi m params = do
                         Notification m (parseParams copts params)
 
 
--- TODO implement proper handling for additional parameters
 parseParams :: FunctionalityDescription -> [Object] -> [Object]
 parseParams (Function _ _) args = case args of
     -- Defining a function on the remote host creates a function that, that
@@ -200,7 +199,7 @@ parseParams cmd@(Command _ opts) args = case args of
             either (const old) (\b -> (c { bang = Just b }, args')) $ fromObject o
 
         (CmdNargs "*", ObjectArray os) ->
-            -- CommadnArguments -> [String] -> Neovim r st a
+            -- CommandArguments -> [String] -> Neovim r st a
             (c, os)
         (CmdNargs "+", ObjectArray (o:os)) ->
             -- CommandArguments -> String -> [String] -> Neovim r st a

@@ -23,9 +23,6 @@ import           System.Environment
 
 -- | Execute the given action with a changed set of environment variables and
 -- restore the original state of the environment afterwards.
---
--- TODO use some lifted vriant of bracket since the environment variables are
---      not reset if @action@ has thrown an error.
 withCustomEnvironment :: (MonadMask io, MonadIO io)
                       => [(String, Maybe String)] -> io a -> io a
 withCustomEnvironment modifiedEnvironment action =

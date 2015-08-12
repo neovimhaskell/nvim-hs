@@ -34,8 +34,10 @@ import           Prelude
 
 -- | Run a 'Neovim' function.
 --
--- This function connects to the socket pointed to by the environment variabe
--- @$NVIM_LISTEN_ADDRESS@ and executes the command.
+-- This function connects to the socket pointed to by the environment variable
+-- @$NVIM_LISTEN_ADDRESS@ and executes the command. It does not register itself
+-- as a real plugin provider, you can simply call neovim-functions from the
+-- module "Neovim.API.String" this way.
 --
 -- Tip: If you run a terminal inside a neovim instance, then this variable is
 -- automatically set.
@@ -71,6 +73,10 @@ debug r st a = disableLogger $ do
 
 
 -- | Run a 'Neovim'' function.
+--
+-- @
+-- debug' a = fmap fst <$> debug () () a
+-- @
 --
 -- See documentation for 'debug'.
 debug' :: Internal.Neovim' a -> IO (Either String a)

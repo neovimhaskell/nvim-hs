@@ -58,14 +58,6 @@ logger :: String
 logger = "Neovim.Plugin"
 
 
--- TODO Note that there may be high contention on the global function map if a
---      lot of plugins are registered. The earlier version of this module did
---      not have this problem, but it made the types and function way more
---      complicated.  The change maed for autocmd registration allowd sharing of
---      the function details and simplified the code. If you think this should
---      be made more efficient again, feel free to contribute a pull request.
-
-
 startPluginThreads :: Internal.Config () ()
                    -> [Neovim' NeovimPlugin]
                    -> IO (Either String ([FunctionMapEntry],[ThreadId]))
@@ -212,6 +204,7 @@ registerInStatelessContext reg d f = registerWithNeovim d >>= \case
         reg e
         return $ Just e
 
+
 registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim r st ()
 registerInGlobalFunctionMap e = do
     liftIO . debugM logger $ "Adding function to global function map." ++ show (fst e)
@@ -298,7 +291,7 @@ registerStatefulFunctionality (r, st, fs) = do
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
                 (registerInStatefulContext (\_ -> return ())) q route
             }
-    res <- liftIO . runNeovim startupConfig st $ forM fs $ \f ->
+    res <- liftIO . runNeovim startupConfig st . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
         Left e -> err e
