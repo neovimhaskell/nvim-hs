@@ -135,7 +135,8 @@ handleRequestOrNotification mi m params = do
             -- drop the state of the result with (fmap fst <$>)
             let rpc' = rpc
                     { Internal.customConfig = ()
-                    , Internal.pluginSettings = Nothing -- FIXME
+                    , Internal.pluginSettings = Just . Internal.StatelessSettings $
+                        registerInStatelessContext (\_ -> return ())
                     }
             res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
             -- Send the result to the event handler
