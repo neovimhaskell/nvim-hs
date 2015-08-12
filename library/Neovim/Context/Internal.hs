@@ -195,6 +195,14 @@ data Config r st = Config
     }
 
 
+-- | Convenient helper to create a new config for the given state and read-only
+-- config.
+--
+-- Sets the 'pluginSettings' field to 'Nothing'.
+retypeConfig :: r -> st -> Config anotherR anotherSt -> Config r st
+retypeConfig r _ cfg = cfg { pluginSettings = Nothing, customConfig = r }
+
+
 data PluginSettings r st where
     StatelessSettings
         :: (FunctionalityDescription

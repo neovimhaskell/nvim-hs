@@ -125,20 +125,13 @@ runPluginProvider os cfg = case (hostPort os, unix os) of
             unsetEnv var
             return (var, val)
 
-        rpcConfig <- newRPCConfig
-        conf <- Internal.newConfig (pure (providerName os)) (pure ())
+        conf <- Internal.newConfig (pure (providerName os)) newRPCConfig
 
         let allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
                             plugins cfg
-            startupConf = conf { Internal.customConfig = ()
-                               , Internal.pluginSettings = Nothing
-                               }
-            rpcEnv = conf { Internal.customConfig = rpcConfig
-                          , Internal.pluginSettings = Nothing
-                          }
-        ehTid <- forkIO $ runEventHandler evHandlerHandle rpcEnv
-        srTid <- forkIO $ runSocketReader sockreaderHandle rpcEnv
-        startPluginThreads startupConf allPlugins >>= \case
+        ehTid <- forkIO $ runEventHandler evHandlerHandle conf
+        srTid <- forkIO $ runSocketReader sockreaderHandle conf
+        startPluginThreads (Internal.retypeConfig () () conf) allPlugins >>= \case
             Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
             Right (funMapEntries, pluginTids) -> do
                 atomically $ putTMVar

@@ -24,6 +24,9 @@ module Neovim.Plugin (
 
     addAutocmd,
     addAutocmd',
+
+    registerInStatelessContext,
+    registerInStatefulContext,
     ) where
 
 import           Neovim.API.String
@@ -58,10 +61,12 @@ logger :: String
 logger = "Neovim.Plugin"
 
 
-startPluginThreads :: Internal.Config () ()
+startPluginThreads :: Internal.Config r st
                    -> [Neovim' NeovimPlugin]
                    -> IO (Either String ([FunctionMapEntry],[ThreadId]))
-startPluginThreads cfg = fmap (fmap fst) . runNeovim cfg () . foldM go ([], [])
+startPluginThreads cfg = fmap (fmap fst)
+    . runNeovim (Internal.retypeConfig () () cfg) ()
+    . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [ThreadId])
        -> Neovim' NeovimPlugin
@@ -161,11 +166,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
         reg d f q m >>= \case
             Just e -> do
                 -- Redefine fields so that it gains a new type
-                cfg' <- Internal.ask'
-                let cfg = cfg'
-                        { Internal.customConfig = ()
-                        , Internal.pluginSettings = Nothing
-                        }
+                cfg <- Internal.retypeConfig () () <$> Internal.ask'
                 rk <- fst <$> allocate (return ()) (free cfg (fst e))
                 return $ Just (e, Right rk)
 
@@ -190,6 +191,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
     free cfg = const . void . liftIO . runNeovim cfg () . freeFun
 
 
+-- | Register a functoinality in a stateless context.
 registerInStatelessContext
     :: (FunctionMapEntry -> Neovim r st ())
     -> FunctionalityDescription
@@ -307,6 +309,7 @@ registerStatefulFunctionality (r, st, fs) = do
                 listeningThread q route
 
     return (map fst es, tid) -- NB: dropping release functions/keys here
+
 
   where
     executeFunction

@@ -26,6 +26,7 @@ import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
 import           Neovim.Plugin.IPC.Classes
+import           Neovim.Plugin              (registerInStatelessContext)
 import qualified Neovim.RPC.Classes         as MsgpackRPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -59,10 +60,10 @@ type SocketHandler = Neovim RPCConfig ()
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
 runSocketReader :: Handle
-                -> Internal.Config RPCConfig ()
+                -> Internal.Config RPCConfig st
                 -> IO ()
-runSocketReader readableHandle env = do
-    void . runNeovim env () $ do
+runSocketReader readableHandle cfg =
+    void . runNeovim (Internal.retypeConfig (Internal.customConfig cfg) () cfg) () $ do
         -- addCleanup (cleanUpHandle h) (sourceHandle h)
         -- TODO test whether/how this should be handled
         -- this has been commented out because I think that restarting the
