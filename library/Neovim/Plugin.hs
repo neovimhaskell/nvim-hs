@@ -152,17 +152,50 @@ registerWithNeovim = \case
 
 registerFunctionality :: FunctionalityDescription
                       -> ([Object] -> Neovim r st Object)
-                      -> Neovim r st (Maybe FunctionMapEntry)
+                      -> Neovim r st (Maybe (FunctionMapEntry, Either (Neovim anyR anySt ()) ReleaseKey))
 registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
     Nothing -> do
         liftIO $ errorM logger "Cannot register functionality in this context."
         return Nothing
 
     Just (Internal.StatelessSettings reg) ->
-        reg d f
+        reg d f >>= \case
+            Just e -> do
+                return $ Just (e, Left (freeFun (fst e)))
+            _ ->
+                return Nothing
 
     Just (Internal.StatefulSettings reg q m) ->
-        reg d f q m
+        reg d f q m >>= \case
+            Just e -> do
+                -- Redefine fields so that it gains a new type
+                cfg' <- Internal.ask'
+                let cfg = cfg'
+                        { Internal.customConfig = ()
+                        , Internal.pluginSettings = Nothing
+                        }
+                rk <- fst <$> allocate (return ()) (free cfg (fst e))
+                return $ Just (e, Right rk)
+
+            Nothing ->
+                return Nothing
+
+  where
+    freeFun = \case
+        Autocmd event _ AutocmdOptions{..} -> do
+            waitErr' "Unregister autocmd" . vim_call_function "autocmd!" $ catMaybes
+                    [ toObject <$> acmdGroup, Just (toObject event)
+                    , Just (toObject acmdPattern)
+                    ]
+
+        Command{} ->
+            liftIO $ warningM logger "Free not implemented for commands."
+
+        Function{} ->
+            liftIO $ warningM logger "Free not implemented for functions."
+
+
+    free cfg = const . void . liftIO . runNeovim cfg () . freeFun
 
 
 registerInStatelessContext
@@ -219,34 +252,18 @@ registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
 --
 -- Note that the function you pass must be fully applied.
 --
--- Note that this function is equivalent to 'addAutocmd'' if called from a
+-- Note beside: This function is equivalent to 'addAutocmd'' if called from a
 -- stateless plugin thread.
 addAutocmd :: ByteString
            -- ^ The event to register to (e.g. BufWritePost)
            -> AutocmdOptions
            -> (Neovim r st ())
            -- ^ Fully applied function to register
-           -> Neovim r st (Maybe ReleaseKey)
+           -> Neovim r st (Maybe (Either (Neovim anyR anySt ()) ReleaseKey))
            -- ^ A 'ReleaseKey' if the registration worked
 addAutocmd event (opts@AutocmdOptions{..}) f = do
     n <- newUniqueFunctionName
-    mn <- registerFunctionality (Autocmd event n opts) (\_ -> toObject <$> f)
-    forM mn $ \_ {-registeredName-} -> do
-        -- Redefine fields so that it gains a new type
-        cfg' <- Internal.ask'
-        let cfg = cfg'
-                { Internal.customConfig = ()
-                , Internal.pluginSettings = Nothing
-                }
-        fst <$> allocate (return ()) (free cfg)
-
-  where
-    free cfg = const . void . liftIO . runNeovim cfg () $ do
-        wait' . vim_call_function "autocmd!" $ catMaybes
-            [ toObject <$> acmdGroup, Just (toObject event)
-            , Just (toObject acmdPattern)
-            ]
-        return ()
+    fmap snd <$> registerFunctionality (Autocmd event n opts) (\_ -> toObject <$> f)
 
 
 -- | Add a stateless autocmd.
@@ -296,7 +313,7 @@ registerStatefulFunctionality (r, st, fs) = do
     tid <- liftIO . forkIO . void . runNeovim pluginThreadConfig st $ do
                 listeningThread q route
 
-    return (es, tid)
+    return (map fst es, tid) -- NB: dropping release functions/keys here
 
   where
     executeFunction
