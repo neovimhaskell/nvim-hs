@@ -16,7 +16,7 @@ import           Neovim.RPC.SocketReader
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad.Reader         (runReaderT)
-import           Control.Monad.State
+import           Control.Monad.State          (runStateT)
 import           Control.Monad.Trans.Resource (runResourceT)
 import qualified Data.Map                     as Map
 import           System.Directory
@@ -43,8 +43,7 @@ withNeovimEmbedded file testCase = do
     startNvim = do
         args <- case file of
             Just f -> do
-                fileExists <- doesFileExist f
-                unless fileExists . expectationFailure $ concat
+                unlessM (doesFileExist f) . expectationFailure $ concat
                     ["File ", f, " does not exst."]
                 return [f]
             Nothing -> return []

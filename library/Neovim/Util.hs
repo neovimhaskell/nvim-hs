@@ -12,9 +12,11 @@ Portability :  GHC
 -}
 module Neovim.Util (
     withCustomEnvironment,
+    whenM,
+    unlessM,
     ) where
 
-import           Control.Monad       (forM, forM_)
+import           Control.Monad       (forM, forM_, when, unless)
 import           Control.Monad.Catch (MonadMask, bracket)
 import           Neovim.Context
 import           System.SetEnv
@@ -39,3 +41,12 @@ withCustomEnvironment modifiedEnvironment action =
     unset preservedValues = forM_ preservedValues $ \(var, val) -> liftIO $
         maybe (unsetEnv var) (setEnv var) val
 
+
+-- | 'when' with a monadic predicate.
+whenM :: (Monad m) => m Bool -> m () -> m ()
+whenM mp a = mp >>= \p -> when p a
+
+
+-- | 'unless' with a monadic predicate.
+unlessM :: (Monad m) => m Bool -> m () -> m ()
+unlessM mp a = mp >>= \p -> unless p a

@@ -82,6 +82,8 @@ module Neovim (
     -- were not introduced in any of the previous sections.
     liftIO,
     withCustomEnvironment,
+    whenM,
+    unlessM,
     Priority(..),
     module Control.Monad,
     module Control.Applicative,
@@ -113,7 +115,7 @@ import           Neovim.Plugin.Classes   (AutocmdOptions (..),
 import           Neovim.Plugin.Internal  (NeovimPlugin (..), Plugin (..),
                                           wrapPlugin)
 import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
-import           Neovim.Util             (withCustomEnvironment)
+import           Neovim.Util             (unlessM, whenM, withCustomEnvironment)
 import           System.Log.Logger       (Priority (..))
 
 -- Installation {{{1
