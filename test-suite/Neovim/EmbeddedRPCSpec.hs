@@ -6,6 +6,7 @@ import           Test.Hspec
 import           Test.HUnit
 
 import           Neovim
+import           Neovim.Test
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Quickfix
 import           Neovim.RPC.Common
@@ -24,54 +25,11 @@ import           System.Exit                  (ExitCode (..))
 import           System.IO                    (hClose)
 import           System.Process
 
-testNeovim :: Internal.Config r ()
-          -> Neovim r () a
-          -> IO (a, ())
-testNeovim r (Internal.Neovim a) = runReaderT (runStateT (runResourceT a) ()) r
-
-
-withNeovimEmbedded :: Maybe FilePath -> Neovim RPCConfig () a -> Assertion
-withNeovimEmbedded file testCase = do
-    (hin, hout, ph, e) <- startNvim
-    void $ testNeovim e runTest
-    hClose hin
-    hClose hout
-    waitForProcess ph >>= \case
-      ExitFailure i -> assertFailure $ "Neovim returned " ++ show i
-      ExitSuccess   -> return ()
-  where
-    startNvim = do
-        args <- case file of
-            Just f -> do
-                unlessM (doesFileExist f) . expectationFailure $ concat
-                    ["File ", f, " does not exst."]
-                return [f]
-            Nothing -> return []
-        (Just hin, Just hout, _, ph) <-
-            createProcess (proc "nvim" (["-n","-u","NONE","--embed"] <> args))
-                { std_in = CreatePipe
-                , std_out = CreatePipe
-                }
-
-        e <- Internal.newConfig (pure "nvim-hs-test-suite") newRPCConfig
-
-        _ <- forkIO $ runSocketReader hout (e { Internal.pluginSettings = Nothing })
-        _ <- forkIO $ runEventHandler hin  (e { Internal.pluginSettings = Nothing })
-
-        -- We give the test 3 seconds
-        -- TODO: Maybe make timeout a function parameter
-        _ <- forkIO $ do
-               threadDelay $ 3 * 1000 * 1000
-               getProcessExitCode ph >>= maybe (terminateProcess ph) (const $ return ())
-
-        return (hin, hout, ph, e)
-
-    runTest = void $ testCase >> vim_command "qa!"
-
 
 spec :: Spec
 spec = parallel $ do
   let helloFile = "test-files/hello"
+      withNeovimEmbedded f a = testWithEmbeddedNeovim f 3 () () a
   describe "Read hello test file" .
     it "should match 'Hello, World!'" . withNeovimEmbedded (Just helloFile) $ do
         bs <- vim_get_buffers
@@ -90,8 +48,6 @@ spec = parallel $ do
         wait' $ vim_set_current_line testContent
         cl1 <- vim_get_current_line
         liftIO $ cl1 `shouldBe` Right testContent
-        recs <- atomically' . readTVar =<< asks recipients
-        liftIO $ Map.size recs `shouldBe` 0
 
     it "should create a new buffer" . withNeovimEmbedded Nothing $ do
         bs0 <- vim_get_buffers
@@ -102,9 +58,6 @@ spec = parallel $ do
         wait' $ vim_command "new"
         bs2 <- vim_get_buffers
         liftIO $ length bs2 `shouldBe` 3
-
-        recs <- atomically' . readTVar =<< asks recipients
-        liftIO $ Map.size recs `shouldBe` 0
 
     it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
         let q = quickfixListItem (Left 1) (Left 1337) :: QuickfixListItem String

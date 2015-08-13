@@ -70,6 +70,7 @@ library
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.ConfigHelper
+                      , Neovim.Test
                       , Neovim.Util
 
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
