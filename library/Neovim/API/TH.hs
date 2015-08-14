@@ -133,15 +133,16 @@ apiTypeToHaskellType typeMap at = case at of
 --
 createFunction :: Map String (Q Type) -> NeovimFunction -> Q [Dec]
 createFunction typeMap nf = do
-    let withDeferred | deferred nf = appT [t|STM|]
+    let withDeferred | async nf    = appT [t|STM|]
                      | otherwise   = id
+
         withException | canFail nf = appT [t|Either Object|]
                       | otherwise  = id
 
-        callFn | deferred nf && canFail nf = [|acall|]
-               | deferred nf               = [|acall'|]
-               | canFail nf                = [|scall|]
-               | otherwise                 = [|scall'|]
+        callFn | async nf && canFail nf = [|acall|]
+               | async nf               = [|acall'|]
+               | canFail nf             = [|scall|]
+               | otherwise              = [|scall'|]
 
         functionName = (mkName . name) nf
         toObjVar v = [|toObject $(varE v)|]

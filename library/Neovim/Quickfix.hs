@@ -32,7 +32,7 @@ import           Prelude
 setqflist :: (Monoid strType, NvimObject strType)
           => [QuickfixListItem strType] -> QuickfixAction -> Neovim r st ()
 setqflist qs a =
-    void . wait' $ vim_call_function "setqflist" [toObject qs, toObject a]
+    void $ vim_call_function "setqflist" [toObject qs, toObject a]
 
 -- | Quickfix list item. The parameter names should mostly conform to those in
 -- @:h setqflist()@. Some fields are merged to explicitly state mutually

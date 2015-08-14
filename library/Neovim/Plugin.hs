@@ -94,7 +94,7 @@ registerWithNeovim :: FunctionalityDescription -> Neovim anyConfig anyState Bool
 registerWithNeovim = \case
     Function (F functionName) s -> do
         pName <- Internal.asks' Internal.providerName
-        ret <- wait $ vim_call_function "remote#define#FunctionOnHost"
+        ret <- vim_call_function "remote#define#FunctionOnHost"
             [ toObject pName, toObject functionName, toObject s
             , toObject functionName, toObject (Map.empty :: Dictionary)
             ]
@@ -116,7 +116,7 @@ registerWithNeovim = \case
                     _             -> Sync
 
         pName <- Internal.asks' Internal.providerName
-        ret <- wait $ vim_call_function "remote#define#CommandOnHost"
+        ret <- vim_call_function "remote#define#CommandOnHost"
             [ toObject pName, toObject functionName, toObject sync
             , toObject functionName, toObject copts
             ]
@@ -132,7 +132,7 @@ registerWithNeovim = \case
 
     Autocmd acmdType (F functionName) opts -> do
         pName <- Internal.asks' Internal.providerName
-        ret <- wait $ vim_call_function "remote#define#AutocmdOnHost"
+        ret <- vim_call_function "remote#define#AutocmdOnHost"
             [ toObject pName, toObject functionName, toObject Async
             , toObject acmdType , toObject opts
             ]
@@ -176,7 +176,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
   where
     freeFun = \case
         Autocmd event _ AutocmdOptions{..} -> do
-            waitErr' "Unregister autocmd" . vim_call_function "autocmd!" $ catMaybes
+            void . vim_call_function "autocmd!" $ catMaybes
                     [ toObject <$> acmdGroup, Just (toObject event)
                     , Just (toObject acmdPattern)
                     ]

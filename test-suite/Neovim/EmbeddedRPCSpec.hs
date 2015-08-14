@@ -45,23 +45,23 @@ spec = parallel $ do
         liftIO $ length bs `shouldBe` 1
 
         let testContent = "Test on empty buffer"
-        wait' $ vim_set_current_line testContent
+        vim_set_current_line testContent
         cl1 <- vim_get_current_line
         liftIO $ cl1 `shouldBe` Right testContent
 
     it "should create a new buffer" . withNeovimEmbedded Nothing $ do
         bs0 <- vim_get_buffers
         liftIO $ length bs0 `shouldBe` 1
-        wait' $ vim_command "new"
+        vim_command "new"
         bs1 <- vim_get_buffers
         liftIO $ length bs1 `shouldBe` 2
-        wait' $ vim_command "new"
+        vim_command "new"
         bs2 <- vim_get_buffers
         liftIO $ length bs2 `shouldBe` 3
 
     it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
         let q = quickfixListItem (Left 1) (Left 1337) :: QuickfixListItem String
         setqflist [q] Replace
-        Right q' <- wait $ vim_eval "getqflist()"
+        Right q' <- vim_eval "getqflist()"
         liftIO $ fromObject q' `shouldBe` Right [q]
 

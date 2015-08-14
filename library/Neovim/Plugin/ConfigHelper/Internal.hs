@@ -47,7 +47,7 @@ recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
     let qs = maybe [] parseQuickfixItems mErrString
     put qs
     setqflist qs Replace
-    wait' $ vim_command "cwindow"
+    void $ vim_command "cwindow"
 
 
 -- | Note that restarting the plugin provider implies compilation because Dyre
