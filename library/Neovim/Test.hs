@@ -21,6 +21,7 @@ import           Neovim.RPC.EventHandler      (runEventHandler)
 import           Neovim.RPC.SocketReader      (runSocketReader)
 
 import           Control.Concurrent
+import           Control.Concurrent.STM       (atomically, putTMVar)
 import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.State          (runStateT)
 import           Control.Monad.Trans.Resource (runResourceT)
@@ -86,6 +87,10 @@ startEmbeddedNvim file timeout = do
 
     _ <- forkIO $ runSocketReader hout (cfg { Internal.pluginSettings = Nothing })
     _ <- forkIO $ runEventHandler hin  (cfg { Internal.pluginSettings = Nothing })
+
+    atomically $ putTMVar
+                    (Internal.globalFunctionMap cfg)
+                    (Internal.mkFunctionMap [])
 
     _ <- forkIO $ do
            threadDelay $ (fromIntegral timeout) * 1000 * 1000
