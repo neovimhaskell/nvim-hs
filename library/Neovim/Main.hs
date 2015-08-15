@@ -35,7 +35,7 @@ import           System.Environment
 import           Prelude
 
 data CommandLineOptions =
-    Opt { providerName :: String
+    Opt { providerName :: Maybe String
         , hostPort     :: Maybe (String, Int)
         , unix         :: Maybe FilePath
         , env          :: Bool
@@ -45,9 +45,16 @@ data CommandLineOptions =
 
 optParser :: Parser CommandLineOptions
 optParser = Opt
-    <$> strArgument
+    <$> optional (strArgument
         (metavar "NAME"
-        <> help "Name that associates the plugin provider with neovim")
+        <> help (unlines
+                [ "Name that associates the plugin provider with neovim."
+                , "This option has only an effect if you start nvim-hs"
+                , "with rpcstart() and use the factory method approach."
+                , "Since it is extremely hard to figure that out inside"
+                , "nvim-hs, this options is assumed to used if the input"
+                , "and output is tied to standard in and standard out."
+                ])))
     <*> optional ((,)
             <$> strOption
                 (long "host"
@@ -113,10 +120,17 @@ realMain cfg = do
 
 runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
 runPluginProvider os cfg = case (hostPort os, unix os) of
-    (Just (h,p), _) -> createHandle ReadWriteMode (TCP p h) >>= \s -> run s s
-    (_, Just fp)    -> createHandle ReadWriteMode (UnixSocket fp) >>= \s -> run s s
-    _ | env os      -> createHandle ReadWriteMode Environment >>= \s -> run s s
-    _               -> run stdout stdin
+    (Just (h,p), _) ->
+        createHandle (TCP p h) >>= \s -> run s s
+
+    (_, Just fp) ->
+        createHandle (UnixSocket fp) >>= \s -> run s s
+
+    _ | env os ->
+        createHandle Environment >>= \s -> run s s
+
+    _ ->
+        run stdout stdin
 
   where
     run evHandlerHandle sockreaderHandle = do

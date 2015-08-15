@@ -27,7 +27,6 @@ import           Control.Concurrent
 import           Control.Concurrent.STM  (atomically, putTMVar)
 import           Control.Monad
 import           Options.Applicative
-import           System.IO               (IOMode (ReadWriteMode))
 
 import           Prelude
 
@@ -43,9 +42,9 @@ import           Prelude
 -- automatically set.
 debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
-    h <- createHandle ReadWriteMode Environment
+    h <- createHandle Environment
     rpcConfig <- newRPCConfig
-    conf <- Internal.newConfig (pure "debug-nvim-hs") (pure ())
+    conf <- Internal.newConfig (pure Nothing) (pure ())
 
     let startupConf = conf { Internal.customConfig = ()
                            , Internal.pluginSettings = Nothing

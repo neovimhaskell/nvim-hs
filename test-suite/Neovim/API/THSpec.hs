@@ -22,7 +22,7 @@ import           Control.Applicative
 call :: ([Object] -> Neovim () () Object) -> [Object]
      -> IO Object
 call f args = do
-    cfg <- Internal.newConfig (pure "nvim-hs-test-suite") (pure ())
+    cfg <- Internal.newConfig (pure Nothing) (pure ())
     res <- fmap fst <$> runNeovim cfg () (f args)
     case res of
         Right x -> return x

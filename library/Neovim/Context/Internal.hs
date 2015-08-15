@@ -173,8 +173,12 @@ data Config r st = Config
     -- and then perform an action appropriate for the value of type
     -- 'QuitAction'.
 
-    , providerName      :: String
-    -- ^ Name that is used to identify this provider. Assigning such a name is
+    , providerName      :: TMVar (Either String Int)
+    -- ^ Since nvim-hs must have its "Neovim.RPC.SocketReader" and
+    -- "Neovim.RPC.EventHandler" running to determine the actual channel id
+    -- (i.e. the 'Int' value here) this field can only be set properly later.
+    -- Hence, the value of this field is put in an 'TMVar'.
+    -- Name that is used to identify this provider. Assigning such a name is
     -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
 
     , uniqueCounter     :: TVar Integer
@@ -203,6 +207,10 @@ retypeConfig :: r -> st -> Config anotherR anotherSt -> Config r st
 retypeConfig r _ cfg = cfg { pluginSettings = Nothing, customConfig = r }
 
 
+-- | This GADT is used to share informatino between stateless and stateful
+-- plugin threads since they work fundamentally in the same way. They both
+-- contain a function to register some functionality in the plugin provider
+-- as well as some values which are specific to the one or the other context.
 data PluginSettings r st where
     StatelessSettings
         :: (FunctionalityDescription
@@ -226,11 +234,11 @@ data PluginSettings r st where
 --
 -- This function should only be called once per /nvim-hs/ session since the
 -- arguments are shared across processes.
-newConfig :: IO String -> IO r -> IO (Config r context)
+newConfig :: IO (Maybe String) -> IO r -> IO (Config r context)
 newConfig ioProviderName r = Config
     <$> newTQueueIO
     <*> newEmptyMVar
-    <*> ioProviderName
+    <*> (maybe (atomically newEmptyTMVar) (newTMVarIO . Left) =<< ioProviderName)
     <*> newTVarIO 100
     <*> atomically newEmptyTMVar
     <*> pure Nothing

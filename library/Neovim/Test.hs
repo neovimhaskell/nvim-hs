@@ -88,7 +88,7 @@ startEmbeddedNvim file timeout = do
             , std_out = CreatePipe
             }
 
-    cfg <- Internal.newConfig (pure "nvim-hs-test") newRPCConfig
+    cfg <- Internal.newConfig (pure Nothing) newRPCConfig
 
     _ <- forkIO $ runSocketReader hout (cfg { Internal.pluginSettings = Nothing })
     _ <- forkIO $ runEventHandler hin  (cfg { Internal.pluginSettings = Nothing })

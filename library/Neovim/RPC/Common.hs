@@ -28,7 +28,7 @@ import           Data.String
 import           Data.Time
 import           Network.Socket         as N hiding (SocketType)
 import           System.Environment     (getEnv)
-import           System.IO              (BufferMode (..), Handle, IOMode,
+import           System.IO              (BufferMode (..), Handle, IOMode(ReadWriteMode),
                                          hClose, hSetBuffering)
 import           System.Log.Logger
 
@@ -67,34 +67,36 @@ data SocketType = Stdout Handle
 --
 -- The handle is not automatically closed.
 createHandle :: (Functor io, MonadIO io)
-             => IOMode
-             -> SocketType
+             => SocketType
              -> io Handle
-createHandle ioMode socketType = case socketType of
+createHandle = \case
     Stdout h -> do
         liftIO $ hSetBuffering h (BlockBuffering Nothing)
         return h
-    UnixSocket f -> createHandle ioMode . Stdout
-                    =<< createUnixSocketHandle f
-    TCP p h -> createHandle ioMode . Stdout
-                    =<< createTCPSocketHandle p h
-    Environment -> createHandle ioMode . Stdout
-                    =<< createSocketHandleFromEnvironment
+
+    UnixSocket f ->
+        createHandle . Stdout =<< createUnixSocketHandle f
+
+    TCP p h ->
+        createHandle . Stdout =<< createTCPSocketHandle p h
+
+    Environment ->
+        createHandle . Stdout =<< createSocketHandleFromEnvironment
 
   where
     createUnixSocketHandle :: (MonadIO io) => FilePath -> io Handle
     createUnixSocketHandle f =
-        liftIO $ getSocketUnix f >>= flip socketToHandle ioMode
+        liftIO $ getSocketUnix f >>= flip socketToHandle ReadWriteMode
 
     createTCPSocketHandle :: (Functor io, MonadIO io) => Int -> String -> io Handle
     createTCPSocketHandle p h = liftIO $ getSocketTCP (fromString h) p
-        >>= flip socketToHandle ioMode . fst
+        >>= flip socketToHandle ReadWriteMode . fst
 
     createSocketHandleFromEnvironment = do
         listenAddress <- liftIO (getEnv "NVIM_LISTEN_ADDRESS")
         case words listenAddress of
-            [unixSocket] -> createHandle ioMode (UnixSocket unixSocket)
-            [h,p] -> createHandle ioMode (TCP (read p) h)
+            [unixSocket] -> createHandle (UnixSocket unixSocket)
+            [h,p] -> createHandle (TCP (read p) h)
             _  -> do
                 let errMsg = unlines
                         [ "Unhandled socket type from environment variable: "

@@ -25,7 +25,6 @@ import           Data.Monoid
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
-import           Neovim.RPC.FunctionCall
 
 import           Prelude
 

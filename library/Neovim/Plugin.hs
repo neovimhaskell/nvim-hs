@@ -93,7 +93,7 @@ startPluginThreads cfg = fmap (fmap fst)
 registerWithNeovim :: FunctionalityDescription -> Neovim anyConfig anyState Bool
 registerWithNeovim = \case
     Function (F functionName) s -> do
-        pName <- Internal.asks' Internal.providerName
+        pName <- getProviderName
         ret <- vim_call_function "remote#define#FunctionOnHost"
             [ toObject pName, toObject functionName, toObject s
             , toObject functionName, toObject (Map.empty :: Dictionary)
@@ -115,7 +115,7 @@ registerWithNeovim = \case
                     (CmdSync s:_) -> s
                     _             -> Sync
 
-        pName <- Internal.asks' Internal.providerName
+        pName <- getProviderName
         ret <- vim_call_function "remote#define#CommandOnHost"
             [ toObject pName, toObject functionName, toObject sync
             , toObject functionName, toObject copts
@@ -131,7 +131,7 @@ registerWithNeovim = \case
                 return True
 
     Autocmd acmdType (F functionName) opts -> do
-        pName <- Internal.asks' Internal.providerName
+        pName <- getProviderName
         ret <- vim_call_function "remote#define#AutocmdOnHost"
             [ toObject pName, toObject functionName, toObject Async
             , toObject acmdType , toObject opts
@@ -145,6 +145,26 @@ registerWithNeovim = \case
                 liftIO . debugM logger $
                     "Registered autocmd: " ++ show functionName
                 return True
+
+
+-- | Return or retrive the provider name that the current instance is associated
+-- with on the neovim side.
+getProviderName :: Neovim r st (Either String Int)
+getProviderName = do
+    mp <- Internal.asks' Internal.providerName
+    (liftIO . atomically . tryReadTMVar) mp >>= \case
+        Just p ->
+            return p
+
+        Nothing -> do
+            api <- wait vim_get_api_info
+            case api of
+                (ObjectInt i:_) -> do
+                    liftIO . atomically . putTMVar mp . Right $ fromIntegral i
+                    return . Right $ fromIntegral i
+
+                _ ->
+                    err "Could not determine provider name."
 
 
 registerFunctionality :: FunctionalityDescription
