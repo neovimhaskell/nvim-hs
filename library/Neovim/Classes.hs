@@ -227,6 +227,23 @@ instance NvimObject o => NvimObject (Maybe o) where
     fromObject o = either throwError (return . Just) $ fromObject o
 
 
+
+-- | Right-biased instance for toObject.
+instance (NvimObject l, NvimObject r) => NvimObject (Either l r) where
+    toObject = either toObject toObject
+
+    fromObject o = case fromObject o of
+                     Right r ->
+                         return $ Right r
+
+                     Left e1 -> case fromObject o of
+                                  Right l ->
+                                      return $ Left l
+
+                                  Left e2 ->
+                                      throwError $ e1 ++ " -- " ++ e2
+
+
 instance (Ord key, NvimObject key, NvimObject val)
         => NvimObject (Map key val) where
     toObject = ObjectMap
