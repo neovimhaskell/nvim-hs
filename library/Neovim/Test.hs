@@ -16,6 +16,7 @@ module Neovim.Test (
 
 import           Neovim
 import qualified Neovim.Context.Internal      as Internal
+import           Neovim.Main                  (runPluginProvider)
 import           Neovim.RPC.Common            (newRPCConfig, RPCConfig)
 import           Neovim.RPC.EventHandler      (runEventHandler)
 import           Neovim.RPC.SocketReader      (runSocketReader)

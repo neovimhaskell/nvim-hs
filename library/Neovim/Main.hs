@@ -35,6 +35,7 @@ import           System.Environment
 import           Prelude
 
 
+logger :: String
 logger = "Neovim.Main"
 
 
@@ -46,6 +47,15 @@ data CommandLineOptions =
         , logOpts      :: Maybe (FilePath, Priority)
         }
 
+
+instance Default CommandLineOptions where
+    def = Opt
+            { providerName = Nothing
+            , hostPort     = Nothing
+            , unix         = Nothing
+            , env          = False
+            , logOpts      = Nothing
+            }
 
 optParser :: Parser CommandLineOptions
 optParser = Opt
@@ -114,28 +124,28 @@ neovim conf =
     in Dyre.wrapMain params (conf { dyreParams = Just params })
 
 
-type Finalizer = [ThreadId] -> Internal.Config RPCConfig () -> IO ()
+type Finalizer a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
 
 
 -- | This main functions can be used to create a custom executable without
 -- using the "Config.Dyre" library while still using the /nvim-hs/ specific
 -- configuration facilities.
-realMain :: Finalizer
+realMain :: Finalizer a
          -> NeovimConfig
          -> IO ()
 realMain finalizer cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
         debugM logger "Starting up neovim haskell plguin provider"
-        runPluginProvider os (Just cfg) finalizer
+        void $ runPluginProvider os (Just cfg) finalizer
 
 
 -- | Generic main function. Most arguments are optional or have sane defaults.
 runPluginProvider
     :: CommandLineOptions -- ^ See /nvim-hs/ executables --help function or 'optParser'
     -> Maybe NeovimConfig
-    -> Finalizer
-    -> IO ()
+    -> Finalizer a
+    -> IO a
 runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
     (Just (h,p), _) ->
         createHandle (TCP p h) >>= \s -> run s s
@@ -198,7 +208,7 @@ runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
                 finalizer (srTid:ehTid:pluginTids) conf
 
 
-finishDyre :: Finalizer
+finishDyre :: Finalizer ()
 finishDyre threads cfg = readMVar (Internal.quit cfg) >>= \case
     Internal.InitSuccess -> do
         debugM logger "Waiting for threads to finish."

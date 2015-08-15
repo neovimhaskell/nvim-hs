@@ -17,15 +17,12 @@ module Neovim.Debug (
 
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log              (disableLogger)
-import           Neovim.Plugin           (startPluginThreads)
-import           Neovim.RPC.Common       (SocketType (Environment),
-                                          createHandle, newRPCConfig)
-import           Neovim.RPC.EventHandler
-import           Neovim.RPC.SocketReader
+import           Neovim.Main             (CommandLineOptions (..),
+                                          runPluginProvider)
 
 import           Control.Concurrent
-import           Control.Concurrent.STM  (atomically, putTMVar)
 import           Control.Monad
+import           Data.Default
 import           Options.Applicative
 
 import           Prelude
@@ -42,33 +39,23 @@ import           Prelude
 -- automatically set.
 debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
-    h <- createHandle Environment
-    rpcConfig <- newRPCConfig
-    conf <- Internal.newConfig (pure Nothing) (pure ())
+    runPluginProvider def { env = True } Nothing finalizer
+  where
+    finalizer tids cfg = readMVar (Internal.quit cfg) >>= \case
+        Internal.Failure e ->
+            return $ Left e
 
-    let startupConf = conf { Internal.customConfig = ()
-                           , Internal.pluginSettings = Nothing
-                           }
-        rpcEnv = conf { Internal.customConfig = rpcConfig
-                      , Internal.pluginSettings = Nothing
-                      }
-    ehTid <- forkIO $ runEventHandler h rpcEnv
-    srTid <- forkIO $ runSocketReader h rpcEnv
-    startPluginThreads startupConf [] >>= \case
-        Left e ->
-            return (Left e)
-
-        Right (funMapEntries, pluginTids) -> do
-            atomically $ putTMVar
-                            (Internal.globalFunctionMap conf)
-                            (Internal.mkFunctionMap funMapEntries)
+        Internal.InitSuccess -> do
             res <- Internal.runNeovim
-                (conf { Internal.customConfig = r, Internal.pluginSettings = Nothing })
+                (cfg { Internal.customConfig = r, Internal.pluginSettings = Nothing })
                 st
                 a
 
-            mapM_ killThread (srTid:ehTid:pluginTids)
+            mapM_ killThread tids
             return res
+
+        _ ->
+            return $ Left "Unexpected finalizer state."
 
 
 -- | Run a 'Neovim'' function.
