@@ -19,7 +19,6 @@ import           Neovim.Config
 import           Neovim.Context
 import           Neovim.Plugin.Classes
 import           Neovim.Quickfix
-import           Neovim.RPC.FunctionCall
 import           Neovim.Util             (withCustomEnvironment)
 
 import           Config.Dyre             (Params)

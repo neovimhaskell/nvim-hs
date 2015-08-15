@@ -1,17 +1,27 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 import           Neovim
-import           Neovim.Main            (realMain)
+import qualified Neovim.Context.Internal   as Internal
+import           Neovim.Main               (realMain)
 import           Neovim.Plugin.Classes
 import           TestPlugins.TestFunctions
 
+import           Control.Concurrent        (readMVar)
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
 main :: IO ()
-main = realMain def
+main = realMain finalizer def
     { plugins = [ randPlugin ]
     }
+
+finalizer tids cfg = readMVar (Internal.quit cfg) >>= \case
+    Internal.InitSuccess ->
+        finalizer tids cfg
+
+    _ ->
+        return ()
 
 randPlugin :: Neovim' NeovimPlugin
 randPlugin = liftIO $ do

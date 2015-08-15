@@ -247,6 +247,15 @@ newConfig ioProviderName r = Config
 
 data QuitAction = Quit
                 -- ^ Quit the plugin provider.
+
                 | Restart
                 -- ^ Restart the plugin provider.
-                deriving (Show, Read, Eq, Ord, Enum, Bounded)
+
+                | Failure String
+                -- ^ The plugin provider failed to start or some other error
+                -- occured.
+
+                | InitSuccess
+                -- ^ The plugin provider started successfully.
+
+                deriving (Show, Read, Eq, Ord)

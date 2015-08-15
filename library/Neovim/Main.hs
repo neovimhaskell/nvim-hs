@@ -28,11 +28,15 @@ import           Control.Concurrent.STM     (putTMVar, atomically)
 import           Control.Monad
 import           Data.Monoid
 import           Options.Applicative
-import           System.IO                  (stdin, stdout, IOMode(ReadWriteMode))
+import           System.IO                  (stdin, stdout)
 import           System.SetEnv
 
 import           System.Environment
 import           Prelude
+
+
+logger = "Neovim.Main"
+
 
 data CommandLineOptions =
     Opt { providerName :: Maybe String
@@ -103,23 +107,36 @@ neovim conf =
     let params = Dyre.defaultParams
             { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
             , Dyre.projectName = "nvim"
-            , Dyre.realMain    = realMain
+            , Dyre.realMain    = realMain finishDyre
             , Dyre.statusOut   = debugM "Dyre"
             , Dyre.ghcOpts     = ["-threaded", "-rtsopts", "-with-rtsopts=-N"]
             }
     in Dyre.wrapMain params (conf { dyreParams = Just params })
 
 
-realMain :: NeovimConfig -> IO ()
-realMain cfg = do
+type Finalizer = [ThreadId] -> Internal.Config RPCConfig () -> IO ()
+
+
+-- | This main functions can be used to create a custom executable without
+-- using the "Config.Dyre" library while still using the /nvim-hs/ specific
+-- configuration facilities.
+realMain :: Finalizer
+         -> NeovimConfig
+         -> IO ()
+realMain finalizer cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
-        logM "Neovim.Main" DEBUG "Starting up neovim haskell plguin provider"
-        runPluginProvider os cfg
+        debugM logger "Starting up neovim haskell plguin provider"
+        runPluginProvider os (Just cfg) finalizer
 
 
-runPluginProvider :: CommandLineOptions -> NeovimConfig -> IO ()
-runPluginProvider os cfg = case (hostPort os, unix os) of
+-- | Generic main function. Most arguments are optional or have sane defaults.
+runPluginProvider
+    :: CommandLineOptions -- ^ See /nvim-hs/ executables --help function or 'optParser'
+    -> Maybe NeovimConfig
+    -> Finalizer
+    -> IO ()
+runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
     (Just (h,p), _) ->
         createHandle (TCP p h) >>= \s -> run s s
 
@@ -134,32 +151,67 @@ runPluginProvider os cfg = case (hostPort os, unix os) of
 
   where
     run evHandlerHandle sockreaderHandle = do
-        ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
-            val <- lookupEnv var
-            unsetEnv var
-            return (var, val)
+
+        -- The plugins to register depend on the given arguments and may need
+        -- special initialization methods.
+        allPlugins <- case (fmap plugins mcfg, join (fmap dyreParams mcfg)) of
+            -- No plugins should be loaded
+            (Nothing, _) ->
+                return []
+
+            -- Some statically give plugins without Dyre support for the
+            -- configuration.
+            (Just ps, Nothing) ->
+                return ps
+
+            -- Full blown /nvim-hs/ with Dyre-based recompilation and plugins
+            (Just ps, Just params) -> do
+                -- Save environment variable state for recompilation with Dyre
+                -- and unset those specific environment variables to avoid
+                -- confusing other tools.
+                ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
+                    val <- lookupEnv var
+                    unsetEnv var
+                    return (var, val)
+
+                return (ConfigHelper.plugin ghcEnv params : ps)
 
         conf <- Internal.newConfig (pure (providerName os)) newRPCConfig
 
-        let allPlugins = maybe id ((:) . ConfigHelper.plugin ghcEnv) (dyreParams cfg) $
-                            plugins cfg
-        ehTid <- forkIO $ runEventHandler evHandlerHandle conf
+        ehTid <- forkIO $ runEventHandler
+                            evHandlerHandle
+                            conf { Internal.pluginSettings = Nothing }
+
         srTid <- forkIO $ runSocketReader sockreaderHandle conf
+
         startPluginThreads (Internal.retypeConfig () () conf) allPlugins >>= \case
-            Left e -> errorM "Neovim.Main" $ "Error initializing plugins: " <> e
+            Left e -> do
+                errorM logger $ "Error initializing plugins: " <> e
+                putMVar (Internal.quit conf) $ Internal.Failure e
+                finalizer [ehTid, srTid] conf
+
             Right (funMapEntries, pluginTids) -> do
                 atomically $ putTMVar
                                 (Internal.globalFunctionMap conf)
                                 (Internal.mkFunctionMap funMapEntries)
-                debugM "Neovim.Main" "Waiting for threads to finish."
-                finish (srTid:ehTid:pluginTids) =<< readMVar (Internal.quit conf)
+                putMVar (Internal.quit conf) $ Internal.InitSuccess
+                finalizer (srTid:ehTid:pluginTids) conf
 
 
-finish :: [ThreadId] -> Internal.QuitAction -> IO ()
-finish threads = \case
+finishDyre :: Finalizer
+finishDyre threads cfg = readMVar (Internal.quit cfg) >>= \case
+    Internal.InitSuccess -> do
+        debugM logger "Waiting for threads to finish."
+        finishDyre threads cfg
+
     Internal.Restart -> do
-        debugM "Neovim.Main" "Trying to restart nvim-hs"
+        debugM logger "Trying to restart nvim-hs"
         mapM_ killThread threads
         Dyre.relaunchMaster Nothing
-    Internal.Quit -> return ()
+
+    Internal.Failure e ->
+        errorM logger e
+
+    Internal.Quit ->
+        return ()
 
