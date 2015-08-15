@@ -50,13 +50,18 @@ testWithEmbeddedNeovim
     -> st             -- ^ State
     -> Neovim r st a  -- ^ Test case
     -> IO ()
-testWithEmbeddedNeovim file timeout r st a = do
+testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) = do
     (_, _, ph, cfg) <- startEmbeddedNvim file timeout
 
     let testCfg = Internal.retypeConfig r st cfg
-        Internal.Neovim testAction = void $ a >> vim_command "qa!"
 
-    void $ runReaderT (runStateT (runResourceT testAction) st) testCfg
+    void $ runReaderT (runStateT (runResourceT a) st) testCfg
+
+    -- vim_command isn't asynchronous, so we need to avoid waiting for the
+    -- result of the operation since neovim cannot send a result if it
+    -- has quit.
+    let Internal.Neovim q = vim_command "qa!"
+    void . forkIO . void $ runReaderT (runStateT (runResourceT q) st ) testCfg
 
     waitForProcess ph >>= \case
         ExitFailure i -> fail $ "Neovim returned with an exit status of: " ++ show i
