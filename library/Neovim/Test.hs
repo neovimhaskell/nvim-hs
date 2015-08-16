@@ -16,7 +16,6 @@ module Neovim.Test (
 
 import           Neovim
 import qualified Neovim.Context.Internal      as Internal
-import           Neovim.Main                  (runPluginProvider)
 import           Neovim.RPC.Common            (newRPCConfig, RPCConfig)
 import           Neovim.RPC.EventHandler      (runEventHandler)
 import           Neovim.RPC.SocketReader      (runSocketReader)
@@ -37,13 +36,12 @@ type Seconds = Word
 
 
 -- | Run the given 'Neovim' action according to the given parameters.
+-- The embedded neovim instance is started without a config (i.e. it is passed
+-- @-u NONE@).
 --
--- Since we cannot really automate tests as run in a plugin provider
--- conveniently in pure Haskell code, this is the best you can get. You should
--- be able to test the functionality of one of your plugin functions this way,
--- though. You should use the function from "Neovim.API.String" or an equivalent
--- module to set the neovim set suitable for your use case.
---
+-- If you want to run your tests purely from haskell, you have to setup
+-- the desired state of neovim with the help of the functions in
+-- "Neovim.API.String".
 testWithEmbeddedNeovim
     :: Maybe FilePath -- ^ Optional path to a file that should be opened
     -> Seconds        -- ^ Maximum time (in seconds) that a test is allowed to run
@@ -65,13 +63,17 @@ testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) = do
     void . forkIO . void $ runReaderT (runStateT (runResourceT q) st ) testCfg
 
     waitForProcess ph >>= \case
-        ExitFailure i -> fail $ "Neovim returned with an exit status of: " ++ show i
-        ExitSuccess   -> return ()
+        ExitFailure i ->
+            fail $ "Neovim returned with an exit status of: " ++ show i
+
+        ExitSuccess ->
+            return ()
 
 
-startEmbeddedNvim :: Maybe FilePath
-                  -> Word
-                  -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig t)
+startEmbeddedNvim
+    :: Maybe FilePath
+    -> Word
+    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig st)
 startEmbeddedNvim file timeout = do
     args <- case file of
                 Nothing ->
@@ -91,16 +93,21 @@ startEmbeddedNvim file timeout = do
 
     cfg <- Internal.newConfig (pure Nothing) newRPCConfig
 
-    _ <- forkIO $ runSocketReader hout (cfg { Internal.pluginSettings = Nothing })
-    _ <- forkIO $ runEventHandler hin  (cfg { Internal.pluginSettings = Nothing })
+    void . forkIO $ runSocketReader
+                    hout
+                    (cfg { Internal.pluginSettings = Nothing })
+
+    void . forkIO $ runEventHandler
+                    hin
+                    (cfg { Internal.pluginSettings = Nothing })
 
     atomically $ putTMVar
                     (Internal.globalFunctionMap cfg)
                     (Internal.mkFunctionMap [])
 
-    _ <- forkIO $ do
-           threadDelay $ (fromIntegral timeout) * 1000 * 1000
-           getProcessExitCode ph >>= maybe (terminateProcess ph) (const $ return ())
+    void . forkIO $ do
+        threadDelay $ (fromIntegral timeout) * 1000 * 1000
+        getProcessExitCode ph >>= maybe (terminateProcess ph) (\_ -> return ())
 
     return (hin, hout, ph, cfg)
 
