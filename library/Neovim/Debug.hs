@@ -39,7 +39,7 @@ import           Prelude
 -- automatically set.
 debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
-    runPluginProvider def { env = True } Nothing finalizer
+    runPluginProvider def { env = True } Nothing finalizer Nothing
   where
     finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
         Internal.Failure e ->

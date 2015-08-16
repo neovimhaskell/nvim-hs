@@ -16,6 +16,7 @@ Portability :  GHC
 
 module Neovim.Plugin (
     startPluginThreads,
+    StartupConfig,
     wrapPlugin,
     NeovimPlugin,
     Plugin(..),
@@ -31,12 +32,14 @@ module Neovim.Plugin (
 
 import           Neovim.API.String
 import           Neovim.Classes
+import           Neovim.Config
 import           Neovim.Context
 import           Neovim.Context.Internal      (FunctionType (..))
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Plugin.Classes        hiding (register)
 import           Neovim.Plugin.Internal
 import           Neovim.Plugin.IPC.Classes
+import qualified Neovim.Plugin.Startup        as Plugin
 import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative
@@ -61,16 +64,19 @@ logger :: String
 logger = "Neovim.Plugin"
 
 
-startPluginThreads :: Internal.Config r st
-                   -> [Neovim' NeovimPlugin]
+type StartupConfig = Plugin.StartupConfig NeovimConfig
+
+
+startPluginThreads :: Internal.Config StartupConfig ()
+                   -> [Neovim StartupConfig () NeovimPlugin]
                    -> IO (Either String ([FunctionMapEntry],[ThreadId]))
 startPluginThreads cfg = fmap (fmap fst)
-    . runNeovim (Internal.retypeConfig () () cfg) ()
+    . runNeovim cfg ()
     . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [ThreadId])
-       -> Neovim' NeovimPlugin
-       -> Neovim' ([FunctionMapEntry], [ThreadId])
+       -> Neovim StartupConfig () NeovimPlugin
+       -> Neovim StartupConfig () ([FunctionMapEntry], [ThreadId])
     go acc iop = do
         NeovimPlugin p <- iop
 

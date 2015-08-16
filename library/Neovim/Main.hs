@@ -16,7 +16,7 @@ import           Neovim.Config
 import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Log
 import           Neovim.Plugin              as P
-import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
+import           Neovim.Plugin.Startup      (StartupConfig(..))
 import           Neovim.RPC.Common          as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
@@ -26,6 +26,8 @@ import qualified Config.Dyre.Relaunch       as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM     (putTMVar, atomically)
 import           Control.Monad
+import           Data.Default
+import           Data.Maybe
 import           Data.Monoid
 import           Options.Applicative
 import           System.IO                  (stdin, stdout)
@@ -114,15 +116,15 @@ opts = info (helper <*> optParser)
 -- | This is essentially the main function for /nvim-hs/, at least if you want
 -- to use "Config.Dyre" for the configuration.
 neovim :: NeovimConfig -> IO ()
-neovim conf =
+neovim =
     let params = Dyre.defaultParams
             { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
             , Dyre.projectName = "nvim"
-            , Dyre.realMain    = realMain finishDyre
+            , Dyre.realMain    = realMain finishDyre (Just params)
             , Dyre.statusOut   = debugM "Dyre"
             , Dyre.ghcOpts     = ["-threaded", "-rtsopts", "-with-rtsopts=-N"]
             }
-    in Dyre.wrapMain params (conf { dyreParams = Just params })
+    in Dyre.wrapMain params
 
 
 type Finalizer a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
@@ -132,13 +134,14 @@ type Finalizer a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
 -- using the "Config.Dyre" library while still using the /nvim-hs/ specific
 -- configuration facilities.
 realMain :: Finalizer a
+         -> Maybe (Dyre.Params NeovimConfig)
          -> NeovimConfig
          -> IO ()
-realMain finalizer cfg = do
+realMain finalizer mParams cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
         debugM logger "Starting up neovim haskell plguin provider"
-        void $ runPluginProvider os (Just cfg) finalizer
+        void $ runPluginProvider os (Just cfg) finalizer mParams
 
 
 -- | Generic main function. Most arguments are optional or have sane defaults.
@@ -146,8 +149,9 @@ runPluginProvider
     :: CommandLineOptions -- ^ See /nvim-hs/ executables --help function or 'optParser'
     -> Maybe NeovimConfig
     -> Finalizer a
+    -> Maybe (Dyre.Params NeovimConfig)
     -> IO a
-runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
+runPluginProvider os mcfg finalizer mDyreParams = case (hostPort os, unix os) of
     (Just (h,p), _) ->
         createHandle (TCP p h) >>= \s -> run s s
 
@@ -165,27 +169,7 @@ runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
 
         -- The plugins to register depend on the given arguments and may need
         -- special initialization methods.
-        allPlugins <- case (fmap plugins mcfg, join (fmap dyreParams mcfg)) of
-            -- No plugins should be loaded
-            (Nothing, _) ->
-                return []
-
-            -- Some statically give plugins without Dyre support for the
-            -- configuration.
-            (Just ps, Nothing) ->
-                return ps
-
-            -- Full blown /nvim-hs/ with Dyre-based recompilation and plugins
-            (Just ps, Just params) -> do
-                -- Save environment variable state for recompilation with Dyre
-                -- and unset those specific environment variables to avoid
-                -- confusing other tools.
-                ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
-                    val <- lookupEnv var
-                    unsetEnv var
-                    return (var, val)
-
-                return (ConfigHelper.plugin ghcEnv params : ps)
+        let allPlugins = maybe [] plugins mcfg
 
         conf <- Internal.newConfig (pure (providerName os)) newRPCConfig
 
@@ -195,7 +179,15 @@ runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
 
         srTid <- forkIO $ runSocketReader sockreaderHandle conf
 
-        startPluginThreads (Internal.retypeConfig () () conf) allPlugins >>= \case
+        ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
+            val <- lookupEnv var
+            unsetEnv var
+            return (var, val)
+        let startupConf = Internal.retypeConfig
+                            (StartupConfig mDyreParams ghcEnv)
+                            ()
+                            conf
+        startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
                 errorM logger $ "Error initializing plugins: " <> e
                 putMVar (Internal.quit conf) $ Internal.Failure e

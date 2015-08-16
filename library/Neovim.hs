@@ -31,6 +31,8 @@ module Neovim (
     Neovim',
     neovim,
     NeovimConfig(..),
+    defaultConfig,
+    StartupConfig(..),
     def,
 
     -- ** Using existing plugins
@@ -93,30 +95,33 @@ module Neovim (
     ) where
 
 import           Control.Applicative
-import           Control.Monad           (void)
-import           Control.Monad.IO.Class  (liftIO)
-import           Data.Default            (def)
-import           Data.Int                (Int16, Int32, Int64, Int8)
-import           Data.MessagePack        (Object (..))
+import           Control.Monad              (void)
+import           Control.Monad.IO.Class     (liftIO)
+import           Data.Default               (def)
+import           Data.Int                   (Int16, Int32, Int64, Int8)
+import           Data.MessagePack           (Object (..))
 import           Data.Monoid
 import           Neovim.API.String
-import           Neovim.API.TH           (autocmd, command, command', function,
-                                          function')
-import           Neovim.Classes          (Dictionary, NvimObject (..))
-import           Neovim.Config           (NeovimConfig (..))
-import           Neovim.Context          (Neovim, Neovim', ask, asks, err, get,
-                                          gets, modify, put)
-import           Neovim.Main             (neovim)
-import           Neovim.Plugin           (addAutocmd, addAutocmd')
-import           Neovim.Plugin.Classes   (AutocmdOptions (..),
-                                          CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
-                                          RangeSpecification (..),
-                                          Synchronous (..))
-import           Neovim.Plugin.Internal  (NeovimPlugin (..), Plugin (..),
-                                          wrapPlugin)
-import           Neovim.RPC.FunctionCall (wait, wait', waitErr, waitErr')
-import           Neovim.Util             (unlessM, whenM, withCustomEnvironment)
-import           System.Log.Logger       (Priority (..))
+import           Neovim.API.TH              (autocmd, command, command',
+                                             function, function')
+import           Neovim.Classes             (Dictionary, NvimObject (..))
+import           Neovim.Config              (NeovimConfig (..))
+import           Neovim.Context             (Neovim, Neovim', ask, asks, err,
+                                             get, gets, modify, put)
+import           Neovim.Main                (neovim)
+import           Neovim.Plugin              (addAutocmd, addAutocmd')
+import           Neovim.Plugin.Classes      (AutocmdOptions (..),
+                                             CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
+                                             RangeSpecification (..),
+                                             Synchronous (..))
+import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
+import           Neovim.Plugin.Internal     (NeovimPlugin (..), Plugin (..),
+                                             wrapPlugin)
+import           Neovim.Plugin.Startup      (StartupConfig(..))
+import           Neovim.RPC.FunctionCall    (wait, wait', waitErr, waitErr')
+import           Neovim.Util                (unlessM, whenM,
+                                             withCustomEnvironment)
+import           System.Log.Logger          (Priority (..))
 
 -- Installation {{{1
 -- tl;dr installation {{{2
@@ -236,12 +241,31 @@ Create a file called @nvim.hs@ in @\$XDG_CONFIG_HOME\/nvim@ (usually
 \{\-\# LANGUAGE TemplateHaskell   \#\-\}
 import           Neovim
 
-main = 'neovim' 'def'
+main = 'neovim' 'defaultConfig'
 @
 
 Adjust the fields in @def@ according to the the parameters in 'NeovimConfig'.
 
 -}
+
+
+-- | Default configuration options for /nvim-hs/. If you want to keep the
+-- default plugins enabled, you can define you rconfig like this:
+--
+-- @
+-- main = 'neovim' 'defaultConfig'
+--          { plugins = myPlugins ++ plugins defaultConfig
+--          }
+-- @
+--
+defaultConfig :: NeovimConfig
+defaultConfig = Config
+    { plugins      = [ ConfigHelper.plugin ]
+    , logOptions   = Nothing
+    , errorMessage = Nothing
+    }
+
+
 -- 2}}}
 
 -- Existing Plugins {{{2

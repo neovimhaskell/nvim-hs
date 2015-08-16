@@ -12,7 +12,7 @@ import           Control.Concurrent        (takeMVar, killThread)
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
 main :: IO ()
-main = realMain finalizer def
+main = realMain finalizer Nothing defaultConfig
     { plugins = [ randPlugin ]
     }
 
@@ -23,8 +23,8 @@ finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
     _ ->
         mapM_ killThread tids
 
-randPlugin :: Neovim' NeovimPlugin
-randPlugin = liftIO $ do
+randPlugin :: Neovim (StartupConfig NeovimConfig) () NeovimPlugin
+randPlugin = do
     -- This plugin was intended to use a real random number generator, but
     -- unfortunately a Travis build with other GHC versions failed to reproduce
     -- the same numbers. So we just chose from these three numbers. You better
