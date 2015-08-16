@@ -13,17 +13,24 @@ Portability :  GHC
 module Neovim.Debug (
     debug,
     debug',
+    develMain,
+
+    runNeovim,
+    runNeovim',
+    module Neovim,
     ) where
 
+import           Neovim
+import           Neovim.Context          (runNeovim)
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log              (disableLogger)
 import           Neovim.Main             (CommandLineOptions (..),
                                           runPluginProvider)
+import           Neovim.RPC.Common       (RPCConfig)
 
 import           Control.Concurrent
 import           Control.Monad
-import           Data.Default
-import           Options.Applicative
+import           Foreign.Store
 
 import           Prelude
 
@@ -67,4 +74,51 @@ debug r st a = disableLogger $ do
 -- See documentation for 'debug'.
 debug' :: Internal.Neovim' a -> IO (Either String a)
 debug' a = fmap fst <$> debug () () a
+
+
+-- | This function is intended to be run _once_ in a ghci session that to
+-- give a REPL based workflow when developing a plugin.
+--
+-- To use this in ghci, you simply bind the results to some variables. After
+-- each reload of ghci, you have to rebind those variables.
+--
+-- Example:
+--
+-- @
+-- λ Right (tids, cfg) <- develMain
+--
+-- λ runNeovim' cfg \$ vim_call_function "getqflist" []
+-- Right (Right (ObjectArray []))
+--
+-- λ :r
+--
+-- λ Right (tids, cfg) <- develMain
+-- @
+--
+develMain :: IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+develMain = lookupStore 0 >>= \case
+    Nothing -> do
+        x <- disableLogger $
+                runPluginProvider def { env = True } Nothing finalizer Nothing
+        void $ newStore x
+        return x
+
+    Just x ->
+        readStore x
+  where
+    finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
+        Internal.Failure e ->
+            return $ Left e
+
+        Internal.InitSuccess ->
+            return $ Right (tids, cfg)
+
+        _ ->
+            return $ Left "Unexpected finalizer state for develMain."
+
+
+-- | Convenience function to run a stateless 'Neovim' function.
+runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either String a)
+runNeovim' cfg =
+    fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
 

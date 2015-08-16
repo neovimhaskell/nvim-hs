@@ -46,6 +46,9 @@ executable nvim-hs
 library
   exposed-modules:      Neovim
                       , Neovim.Quickfix
+                      , Neovim.Plugin.ConfigHelper
+                      , Neovim.Debug
+                      , Neovim.Test
   -- Note that every module below this is considered internal and if you have to
   -- import it somewhere in your code and you think it should be generally
   -- available , you should open a ticket about inclusion in the export list of
@@ -53,6 +56,7 @@ library
   -- this library should have the freedom to do what she wants.
                       , Neovim.API.String
                       , Neovim.Classes
+                      , Neovim.Config
                       , Neovim.Context
                       , Neovim.Context.Internal
                       , Neovim.Plugin
@@ -60,8 +64,6 @@ library
                       , Neovim.Plugin.Internal
                       , Neovim.Plugin.IPC
                       , Neovim.Plugin.IPC.Classes
-                      , Neovim.Config
-                      , Neovim.Debug
                       , Neovim.Log
                       , Neovim.Main
                       , Neovim.RPC.Classes
@@ -69,9 +71,7 @@ library
                       , Neovim.RPC.EventHandler
                       , Neovim.RPC.FunctionCall
                       , Neovim.RPC.SocketReader
-                      , Neovim.Plugin.ConfigHelper
                       , Neovim.Plugin.Startup
-                      , Neovim.Test
                       , Neovim.Util
 
   other-modules:        Neovim.Plugin.ConfigHelper.Internal
@@ -90,6 +90,7 @@ library
                       , dyre
                       , exceptions
                       , filepath
+                      , foreign-store
                       , hslogger
                       , messagepack >= 0.4
                       , monad-control
@@ -137,6 +138,7 @@ test-suite hspec
                       , dyre
                       , exceptions
                       , filepath
+                      , foreign-store
                       , hslogger
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3

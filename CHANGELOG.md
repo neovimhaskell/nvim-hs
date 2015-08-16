@@ -1,5 +1,15 @@
 # 0.0.3
 
+* Debugging facilities for ghci have been added. Check out the
+  `Neovim.Debug` module! These few functions are very valuable to debug your
+  code or even the code of nvim-hs itself.
+
+* Startup code now has a special `Neovim` environment which has access to
+  some of the internals that may or may not be useful. This change allowed
+  the ConfigHelper plugin to be included as a normal, separable plugin.
+  Unfortunately, this potentially breaks the plugin startup code of some
+  existing plugins.
+
 * Neovim context is no longer a type synonym, but a newtype wrapper around
   the previous type synonym with an added `ResourceT` wrapper. The functions
   from `MonadReader` are now actually exported as those.
