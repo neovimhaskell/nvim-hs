@@ -41,7 +41,7 @@ debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
     runPluginProvider def { env = True } Nothing finalizer
   where
-    finalizer tids cfg = readMVar (Internal.quit cfg) >>= \case
+    finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
         Internal.Failure e ->
             return $ Left e
 

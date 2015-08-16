@@ -57,6 +57,7 @@ instance Default CommandLineOptions where
             , logOpts      = Nothing
             }
 
+
 optParser :: Parser CommandLineOptions
 optParser = Opt
     <$> optional (strArgument
@@ -209,7 +210,7 @@ runPluginProvider os mcfg finalizer = case (hostPort os, unix os) of
 
 
 finishDyre :: Finalizer ()
-finishDyre threads cfg = readMVar (Internal.quit cfg) >>= \case
+finishDyre threads cfg = takeMVar (Internal.quit cfg) >>= \case
     Internal.InitSuccess -> do
         debugM logger "Waiting for threads to finish."
         finishDyre threads cfg

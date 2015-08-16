@@ -7,7 +7,7 @@ import           Neovim.Main               (realMain)
 import           Neovim.Plugin.Classes
 import           TestPlugins.TestFunctions
 
-import           Control.Concurrent        (readMVar)
+import           Control.Concurrent        (takeMVar, killThread)
 
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
@@ -16,12 +16,12 @@ main = realMain finalizer def
     { plugins = [ randPlugin ]
     }
 
-finalizer tids cfg = readMVar (Internal.quit cfg) >>= \case
+finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
     Internal.InitSuccess ->
         finalizer tids cfg
 
     _ ->
-        return ()
+        mapM_ killThread tids
 
 randPlugin :: Neovim' NeovimPlugin
 randPlugin = liftIO $ do
