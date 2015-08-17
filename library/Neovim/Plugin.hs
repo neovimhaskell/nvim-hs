@@ -100,8 +100,12 @@ registerWithNeovim :: FunctionalityDescription -> Neovim anyConfig anyState Bool
 registerWithNeovim = \case
     Function (F functionName) s -> do
         pName <- getProviderName
-        ret <- vim_call_function "remote#define#FunctionOnHost"
-            [ toObject pName, toObject functionName, toObject s
+        let (defineFunction, host) = either
+                (\n -> ("remote#define#FunctionOnHost", toObject n))
+                (\c -> ("remote#define#FunctionOnChannel", toObject c))
+                pName
+        ret <- vim_call_function defineFunction
+            [ host, toObject functionName, toObject s
             , toObject functionName, toObject (Map.empty :: Dictionary)
             ]
         case ret of
@@ -122,8 +126,12 @@ registerWithNeovim = \case
                     _             -> Sync
 
         pName <- getProviderName
-        ret <- vim_call_function "remote#define#CommandOnHost"
-            [ toObject pName, toObject functionName, toObject sync
+        let (defineFunction, host) = either
+                (\n -> ("remote#define#CommandOnHost", toObject n))
+                (\c -> ("remote#define#CommandOnChannel", toObject c))
+                pName
+        ret <- vim_call_function defineFunction
+            [ host, toObject functionName, toObject sync
             , toObject functionName, toObject copts
             ]
         case ret of
@@ -138,8 +146,12 @@ registerWithNeovim = \case
 
     Autocmd acmdType (F functionName) opts -> do
         pName <- getProviderName
-        ret <- vim_call_function "remote#define#AutocmdOnHost"
-            [ toObject pName, toObject functionName, toObject Async
+        let (defineFunction, host) = either
+                (\n -> ("remote#define#AutocmdOnHost", toObject n))
+                (\c -> ("remote#define#AutocmdOnChannel", toObject c))
+                pName
+        ret <- vim_call_function defineFunction
+            [ host, toObject functionName, toObject Async
             , toObject acmdType , toObject opts
             ]
         case ret of
