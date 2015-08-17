@@ -49,6 +49,7 @@ import           Control.Monad                (foldM, void)
 import           Control.Monad.Catch          (SomeException, try)
 import           Control.Monad.Trans.Resource hiding (register)
 import           Data.ByteString              (ByteString)
+import           Data.ByteString.UTF8         (toString)
 import           Data.Foldable                (forM_)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
@@ -214,9 +215,9 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
   where
     freeFun = \case
         Autocmd event _ AutocmdOptions{..} -> do
-            void . vim_call_function "autocmd!" $ catMaybes
-                    [ toObject <$> acmdGroup, Just (toObject event)
-                    , Just (toObject acmdPattern)
+            void . vim_command . unwords $ catMaybes
+                    [ Just "autocmd!", acmdGroup
+                    , Just (toString event) , Just acmdPattern
                     ]
 
         Command{} ->
