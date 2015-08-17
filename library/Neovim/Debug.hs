@@ -85,7 +85,7 @@ debug' a = fmap fst <$> debug () () a
 -- Example:
 --
 -- @
--- λ Right (tids, cfg) <- develMain
+-- λ Right (tids, cfg) <- develMain 'Nothing'
 --
 -- λ runNeovim' cfg \$ vim_call_function "getqflist" []
 -- Right (Right (ObjectArray []))
@@ -95,11 +95,11 @@ debug' a = fmap fst <$> debug () () a
 -- λ Right (tids, cfg) <- develMain
 -- @
 --
-develMain :: IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
-develMain = lookupStore 0 >>= \case
+develMain :: Maybe NeovimConfig -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
-                runPluginProvider def { env = True } Nothing finalizer Nothing
+                runPluginProvider def { env = True } mcfg finalizer Nothing
         void $ newStore x
         return x
 
