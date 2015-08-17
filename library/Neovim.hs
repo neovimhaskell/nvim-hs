@@ -11,10 +11,8 @@ Portability :  GHC (due to Template Haskell)
 This module should contain all the things you need to write neovim plugins in
 your favorite language! @:-)@
 
-The documentation in this module should enable you to write plugins.
-The chapters in this module start with a tl;dr paragraph that sums things up,
-which is useful to get an idea whether you should actually read the chapter and
-which will reduce your reading time if you just want to refresh your memory.
+The documentation in this module should provide every information you need to start
+writing plugins.
 -}
 module Neovim (
     -- * Installation
@@ -26,7 +24,7 @@ module Neovim (
 
     -- * Tutorial
     -- ** tl;dr
-    -- $tldrtutorial
+    -- $tldrgettingstarted
     Neovim,
     Neovim',
     neovim,
@@ -91,6 +89,7 @@ module Neovim (
     module Control.Applicative,
     module Data.Monoid,
     module Data.Int,
+    module Data.Word,
 
     ) where
 
@@ -101,6 +100,7 @@ import           Data.Default               (def)
 import           Data.Int                   (Int16, Int32, Int64, Int8)
 import           Data.MessagePack           (Object (..))
 import           Data.Monoid
+import           Data.Word                  (Word, Word32,Word16, Word8)
 import           Neovim.API.String
 import           Neovim.API.TH              (autocmd, command, command',
                                              function, function')
@@ -127,11 +127,15 @@ import           System.Log.Logger          (Priority (..))
 -- tl;dr installation {{{2
 {- $tldrinstallation
 
-Since this is still very volatile, I recommend using a sandbox.
+Make sure that neovim's executable (@nvim@) is on your @\$PATH@ during the
+cabal commands!
 
-Make sure that neovim's executable (@nvim@) is on your @\$PATH@ during the following steps!
+/nvim-hs/ is a normal haskell program and a normal haskell library. You can install it
+in various flavors. These steps describe a more laborous approach that is suited for
+developing plugins or /nvim-hs/ itself.
 
-Install `nvim-hs` from git (example assumes you clone to @\$HOME\/git\/nvim-hs@)
+The following steps will install `nvim-hs` from git
+(example assumes you clone to @\$HOME\/git\/nvim-hs@)
 using a sandbox:
 
 @
@@ -142,8 +146,14 @@ using a sandbox:
 \$ cabal install
 @
 
+Or in one line for copy-pasting:
+
+@
+mkdir -p ~\/git ; cd ~\/git ; git clone https:\/\/github.com\/neovimhaskell\/nvim-hs && cd nvim-hs && cabal sandbox init && cabal install
+@
+
 Copy the script @nvim-hs-devel.sh@ to a location you like, make it executable
-and follow the brief instructions in the comments.
+and __follow the brief instructions__ in the comments.
 
 @
 \$ cp nvim-hs-devel.sh ~\/bin\/
@@ -155,16 +165,7 @@ put this in your neovim config file (typically @~\/.nvimrc@ or @~\/.nvim\/nvimrc
 
 @
 if has(\'nvim\') \" This way you can also put it in your vim config file
-  function! s:RequireHaskellHost(name)
-    \" If the nvim-hs script\/executable is not on your path, you should give the full path here
-    return rpcstart(expand(\'$HOME\/bin\/nvim-hs-devel.sh\'), [a:name.name])
-  endfunction
-
-  \" You can replace \'haskell\' in the following lines with any name you like.
-  call remote\#host\#Register(\'haskell\', \'*.[cl]\\?hs\', function(\'s:RequireHaskellHost\'))
-  \" Blocks until nvim-hs has started (optional)
-  call rpcrequest(remote\#host\#Require(\'haskell\'),
-          \\ \'PingNvimhs\', [])
+    call rpcrequest(rpcstart(expand(\'\$HOME\/.bin\/nvim-hs-devel.sh\')), \"PingNvimhs\")
 endif
 @
 
@@ -174,21 +175,22 @@ endif
 -- Explained {{{2
 {- $explainedinstallation
 
-You essentially have to follow the instructions of the tl;dr subsection above,
-but this subsection tells you why you need those steps and it gives you the
-required knowledge to deviate from those instructions.
-
 If you want to use or write plugins written in haskell for /nvim-hs/, you first
 have to make sure that neovim is installed and that it is available on your
 @\$PATH@ during the compilation of /nvim-hs/. Neovim emits information about its
-remotely callable API if you call it with the `--api-info` argument. This output
-is used to generate the API functions you desperately need to create useful
-plugins. Also, some internal functionality requires some of these functions.
+remotely callable API if you call it with the `--api-info` command line
+argument. This output is used to generate the API functions you need
+to create useful plugins. Also, some internal functionality requires some of
+these functions.
 
 The instructions to install /nvim-hs/ should be self-explanatory. In any case, I
-(saep) recommend using a sandbox for now since there is no stable hackage
-release yet and a few libraries are newer than what is currently in stackage
-(namely mtl, which is a big deal). Using a sandbox requires you to install all
+(saep) recommend using a sandbox for now since I the version constraints of the
+dependencies are quire lax and there are still changes on the way. Also, there is
+no official neovim release yet, so you may have to reinstall /nvim-hs/ a few times
+because the generated API could change or something similar. A sandboxed environment
+can be saefly deleted and it requires you only to copy and edit a small shell script!
+
+Using a sandbox requires you to install all
 the libraries you want or have to use in your plugins to be installed inside the
 sandbox! Some Vim plugins (e.g. ghc-mod) may show weird errors inside neovim for
 your configuration file because the sandbox is not inside your configuration folder.
@@ -196,17 +198,15 @@ For /nvim-hs/ you don't need to worry about that, though, because it has a
 builtin plugin which puts all compile-errors in the quickfix
 list automatically after you save your configuration file, so you don't need
 another plugin to detect compile time errors here. But we will discuss this
-later in more detail. The executable script sets up the build environment for
-/nvim-hs/ to use the sandbox.
+later in more detail. The executable script mentioned in the tl;dr installation
+instructions sets up the build environment for /nvim-hs/ to use the sandbox.
 
-The Vim-script snippet is a bit lengthy, but the comments should explain how it
-works. In any case, the snippet can be put anywhere in your neovim configuration
-file and the last call of `rpcrequest` is not needed if you don't call any
-functionality before /nvim-hs/ has started properly. Removing the call can
-improve the startup time. If you only need some functionality for Haskell source
-files, you could move those last (or the last two) lines at the top of
-@\$HOME\/.nvim\/ftplugin\/haskell.vim@. You may wonder why we have to explicitly
-call 'PingNvimhs' with the function `rpcrequest` here. The short answer is:
+The Vim-script snippet is a bit conservative and may have a negative impact on
+your startup time. You can remove the @rpcrequest()@ wrapping and call the function
+@PingNvimhs@ at a later time when you need /nvim-hs/ to be initialized. Use your
+own judgement!  In any case, the snippet can be put anywhere in your neovim
+configuration. You may wonder why we have to explicitly
+call @PingNvimhs@ with the function @rpcrequest@ here. The short answer is:
 The internals for registering functions from a remote host require this. The
 longer answer is as follows: Registering functions from a remote host does not
 define a function directly. It instead installs a hook via an autocmd that
@@ -216,7 +216,7 @@ Buf, if we try to call a function from a remote host too early, the hooks may
 not yet be in place and we receive error messages. Since we do not generate any
 Vim-script files which contain those hooks, /nvim-hs/ must be started and
 initialized and create those hooks. So the best way to make sure that /nvim-hs/
-is initialized is to try to call some functionon the msgpack-rpc channel that
+is initialized is to try to call some functionon on the msgpack-rpc channel that
 /nvim-hs/ listens on. The function must not even exist, but not throwing an
 error message is probably nicer, so /nvim-hs/ provides a function \"PingNvimhs\"
 which takes no arguments and returns @\"Pong\"@.
@@ -225,7 +225,10 @@ Using /nvim-hs/ essentially means to use a static binary that incorporates all
 plugins. It is generated using the 'Dyre' library and the binary itself is found
 in @\$XDG_CACHE_DIR\/nvim@ (usually @~\/.cache\/nvim@). The 'Dyre' library makes
 it feel more like a scripting language, because the binary is automatically
-created and executed without having to restart neovim.
+created and executed without having to restart neovim. You can also use the
+functions from the "Neovim.Debug" module if you want to develop your plugins in
+a REPL environment. This is probably a bit more difficult to use, so I won't go
+into detail here.
 
 -}
 -- 2}}}
@@ -234,17 +237,26 @@ created and executed without having to restart neovim.
 -- Tutorial {{{1
 -- tl;dr {{{2
 {- $tldrgettingstarted
+If you are proficient with Haskell, it may be sufficient to point you at some of the
+important data structures and functions. So, I will do it here. If you need more
+assistance, please skip to the next section and follow the links for functions or data
+types you do no understand how to use. If you think that the documentation is lacking,
+please create an issue on github (or even better, a pull request with a fix @;-)@).
+The code sections that describe new functionality are followed by the source code
+documentation of the used functions (and possibly a few more).
+
 Create a file called @nvim.hs@ in @\$XDG_CONFIG_HOME\/nvim@ (usually
 @~\/.config\/nvim@ with the following content:
 
 @
-\{\-\# LANGUAGE TemplateHaskell   \#\-\}
-import           Neovim
+import Neovim
 
 main = 'neovim' 'defaultConfig'
 @
 
-Adjust the fields in @def@ according to the the parameters in 'NeovimConfig'.
+Adjust the fields in 'defaultConfig' according to the the parameters in 'NeovimConfig'.
+Depending on how you define the parameters, you may have to add some language extensions
+which GHC should point you to.
 
 -}
 
@@ -270,19 +282,17 @@ defaultConfig = Config
 
 -- Existing Plugins {{{2
 {- $existingplugins
-/nvim-hs/ is all about importing and creating plugins. This is done following
-simple and concise API. Let's start by making a given plugin available inside
+/nvim-hs/ is all about importing and creating plugins. This is done following a
+concise API. Let's start by making a given plugin available inside
 our plugin provider. Assuming that we have installed a cabal package that exports
 an @examplePlugin@ from the module @TestPlugin.ExamplePlugin@. A minimal
 configuration would then look like this:
 
 @
-\{\-\# LANGUAGE TemplateHaskell \#\-\}
-
 import TestPlugin.ExamplePlugin (examplePlugin)
 
 main = 'neovim' 'def'
-        { plugins = [examplePlugin]
+        { 'plugins' = [ examplePlugin ] ++ 'plugins' 'defaultConfig'
         }
 @
 
@@ -303,8 +313,8 @@ project once they are mature enough. This also makes them easy to share!
 -- 2}}}
 -- Creating a plugin {{{2
 {- $creatingplugins
-Creating plugins isn't difficult either. You just have to follow a simple API
-and not be surprised about compile time errors of seemingly valid code. This may
+Creating plugins isn't difficult either. You just have to follow and survive the
+the compile time errors of seemingly valid code. This may
 sound scary, but it is not so bad. We will cover most pitfalls in the following
 paragraphs and if there isn't a solution for your error, you can always ask any
 friendly Haskeller in \#haskell on @irc.freenode.net@!
@@ -319,51 +329,63 @@ not work together with neovim.
 So, let's write a plugin that calculates the @n@th Fibonacci number. Don't we all
 love those!
 
-File @~\/.config\/nvim\/lib\/MyFirstPlugin.hs@
+File @~\/.config\/nvim\/lib\/Fibonacci/Plugin.hs@
 
 @
-module MyFirstPlugin
-    ( fibonacci
-    ) where
+module Fibonacci.Plugin (fibonacci) where
 
-import Neovim
+import "Neovim"
 
-fibonacci :: 'Int' -> Neovim' 'String'
-fibonacci n = 'show' $ fibs !! n
+-- | Neovim is not really good with big numbers, so we return a 'String' here.
+fibonacci :: 'Int' -> 'Neovim'' 'String'
+fibonacci n = 'return' . 'show' \$ fibs !! n
   where
-    fibs :: ['Integer']
+    fibs :: [Integer]
     fibs = 0:1:'scanl1' (+) fibs
+@
+
+File @~\/.config\/nvim\/lib/Fibonacci.hs@:
+
+@
+\{\-\# LANGUAGE TemplateHaskell \#\-\}
+module Fibonacci (plugin) where
+
+import "Neovim"
+import Fibonacci.Plugin (fibonacci)
+
+plugin :: 'Neovim' ('StartupConfig' 'NeovimConfig') () 'NeovimPlugin'
+plugin = 'wrapPlugin' Plugin
+    { 'exports'         = [ $('function'' 'fibonacci) 'Sync' ]
+    , 'statefulExports' = []
+    }
 @
 
 File @~\/.config\/nvim\/nvim.hs@:
 
 @
-\{\-\# LANGUAGE TemplateHaskell \#\-\}
+import "Neovim"
 
-import MyFirstPlugin (fibonacci)
+import qualified Fibonacci as Fibonacci
 
-fibonacciPlugin = 'wrapPlugin'
-    { 'exports' = [ $('function'' 'fibonacci) 'Sync' ]
+main :: 'IO' ()
+main = 'neovim' 'defaultConfig'
+    { 'plugins' = 'plugins' 'defaultConfig' ++ [ Fibonacci.plugin ]
     }
-
-main = 'neovim' 'def'
-        { 'plugins' = [fibonacciPlugin]
-        }
 @
 
-Let's analyze how it works. The module @MyFirstPlugin@ simply defines a function
+Let's analyze how it works. The module @Fibonacci.Plugin@ simply defines a function
 that takes the @n@th element of the infinite list of Fibonacci numbers. Even though
 the definition is very concise and asthetically pleasing, the important part is the
 type signature for @fibonacci@. Similarly how @main :: IO ()@ works in normal Haskell
 programs, 'Neovim'' is the environment we need for plugins. Internally, it stores a
 few things that are needed to communicate with neovim, but that shouldn't bother you
 too much. Simply remember that every plugin function must have a function signature
-whose last element is of type @'Neovim' r st something@'. The result of @fibonacci@
+whose last element is of type @'Neovim' r st something@. The result of @fibonacci@
 is 'String' because neovim cannot handle big numbers so well. :-)
 You can use any argument or result type as long as it is an instance of 'NvimObject'.
 
-The second part of of the puzzle, which is the definition of @fibonacciPlugin@
-in @~\/.config\/nvim\/nvim.hs@, shows what a plugin is. It is essentially two
+The second part of of the puzzle, which is the definition of @plugin@
+in @~\/.config\/nvim\/lib\/Fibonaccin.hs@, shows what a plugin is. It is essentially two
 lists of stateless and stateful functionality. A functionality can currently be one
 of three things: a function, a command and an autocmd in the context of vim
 terminology. In the end, all of those functionalities map to a function at the side
@@ -398,11 +420,13 @@ some trouble if I haven't mentioned it here! Template Haskell simply requires
 you to put that in front of function names that are passed in a splice.
 
 If you compile this (which should happen automatically if you have put those
-files at the appropriate places), you can calculate the 287323rd Fibonacci number
-like this:
+files at the appropriate places), you can restart /nvim-hs/ with the command
+@:RestartNvimhs@ which is available as long as you do not remove the default
+plugins from you rconfig. Afterwards, you can calculate the 2000th Fibonacci
+number like as if it were a normal vim-script function:
 
 @
-:echo Fibonacci(287323)
+:echo Fibonacci(2000)
 @
 
 You can also directly insert the result inside any text file opened with neovim
@@ -410,7 +434,7 @@ by using the evaluation register by pressing the following key sequence in inser
 mode:
 
 @
-\<C-r\>=Fibonacci(287323)
+\<C-r\>=Fibonacci(2000)
 @
 
 -}
@@ -419,56 +443,90 @@ mode:
 {- $remote
 Now that we are a little bit comfortable with the interface provided by /nvim-hs/,
 we can start to write a more complicated plugin. Let's create a random number
-generator.
+generator!
 
-File @~\/.config\/nvim\/lib\/MyRandomNumberGenerator.hs@:
+File @~\/.config\/nvim\/lib\/Random\/Plugin.hs@:
 
 @
-module MyRandomNumberGenerator
-    ( nextRand
-    , setNextNumber
-    ) where
+module Random.Plugin (nextRandom, setNextRandom) where
 
-nextRand :: 'Neovim' r ['Int16'] Int16
-nextRand = do
-    r <- gets head
-    modify tail
-    return r
+import "Neovim"
 
-setNextNumber :: Int16 -> 'Neovim' r ['Int16'] ()
-setNextNumber n = modify (n:)
+-- | Neovim isn't so good with big numbers here either.
+nextRandom :: 'Neovim' r ['Int16'] 'Int16'
+nextRandom = do
+    r <- 'gets' 'head' -- get the head of the infinite random number list
+    'modify' 'tail'    -- set the list to its tail
+    'return' r
+
+setNextRandom :: 'Int' -> 'Neovim' r ['Int16'] ()
+setNextRandom n = 'modify' (n:) -- cons to the front of the infinite list
+@
+
+File @~\/.config\/nvim\/lib\/Random.hs@:
+
+@
+\{\-\# LANGUAGE TemplateHaskell \#\-\}
+module Random (plugin) where
+
+import "Neovim"
+import Random.Plugin (nextRandom, setNextRandom)
+import "System.Random" ('newStdGen', 'randoms')
+
+plugin :: 'Neovim' ('StartupConfig' 'NeovimConfig') () 'NeovimPlugin'
+plugin = do
+    g <- 'liftIO' 'newStdGen'         -- initialize with a random seed
+    let randomNumbers = 'randoms' g -- an infinite list of random numbers
+    'wrapPlugin' 'Plugin'
+        { 'exports'         = []
+        , 'statefulExports' =
+            [ ((), randomNumbers,
+                [ $('function'' 'nextRandom) 'Sync'
+                , $('function' \"SetNextRandom\" 'setNextRandom) 'Async'
+                ])
+            ]
+        }
 @
 
 File @~\/.config\/nvim\/nvim.hs@:
 
 @
-\{\-\# LANGUAGE TemplateHaskell \#\-\}
+import "Neovim"
 
-import MyRandomNumberGenerator (nextRand, setNextNumber)
-import System.Random (newStdGen, randoms)
+import qualified Fibonacci as Fibonacci
+import qualified Random    as Random
 
-randPlugin = do
-    g <- newStdGen                -- initialize with a random seed
-    let randomNumbers = randoms g -- an infite list of random numbers
-    'wrapPlugin'
-        { 'statefulExports' =
-            [ ((), randomNumbers,
-                [ $('function'' 'nextRand) 'Sync'
-                , $('function'' 'setNextNumber) 'Async'
-                ])
-            ]
-        }
-
-main = 'neovim' 'def'
-        { 'plugins' = [randPlugin]
-        }
+main :: 'IO' ()
+main = 'neovim' 'defaultConfig'
+    { 'plugins' = 'plugins' 'defaultConfig' ++ [ Fibonacci.plugin, Random.plugin ]
+    }
 @
+
 
 That wasn't too hard, was it? The definition is very similar to the previous
 example, we just were able to mutate our state and share that with other
-functions. The only slightly tedious thing was to define the 'statefulExpors'
-field because it is a list of triples which has a list of exported functionality
-as its third argument.
+functions. The only slightly tedious thing was to define the 'statefulExports'
+field because it is a list of triples which has a list of exported
+functionalities as its third argument. Another noteworthy detail, in case you
+are not familiar with it, is the use of 'liftIO' in front of 'newStdGen'. You
+have to do this, because 'newStdGen' has type @'IO' 'StdGen'@ but the actions
+inside the startup code are of type
+@'Neovim' ('StartupConfig' 'NeovimConfig') () something@. 'liftIO' lifts an
+'IO' function so that it can be run inside the 'Neovim' context (or more
+generally, any monad that implements the 'MonadIO' type class).
+
+After you have saved these files (and removed any typos @:-)@), you can restart
+/nvim-hs/ with @:RestartNvimhs@ and insert random numbers in your text files!
+
+@
+<C-r>=NextRandom()
+@
+
+You can also cheat and pretend you know the next number:
+
+@
+:call SetNextRandom(42)
+@
 
 -}
 -- 2}}}

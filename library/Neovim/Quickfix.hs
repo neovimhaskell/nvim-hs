@@ -28,8 +28,13 @@ import           Neovim.Context
 
 import           Prelude
 
+-- | This is a wrapper around neovim's @setqflist()@. @strType@ can be any
+-- string that you can append to (hence 'Monoid') that is also an instance
+-- of 'NvimObject'. You can e.g. use the plain old 'String'.
 setqflist :: (Monoid strType, NvimObject strType)
-          => [QuickfixListItem strType] -> QuickfixAction -> Neovim r st ()
+          => [QuickfixListItem strType]
+          -> QuickfixAction
+          -> Neovim r st ()
 setqflist qs a =
     void $ vim_call_function "setqflist" [toObject qs, toObject a]
 

@@ -90,14 +90,14 @@ debug' a = fmap fst <$> debug () () a
 -- Example:
 --
 -- @
--- λ Right (tids, cfg) <- develMain 'Nothing'
+-- λ 'Right' (tids, cfg) <- 'develMain' 'Nothing'
 --
--- λ runNeovim' cfg \$ vim_call_function "getqflist" []
--- Right (Right (ObjectArray []))
+-- λ 'runNeovim'' cfg \$ vim_call_function \"getqflist\" []
+-- 'Right' ('Right' ('ObjectArray' []))
 --
 -- λ :r
 --
--- λ Right (tids, cfg) <- develMain
+-- λ 'Right' (tids, cfg) <- 'develMain' 'Nothing'
 -- @
 --
 develMain

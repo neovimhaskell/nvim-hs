@@ -6,9 +6,18 @@ description:
   plugins for one of the great editors of our time in the best programming
   language of our time! ;-)
   .
-  You should find all the documentation you need inside the "Neovim" module. All
-  other modules are considered internal, so don't be annoyed if using things
-  from there may break your code.
+  You should find all the documentation you need inside the "Neovim" module.
+  Most other modules are considered internal, so don't be annoyed if using
+  things from there may break your code!
+  .
+  The following modules may also be of interest and they should not change
+  their API: "Neovim.Quickfix"
+  .
+  If you want to write unit tests that interact with neovim, "Neovim.Test"
+  provides some useful functions for that.
+  .
+  If you are keen to debug /nvim-hs/ or a module you are writing, take a look
+  at the "Neovim.Debug" module.
   .
   If you spot any errors or if you have great ideas, feel free to open an issue
   on github.
