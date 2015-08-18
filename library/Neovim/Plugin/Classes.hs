@@ -47,6 +47,7 @@ import           Prelude                   hiding (sequence)
 newtype FunctionName = F ByteString
     deriving (Eq, Ord, Show, Read)
 
+
 -- | Functionality specific functional description entries.
 --
 -- All fields which are directly specified in these constructors are not

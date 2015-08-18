@@ -14,6 +14,8 @@ module Neovim.Debug (
     debug,
     debug',
     develMain,
+    quitDevelMain,
+    restartDevelMain,
 
     runNeovim,
     runNeovim',
@@ -79,6 +81,9 @@ debug' a = fmap fst <$> debug () () a
 -- | This function is intended to be run _once_ in a ghci session that to
 -- give a REPL based workflow when developing a plugin.
 --
+-- Note that the dyre-based reload mechanisms, i.e. the
+-- "Neovim.Plugin.ConfigHelper" plugin, is not started this way.
+--
 -- To use this in ghci, you simply bind the results to some variables. After
 -- each reload of ghci, you have to rebind those variables.
 --
@@ -95,7 +100,9 @@ debug' a = fmap fst <$> debug () () a
 -- λ Right (tids, cfg) <- develMain
 -- @
 --
-develMain :: Maybe NeovimConfig -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+develMain
+    :: Maybe NeovimConfig
+    -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
@@ -110,15 +117,45 @@ develMain mcfg = lookupStore 0 >>= \case
         Internal.Failure e ->
             return $ Left e
 
-        Internal.InitSuccess ->
-            return $ Right (tids, cfg)
+        Internal.InitSuccess -> do
+            finalizerThread <- forkIO $ do
+                myTid <- myThreadId
+                void $ finalizer (myTid:tids) cfg
+            return $ Right (finalizerThread:tids, cfg)
+
+        Internal.Quit -> do
+            lookupStore 0 >>= \case
+                Nothing ->
+                    return ()
+
+                Just x ->
+                    deleteStore x
+
+            mapM_ killThread tids
+            return $ Left "Quit develMain"
 
         _ ->
             return $ Left "Unexpected finalizer state for develMain."
+
+
+-- | Quit a previously started plugin provider.
+quitDevelMain :: Internal.Config r st -> IO ()
+quitDevelMain cfg = putMVar (Internal.quit cfg) Internal.Quit
+
+
+-- | Restart the development plugin provider.
+restartDevelMain
+    :: Internal.Config RPCConfig ()
+    -> Maybe NeovimConfig
+    -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+restartDevelMain cfg mcfg = do
+    quitDevelMain cfg
+    develMain mcfg
 
 
 -- | Convenience function to run a stateless 'Neovim' function.
 runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either String a)
 runNeovim' cfg =
     fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
+
 
