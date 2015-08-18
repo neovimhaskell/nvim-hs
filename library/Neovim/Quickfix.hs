@@ -48,16 +48,21 @@ data QuickfixListItem strType = QFItem
     { bufOrFile     :: Either Int strType
     -- ^ Since the filename is only used if no buffer can be specified, this
     -- field is a merge of @bufnr@ and @filename@.
+
     , lnumOrPattern :: Either Int strType
     -- ^ Line number or search pattern to locate the error.
+
     , col           :: Maybe (Int, Bool)
     -- ^ A tuple of a column number and a boolean indicating which kind of
     -- indexing should be used. 'True' means that the visual column should be
     -- used. 'False' means to use the byte index.
+
     , nr            :: Maybe Int
     -- ^ Error number.
+
     , text          :: strType
     -- ^ Description of the error.
+
     , errorType     :: QuickfixErrorType
     -- ^ Type of error.
     } deriving (Eq, Show)
@@ -125,7 +130,7 @@ instance (Monoid strType, NvimObject strType)
         lnumOrPattern <- case (l "lnum", l "pattern") of
             (Right lnum, _) -> return $ Left lnum
             (_, Right pat)  -> return $ Right pat
-            _              -> throwError "No line number of search pattern inside quickfix list item."
+            _              -> throwError "No line number or search pattern inside quickfix list item."
         let l' :: NvimObject o => ByteString -> Either String (Maybe o)
             l' key = case Map.lookup key m of
                 Just o -> Just <$> fromObject o
@@ -144,13 +149,16 @@ instance (Monoid strType, NvimObject strType)
         text <- fromMaybe mempty <$> l' "text"
         errorType <- fromMaybe Error <$> l' "type"
         return QFItem{..}
+
     fromObject o = throwError $ "Could not deserialize QuickfixListItem, expected a map but received: " ++ show o
+
 
 data QuickfixAction
     = Append -- ^ Add items to the current list (or create a new one if none exists).
     | Replace -- ^ Replace current list (or create a new one if none exists).
     | New    -- ^ Create a new list.
     deriving (Eq, Ord, Enum, Bounded, Show)
+
 
 instance NvimObject QuickfixAction where
     toObject = \case
