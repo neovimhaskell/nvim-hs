@@ -20,7 +20,7 @@ Check the issue list here on github.
 
 All you need to know is inside the
 [Neovim](https://github.com/neovimhaskell/nvim-hs/blob/master/library/Neovim.hs)
-module ([hackage](http://hackage.haskell.org/package/nvim-hs-0.0.4/docs/Neovim.html)).
+module ([hackage](http://hackage.haskell.org/package/nvim-hs-0.0.5/docs/Neovim.html)).
 
 # Contributing
 
