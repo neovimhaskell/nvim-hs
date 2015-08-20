@@ -88,6 +88,7 @@ library
                       , Neovim.API.TH
   -- other-extensions:
   build-depends:        base >=4.6 && < 5
+                      , ansi-wl-pprint
                       , bytestring
                       , cereal
                       , cereal-conduit
@@ -136,6 +137,7 @@ test-suite hspec
                       , hspec-discover
                       , QuickCheck >=2.6
 
+                      , ansi-wl-pprint
                       , bytestring
                       , cereal
                       , cereal-conduit

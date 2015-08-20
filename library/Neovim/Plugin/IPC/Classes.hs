@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RecordWildCards           #-}
 {- |
 Module      :  Neovim.Plugin.IPC.Classes
 Description :  Classes used for Inter Plugin Communication
@@ -22,13 +23,14 @@ module Neovim.Plugin.IPC.Classes (
     module Data.Time,
     ) where
 
-import           Neovim.Plugin.Classes  (FunctionName)
+import           Neovim.Plugin.Classes        (FunctionName)
 
 import           Control.Concurrent.STM
-import           Data.Data              (Typeable, cast)
-import           Data.Int               (Int64)
+import           Data.Data                    (Typeable, cast)
+import           Data.Int                     (Int64)
 import           Data.MessagePack
 import           Data.Time
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 import           Prelude
 
@@ -63,6 +65,14 @@ data FunctionCall
 instance Message FunctionCall
 
 
+instance Pretty FunctionCall where
+    pretty (FunctionCall fname args _ t) =
+        nest 2 $ text "Function call for:" <+> pretty fname
+            <$$> text "Arguments:" <+> text (show args)
+            <$$> text "Timestamp:"
+                <+> (yellow . text . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
+
+
 -- | A request is a data type containing the method to call, its arguments and
 -- an identifier used to map the result to the function that has been called.
 data Request = Request
@@ -78,6 +88,13 @@ data Request = Request
 instance Message Request
 
 
+instance Pretty Request where
+    pretty Request{..} =
+        nest 2 $ text "Request" <+> (yellow . text . ('#':) . show) reqId
+            <$$> (text "Method:" <+> pretty reqMethod)
+            <$$> (text "Arguments:" <+> text (show reqArgs))
+
+
 -- | A notification is similar to a 'Request'. It essentially does the same
 -- thing, but the function is only called for its side effects. This type of
 -- message is sent by neovim if the caller there does not care about the result
@@ -91,4 +108,11 @@ data Notification = Notification
 
 
 instance Message Notification
+
+
+instance Pretty Notification where
+    pretty Notification{..} =
+        nest 2 $ text "Notification"
+            <$$> (text "Method:" <+> pretty notMethod)
+            <$$> (text "Arguments:" <+> text (show notArgs))
 

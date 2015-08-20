@@ -28,24 +28,30 @@ module Neovim.Plugin.Classes (
 
 import           Neovim.Classes
 
-import           Control.Applicative
+import           Control.Applicative          hiding (empty)
 import           Control.Monad.Error.Class
-import           Data.ByteString           (ByteString)
-import           Data.Char                 (isDigit)
+import           Data.ByteString              (ByteString)
+import           Data.ByteString.UTF8         (toString)
+import           Data.Char                    (isDigit)
 import           Data.Default
-import           Data.List                 (groupBy, sort)
-import qualified Data.Map                  as Map
+import           Data.List                    (groupBy, sort)
+import qualified Data.Map                     as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.String
-import           Data.Traversable          (sequence)
+import           Data.Traversable             (sequence)
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-import           Prelude                   hiding (sequence)
+import           Prelude                      hiding (sequence)
 
 
 -- | Essentially just a string.
 newtype FunctionName = F ByteString
     deriving (Eq, Ord, Show, Read)
+
+
+instance Pretty FunctionName where
+    pretty (F n) = blue . text $ toString n
 
 
 -- | Functionality specific functional description entries.
@@ -81,6 +87,20 @@ data FunctionalityDescription
     deriving (Show, Read, Eq, Ord)
 
 
+instance Pretty FunctionalityDescription where
+    pretty = \case
+        Function fname s ->
+            text "Function" <+> pretty s <+> pretty fname
+
+        Command fname copts ->
+            text "Command" <+> pretty copts <+> pretty fname
+
+        Autocmd t fname aopts ->
+            text "Autocmd" <+> (text . toString) t
+                <+> pretty aopts
+                <+> pretty fname
+
+
 -- | This option detemines how neovim should behave when calling some
 -- functionality on a remote host.
 data Synchronous
@@ -96,6 +116,12 @@ data Synchronous
     -- the neovim side. This means that the GUI will (probably) not
     -- allow any user input until a reult is received.
     deriving (Show, Read, Eq, Ord, Enum)
+
+
+instance Pretty Synchronous where
+    pretty = \case
+        Async -> red  $ text "async"
+        Sync  -> blue $ text "sync"
 
 
 instance IsString Synchronous where
@@ -158,6 +184,27 @@ data CommandOption = CmdSync Synchronous
     deriving (Eq, Ord, Show, Read)
 
 
+instance Pretty CommandOption where
+    pretty = \case
+        CmdSync s ->
+            pretty s
+
+        CmdRegister ->
+            text "\""
+
+        CmdNargs n ->
+            text n
+
+        CmdRange rs ->
+            pretty rs
+
+        CmdCount c ->
+            text (show c)
+
+        CmdBang ->
+            text "!"
+
+
 instance IsString CommandOption where
     fromString = \case
         "%"     -> CmdRange WholeFile
@@ -176,6 +223,10 @@ instance IsString CommandOption where
 newtype CommandOptions = CommandOptions { getCommandOptions :: [CommandOption] }
     deriving (Eq, Ord, Show, Read)
 
+
+instance Pretty CommandOptions where
+    pretty (CommandOptions os) =
+        cat $ map pretty os
 
 -- | Smart constructor for 'CommandOptions'. This sorts the command options and
 -- removes duplicate entries for semantically the same thing. Note that the
@@ -229,6 +280,18 @@ data RangeSpecification
     deriving (Eq, Ord, Show, Read)
 
 
+instance Pretty RangeSpecification where
+    pretty = \case
+        CurrentLine ->
+            empty
+
+        WholeFile ->
+            text "%"
+
+        RangeCount c ->
+            text $ show c
+
+
 instance NvimObject RangeSpecification where
     toObject = \case
         CurrentLine  -> ObjectBinary ""
@@ -262,6 +325,17 @@ data CommandArguments = CommandArguments
     }
     deriving (Eq, Ord, Show, Read)
 
+
+instance Pretty CommandArguments where
+    pretty CommandArguments{..} =
+        cat $ catMaybes
+            [ (\b -> if b then (text "!") else empty) <$> bang
+            , (\(s,e) -> lparen <> (text . show) s <> comma
+                         <+> (text . show) e <> rparen)
+                <$> range
+            , (text . show) <$> count
+            , (text . show) <$> register
+            ]
 
 instance Default CommandArguments where
     def = CommandArguments
@@ -311,6 +385,13 @@ data AutocmdOptions = AutocmdOptions
     -- ^ Group in which the autocmd should be registered.
     }
     deriving (Show, Read, Eq, Ord)
+
+
+instance Pretty AutocmdOptions where
+    pretty AutocmdOptions{..} =
+        text acmdPattern
+            <+> text (if acmdNested then "nested" else "unnested")
+            <> maybe empty (\g -> empty <+> text g) acmdGroup
 
 
 instance Default AutocmdOptions where

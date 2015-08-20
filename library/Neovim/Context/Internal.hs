@@ -36,6 +36,7 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.MessagePack             (Object)
 import           System.Log.Logger
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 import           Prelude
 
@@ -134,6 +135,12 @@ data FunctionType
     -- is the communication endpoint for the arguments we have to pass.
 
 
+instance Pretty FunctionType where
+    pretty = \case
+        Stateless _ -> blue $ text "\\os -> Neovim' o"
+        Stateful  _ -> green $ text "\\os -> Neovim r st o"
+
+
 -- | Type of the values stored in the function map.
 type FunctionMapEntry = (FunctionalityDescription, FunctionType)
 
@@ -193,6 +200,8 @@ data Config r st = Config
 
     -- Local settings; intialized for each stateful component
     , pluginSettings    :: Maybe (PluginSettings r st)
+    -- ^ In a registered functionality this field contains a function (and
+    -- possibly some context dependent values) to register new functionality.
 
     , customConfig      :: r
     -- ^ Plugin author supplyable custom configuration. Queried on the

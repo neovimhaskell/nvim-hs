@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE RecordWildCards    #-}
 {- |
 Module      :  Neovim.RPC.Classes
 Description :  Data types and classes for the RPC components
@@ -16,15 +17,16 @@ module Neovim.RPC.Classes
     ( Message (..),
     ) where
 
-import           Neovim.Classes            (NvimObject (..))
-import           Neovim.Plugin.Classes     (FunctionName (..))
-import qualified Neovim.Plugin.IPC.Classes as IPC
+import           Neovim.Classes               (NvimObject (..))
+import           Neovim.Plugin.Classes        (FunctionName (..))
+import qualified Neovim.Plugin.IPC.Classes    as IPC
 
 import           Control.Applicative
 import           Control.Monad.Error.Class
-import           Data.Data                 (Typeable)
-import           Data.Int                  (Int64)
-import           Data.MessagePack          (Object (..))
+import           Data.Data                    (Typeable)
+import           Data.Int                     (Int64)
+import           Data.MessagePack             (Object (..))
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 import           Prelude
 
@@ -52,6 +54,7 @@ data Message
 
 
 instance IPC.Message Message
+
 
 instance NvimObject Message where
     toObject = \case
@@ -92,5 +95,17 @@ instance NvimObject Message where
         o ->
             throwError $ "Not a known/valid msgpack-rpc message" ++ show o
 
+
+instance Pretty Message where
+    pretty = \case
+        Request request ->
+            pretty request
+
+        Response i ret ->
+            nest 2 $ text "Response" <+> (yellow . text . ('#':) . show) i
+                <$$> either (red . text . show) (green . text. show) ret
+
+        Notification notification ->
+            pretty notification
 
 

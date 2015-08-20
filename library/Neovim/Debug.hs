@@ -17,22 +17,29 @@ module Neovim.Debug (
     quitDevelMain,
     restartDevelMain,
 
+    printGlobalFunctionMap,
+
     runNeovim,
     runNeovim',
     module Neovim,
     ) where
 
 import           Neovim
-import           Neovim.Context          (runNeovim)
-import qualified Neovim.Context.Internal as Internal
-import           Neovim.Log              (disableLogger)
-import           Neovim.Main             (CommandLineOptions (..),
-                                          runPluginProvider)
-import           Neovim.RPC.Common       (RPCConfig)
+import           Neovim.Context               (runNeovim)
+import qualified Neovim.Context.Internal      as Internal
+import           Neovim.Log                   (disableLogger)
+import           Neovim.Main                  (CommandLineOptions (..),
+                                               runPluginProvider)
+import           Neovim.RPC.Common            (RPCConfig)
 
 import           Control.Concurrent
+import           Control.Concurrent.STM
 import           Control.Monad
+import qualified Data.Map                     as Map
 import           Foreign.Store
+import           System.IO                    (stdout)
+import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.ANSI.Leijen as Pretty
 
 import           Prelude
 
@@ -157,5 +164,20 @@ restartDevelMain cfg mcfg = do
 runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either String a)
 runNeovim' cfg =
     fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
+
+
+-- | Print the global function map to the console.
+printGlobalFunctionMap :: Internal.Config r st -> IO ()
+printGlobalFunctionMap cfg = do
+    es <- fmap Map.toList . atomically $ readTMVar (Internal.globalFunctionMap cfg)
+    let header = text "Printing global function map:"
+        funs   = map (\(fname, (d, f)) ->
+                    nest 3 (pretty fname
+                    </> text "->"
+                    </> pretty d <+> text ":"
+                    <+> pretty f)) es
+    displayIO stdout . renderPretty 0.4 80 $
+        nest 2 (header <$$> vcat funs)
+            <$$> Pretty.empty
 
 
