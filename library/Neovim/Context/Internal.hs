@@ -134,6 +134,7 @@ data FunctionType
     -- is the communication endpoint for the arguments we have to pass.
 
 
+-- | Type of the values stored in the function map.
 type FunctionMapEntry = (FunctionalityDescription, FunctionType)
 
 
@@ -168,10 +169,10 @@ data Config r st = Config
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
 
-    , quit              :: MVar QuitAction
+    , transitionTo      :: MVar StateTransition
     -- ^ The main thread will wait for this 'MVar' to be filled with a value
     -- and then perform an action appropriate for the value of type
-    -- 'QuitAction'.
+    -- 'StateTransition'.
 
     , providerName      :: TMVar (Either String Int)
     -- ^ Since nvim-hs must have its "Neovim.RPC.SocketReader" and
@@ -245,17 +246,18 @@ newConfig ioProviderName r = Config
     <*> r
 
 
-data QuitAction = Quit
-                -- ^ Quit the plugin provider.
+-- | The state that the plugin provider wants to transition to.
+data StateTransition
+    = Quit
+    -- ^ Quit the plugin provider.
 
-                | Restart
-                -- ^ Restart the plugin provider.
+    | Restart
+    -- ^ Restart the plugin provider.
 
-                | Failure String
-                -- ^ The plugin provider failed to start or some other error
-                -- occured.
+    | Failure String
+    -- ^ The plugin provider failed to start or some other error occured.
 
-                | InitSuccess
-                -- ^ The plugin provider started successfully.
+    | InitSuccess
+    -- ^ The plugin provider started successfully.
 
-                deriving (Show, Read, Eq, Ord)
+    deriving (Show, Read, Eq, Ord)

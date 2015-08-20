@@ -39,6 +39,13 @@ import           Prelude
 -- can be sent to other plugins.
 data SomeMessage = forall msg. Message msg => SomeMessage msg
 
+
+-- | This class allows type safe casting of 'SomeMessage' to an actual message.
+-- The cast is successful if the type you're expecting matches the type in the
+-- 'SomeMessage' wrapper. This way, you can subscribe to an arbitrary message
+-- type withouth having to pattern match on the constructors. This also allows
+-- plugin authors to create their own message types without having to change the
+-- core code of /nvim-hs/.
 class Typeable message => Message message where
     -- | Try to convert a given message to a value of the message type we are
     -- interested in. Will evaluate to 'Nothing' for any other type.

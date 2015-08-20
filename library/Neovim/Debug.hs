@@ -48,9 +48,9 @@ import           Prelude
 -- automatically set.
 debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
 debug r st a = disableLogger $ do
-    runPluginProvider def { env = True } Nothing finalizer Nothing
+    runPluginProvider def { env = True } Nothing transitionHandler Nothing
   where
-    finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
+    transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Internal.Failure e ->
             return $ Left e
 
@@ -64,7 +64,7 @@ debug r st a = disableLogger $ do
             return res
 
         _ ->
-            return $ Left "Unexpected finalizer state."
+            return $ Left "Unexpected transition state."
 
 
 -- | Run a 'Neovim'' function.
@@ -106,22 +106,22 @@ develMain
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
-                runPluginProvider def { env = True } mcfg finalizer Nothing
+                runPluginProvider def { env = True } mcfg transitionHandler Nothing
         void $ newStore x
         return x
 
     Just x ->
         readStore x
   where
-    finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
+    transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Internal.Failure e ->
             return $ Left e
 
         Internal.InitSuccess -> do
-            finalizerThread <- forkIO $ do
+            transitionHandlerThread <- forkIO $ do
                 myTid <- myThreadId
-                void $ finalizer (myTid:tids) cfg
-            return $ Right (finalizerThread:tids, cfg)
+                void $ transitionHandler (myTid:tids) cfg
+            return $ Right (transitionHandlerThread:tids, cfg)
 
         Internal.Quit -> do
             lookupStore 0 >>= \case
@@ -135,12 +135,12 @@ develMain mcfg = lookupStore 0 >>= \case
             return $ Left "Quit develMain"
 
         _ ->
-            return $ Left "Unexpected finalizer state for develMain."
+            return $ Left "Unexpected transition state for develMain."
 
 
 -- | Quit a previously started plugin provider.
 quitDevelMain :: Internal.Config r st -> IO ()
-quitDevelMain cfg = putMVar (Internal.quit cfg) Internal.Quit
+quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
 
 
 -- | Restart the development plugin provider.

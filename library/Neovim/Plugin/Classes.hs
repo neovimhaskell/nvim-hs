@@ -177,6 +177,10 @@ newtype CommandOptions = CommandOptions { getCommandOptions :: [CommandOption] }
     deriving (Eq, Ord, Show, Read)
 
 
+-- | Smart constructor for 'CommandOptions'. This sorts the command options and
+-- removes duplicate entries for semantically the same thing. Note that the
+-- smallest option stays for whatever ordering is defined. It is best to simply
+-- not define the same thing multiple times.
 mkCommandOptions :: [CommandOption] -> CommandOptions
 mkCommandOptions = CommandOptions . map head . groupBy constructor . sort
   where
@@ -211,10 +215,18 @@ instance NvimObject CommandOptions where
         "Did not expect to receive a CommandOptions object: " ++ show o
 
 
-data RangeSpecification = CurrentLine
-                        | WholeFile
-                        | RangeCount Int
-                        deriving (Eq, Ord, Show, Read)
+-- | Specification of a range that acommand can operate on.
+data RangeSpecification
+    = CurrentLine
+    -- ^ The line the cursor is at when the command is invoked.
+
+    | WholeFile
+    -- ^ Let the command operate on every line of the file.
+
+    | RangeCount Int
+    -- ^ Let the command operate on each line in the given range.
+
+    deriving (Eq, Ord, Show, Read)
 
 
 instance NvimObject RangeSpecification where
@@ -284,6 +296,8 @@ instance NvimObject CommandArguments where
         throwError $ "Expected a map for CommandArguments object, but got: " ++ show o
 
 
+-- | Options that can be used to register an autocmd. See @:h :autocmd@ or any
+-- referenced neovim help-page from the fields of this data type.
 data AutocmdOptions = AutocmdOptions
     { acmdPattern :: String
     -- ^ Pattern to match on. (default: \"*\")

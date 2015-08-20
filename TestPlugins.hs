@@ -12,16 +12,16 @@ import           Control.Concurrent        (takeMVar, killThread)
 -- The script `TestPlugins.vim` comments how these functions should behave.
 
 main :: IO ()
-main = realMain finalizer Nothing defaultConfig
+main = realMain transitionHandler Nothing defaultConfig
     { plugins = [ randPlugin ]
     }
+  where
+    transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
+        Internal.InitSuccess ->
+            transitionHandler tids cfg
 
-finalizer tids cfg = takeMVar (Internal.quit cfg) >>= \case
-    Internal.InitSuccess ->
-        finalizer tids cfg
-
-    _ ->
-        mapM_ killThread tids
+        _ ->
+            mapM_ killThread tids
 
 randPlugin :: Neovim (StartupConfig NeovimConfig) () NeovimPlugin
 randPlugin = do

@@ -19,6 +19,9 @@ import           Neovim.Plugin.Startup  (StartupConfig)
 
 import           System.Log             (Priority (..))
 
+-- | This data type contins information about the configuration of neovim. See
+-- the fields' documentation for what you possibly want to change. Also, the
+-- tutorial in the "Neovim" module should get you started.
 data NeovimConfig = Config
     { plugins      :: [Neovim (StartupConfig NeovimConfig) () NeovimPlugin]
     -- ^ The list of plugins. The IO type inside the list allows the plugin

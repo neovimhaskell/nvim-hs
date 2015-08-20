@@ -38,12 +38,19 @@ import           Data.Monoid
 
 import           Prelude
 
+-- | Simply fail and call 'error' in case an unexpected exception is thrown.
+-- This fails with a runtime exception. It is used by the Template Haskell API
+-- generator for functions that are defined as not being able to fail. If this
+-- exception occurs, it is a bug in neovim.
 unexpectedException :: String -> err -> a
 unexpectedException fn _ = error $
     "Function threw an exception even though it was declared not to throw one: "
     <> fn
 
 
+-- | Strip the error result from the function call. This should only be used by
+-- the Template Haskell API generated code for functions that declare
+-- themselves as unfailable.
 withIgnoredException :: (Functor f, NvimObject result)
                      => FunctionName -- ^ For better error messages
                      -> f (Either err result)
@@ -70,6 +77,9 @@ acall fn parameters = do
             Right r -> Right r
 
 
+
+-- | Helper function similar to 'acall' that throws a runtime exception if the
+-- result is an error object.
 acall' :: (NvimObject result)
        => FunctionName
        -> [Object]
@@ -87,6 +97,8 @@ scall :: (NvimObject result)
 scall fn parameters = acall fn parameters >>= atomically'
 
 
+-- | Helper function similar to 'scall' that throws a runtime exception if the
+-- result is an error object.
 scall' :: NvimObject result => FunctionName -> [Object] -> Neovim r st result
 scall' fn = withIgnoredException fn . scall fn
 

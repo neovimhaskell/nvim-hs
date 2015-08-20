@@ -1,3 +1,9 @@
+# 0.0.4
+
+* Documentation received some love.
+
+* A few renames of repurposed internals.
+
 # 0.0.3
 
 * Debugging facilities for ghci have been added. Check out the

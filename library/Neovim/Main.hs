@@ -127,31 +127,36 @@ neovim =
     in Dyre.wrapMain params
 
 
-type Finalizer a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
+-- | A 'TransitionHandler' function receives the 'ThreadId's of all running
+-- threads which have been started by the plugin provider as well as the
+-- 'Internal.Config' with the custom field set to 'RPCConfig'. These information
+-- can be used to properly clean up a session and then do something else.
+-- The transition handler is first called after the plugin provider has started.
+type TransitionHandler a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
 
 
 -- | This main functions can be used to create a custom executable without
 -- using the "Config.Dyre" library while still using the /nvim-hs/ specific
 -- configuration facilities.
-realMain :: Finalizer a
+realMain :: TransitionHandler a
          -> Maybe (Dyre.Params NeovimConfig)
          -> NeovimConfig
          -> IO ()
-realMain finalizer mParams cfg = do
+realMain transitionHandler mParams cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
         debugM logger "Starting up neovim haskell plguin provider"
-        void $ runPluginProvider os (Just cfg) finalizer mParams
+        void $ runPluginProvider os (Just cfg) transitionHandler mParams
 
 
 -- | Generic main function. Most arguments are optional or have sane defaults.
 runPluginProvider
     :: CommandLineOptions -- ^ See /nvim-hs/ executables --help function or 'optParser'
     -> Maybe NeovimConfig
-    -> Finalizer a
+    -> TransitionHandler a
     -> Maybe (Dyre.Params NeovimConfig)
     -> IO a
-runPluginProvider os mcfg finalizer mDyreParams = case (hostPort os, unix os) of
+runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, unix os) of
     (Just (h,p), _) ->
         createHandle (TCP p h) >>= \s -> run s s
 
@@ -190,19 +195,21 @@ runPluginProvider os mcfg finalizer mDyreParams = case (hostPort os, unix os) of
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
                 errorM logger $ "Error initializing plugins: " <> e
-                putMVar (Internal.quit conf) $ Internal.Failure e
-                finalizer [ehTid, srTid] conf
+                putMVar (Internal.transitionTo conf) $ Internal.Failure e
+                transitionHandler [ehTid, srTid] conf
 
             Right (funMapEntries, pluginTids) -> do
                 atomically $ putTMVar
                                 (Internal.globalFunctionMap conf)
                                 (Internal.mkFunctionMap funMapEntries)
-                putMVar (Internal.quit conf) $ Internal.InitSuccess
-                finalizer (srTid:ehTid:pluginTids) conf
+                putMVar (Internal.transitionTo conf) $ Internal.InitSuccess
+                transitionHandler (srTid:ehTid:pluginTids) conf
 
 
-finishDyre :: Finalizer ()
-finishDyre threads cfg = takeMVar (Internal.quit cfg) >>= \case
+-- | If the plugin provider is started with dyre, this handler is used to
+-- handle a restart.
+finishDyre :: TransitionHandler ()
+finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
     Internal.InitSuccess -> do
         debugM logger "Waiting for threads to finish."
         finishDyre threads cfg

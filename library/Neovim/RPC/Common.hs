@@ -106,6 +106,8 @@ createHandle = \case
                 error errMsg
 
 
+-- | Close the handle and print a warning if the conduit chain has been
+-- interrupted prematurely.
 cleanUpHandle :: (MonadIO io) => Handle -> Bool -> io ()
 cleanUpHandle h completed = liftIO $ do
     hClose h

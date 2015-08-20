@@ -51,8 +51,11 @@ import           Control.Monad.State
 import           Data.Data               (Typeable)
 
 
+-- | Exceptions specific to /nvim-hs/.
 data NeovimException
     = ErrorMessage String
+    -- ^ Simply error message that is passed to neovim. It should currently only
+    -- contain one line of text.
     deriving (Typeable, Show)
 
 instance Exception NeovimException
@@ -65,10 +68,10 @@ err = throw . ErrorMessage
 
 -- | Initiate a restart of the plugin provider.
 restart :: Neovim r st ()
-restart = liftIO . flip putMVar Internal.Restart =<< Internal.asks' Internal.quit
+restart = liftIO . flip putMVar Internal.Restart =<< Internal.asks' Internal.transitionTo
 
 
 -- | Initiate the termination of the plugin provider.
 quit :: Neovim r st ()
-quit = liftIO . flip putMVar Internal.Quit =<< Internal.asks' Internal.quit
+quit = liftIO . flip putMVar Internal.Quit =<< Internal.asks' Internal.transitionTo
 

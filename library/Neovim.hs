@@ -519,7 +519,7 @@ After you have saved these files (and removed any typos @:-)@), you can restart
 /nvim-hs/ with @:RestartNvimhs@ and insert random numbers in your text files!
 
 @
-<C-r>=NextRandom()
+\<C-r\>=NextRandom()
 @
 
 You can also cheat and pretend you know the next number:
