@@ -26,21 +26,24 @@ module Neovim.Classes
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Monad.Except
-import           Data.ByteString      (ByteString)
-import           Data.Int             (Int16, Int32, Int64, Int8)
-import           Data.Map             (Map)
-import qualified Data.Map             as Map
+import           Data.ByteString              (ByteString)
+import           Data.Int                     (Int16, Int32, Int64, Int8)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.Text            as Text (Text)
-import           Data.Traversable     hiding (forM, mapM)
-import           Data.Word            (Word, Word16, Word32, Word64, Word8)
+import           Data.Text                    as Text (Text)
+import           Data.Traversable             hiding (forM, mapM)
+import           Data.Word                    (Word, Word16, Word32, Word64,
+                                               Word8)
+import           Text.PrettyPrint.ANSI.Leijen (Doc, displayS, renderPretty,
+                                               text)
 
 import           Prelude
 
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
-import qualified Data.ByteString.UTF8 as U (fromString, toString)
-import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
+import qualified Data.ByteString.UTF8         as U (fromString, toString)
+import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
 
 
 -- | A generic vim dictionary is a simply a map from strings to objects.  This
@@ -278,6 +281,12 @@ instance NvimObject Object where
 
     fromObject = return
     fromObjectUnsafe = id
+
+
+instance NvimObject Doc where
+    toObject d = toObject $ displayS (renderPretty 1.0 240 d) ""
+
+    fromObject = fmap text . fromObject
 
 
 -- By the magic of vim, i will create these.
