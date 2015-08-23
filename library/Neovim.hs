@@ -248,8 +248,14 @@ please create an issue on github (or even better, a pull request with a fix @;-)
 The code sections that describe new functionality are followed by the source code
 documentation of the used functions (and possibly a few more).
 
+The config directory location adheres to the
+<http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html XDG-basedir specification>.
+Unless you have changed some \$XDG_\* environment variables, the configuration
+directory on unixoid systems (e.g. MacOS X, most GNU/Linux distribution, most
+BSD distributions) is @\$HOME\/.config\/nvim@.
+
 Create a file called @nvim.hs@ in @\$XDG_CONFIG_HOME\/nvim@ (usually
-@~\/.config\/nvim@ with the following content:
+@~\/.config\/nvim@) with the following content:
 
 @
 import Neovim
