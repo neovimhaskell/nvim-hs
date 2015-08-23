@@ -60,7 +60,7 @@ spec = parallel $ do
         liftIO $ length bs2 `shouldBe` 3
 
     it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
-        let q = quickfixListItem (Left 1) (Left 1337) :: QuickfixListItem String
+        let q = quickfixListItem (Left 1) (Left 0) :: QuickfixListItem String
         setqflist [q] Replace
         Right q' <- vim_eval "getqflist()"
         liftIO $ fromObject q' `shouldBe` Right [q]
