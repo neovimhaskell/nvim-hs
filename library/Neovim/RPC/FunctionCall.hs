@@ -25,13 +25,14 @@ module Neovim.RPC.FunctionCall (
 
 import           Neovim.Classes
 import           Neovim.Context
-import qualified Neovim.Context.Internal    as Internal
-import           Neovim.Plugin.Classes      (FunctionName)
+import qualified Neovim.Context.Internal   as Internal
+import           Neovim.Plugin.Classes     (FunctionName)
 import           Neovim.Plugin.IPC.Classes
-import qualified Neovim.RPC.Classes         as MsgpackRPC
+import qualified Neovim.RPC.Classes        as MsgpackRPC
 
 import           Control.Applicative
 import           Control.Concurrent.STM
+import           Control.Exception         (throw)
 import           Control.Monad.Reader
 import           Data.MessagePack
 import           Data.Monoid
@@ -127,7 +128,7 @@ waitErr :: (Show e)
         => String                              -- ^ Prefix error message with this.
         -> Neovim r st (STM (Either e result)) -- ^ Function call to neovim
         -> Neovim r st result
-waitErr loc act = wait act >>= either (err . (loc++) . show) return
+waitErr loc act = wait act >>= either (throw . ErrorMessage . Left . (loc++) . show) return
 
 
 -- | 'waitErr' that discards the result.

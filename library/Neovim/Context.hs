@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE LambdaCase         #-}
 {- |
 Module      :  Neovim.Context
 Description :  The Neovim context
@@ -38,7 +36,9 @@ module Neovim.Context (
 
 
 import           Neovim.Context.Internal (FunctionMap, FunctionMapEntry, Neovim,
-                                          Neovim', forkNeovim, mkFunctionMap,
+                                          Neovim',
+                                          NeovimException (ErrorMessage),
+                                          forkNeovim, mkFunctionMap,
                                           newUniqueFunctionName, runNeovim)
 import qualified Neovim.Context.Internal as Internal
 
@@ -48,22 +48,12 @@ import           Control.Monad.Except
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Data.Data               (Typeable)
 
 
--- | Exceptions specific to /nvim-hs/.
-data NeovimException
-    = ErrorMessage String
-    -- ^ Simply error message that is passed to neovim. It should currently only
-    -- contain one line of text.
-    deriving (Typeable, Show)
-
-instance Exception NeovimException
-
-
--- | @throw . ErrorMessage@
-err :: String ->  Neovim r st a
-err = throw . ErrorMessage
+-- | @'throw'@ specialized to 'NeovimException'. This allows you to use the
+-- 'IsString' instance to conventiently print error messages in neovim.
+err :: NeovimException ->  Neovim r st a
+err = throw
 
 
 -- | Initiate a restart of the plugin provider.

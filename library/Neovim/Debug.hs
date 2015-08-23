@@ -53,7 +53,7 @@ import           Prelude
 --
 -- Tip: If you run a terminal inside a neovim instance, then this variable is
 -- automatically set.
-debug :: r -> st -> Internal.Neovim r st a -> IO (Either String (a, st))
+debug :: r -> st -> Internal.Neovim r st a -> IO (Either Doc (a, st))
 debug r st a = disableLogger $ do
     runPluginProvider def { env = True } Nothing transitionHandler Nothing
   where
@@ -71,7 +71,7 @@ debug r st a = disableLogger $ do
             return res
 
         _ ->
-            return $ Left "Unexpected transition state."
+            return . Left $ text "Unexpected transition state."
 
 
 -- | Run a 'Neovim'' function.
@@ -81,7 +81,7 @@ debug r st a = disableLogger $ do
 -- @
 --
 -- See documentation for 'debug'.
-debug' :: Internal.Neovim' a -> IO (Either String a)
+debug' :: Internal.Neovim' a -> IO (Either Doc a)
 debug' a = fmap fst <$> debug () () a
 
 
@@ -109,7 +109,7 @@ debug' a = fmap fst <$> debug () () a
 --
 develMain
     :: Maybe NeovimConfig
-    -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+    -> IO (Either Doc ([ThreadId], Internal.Config RPCConfig ()))
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
@@ -139,10 +139,10 @@ develMain mcfg = lookupStore 0 >>= \case
                     deleteStore x
 
             mapM_ killThread tids
-            return $ Left "Quit develMain"
+            return . Left $ text "Quit develMain"
 
         _ ->
-            return $ Left "Unexpected transition state for develMain."
+            return . Left $ text "Unexpected transition state for develMain."
 
 
 -- | Quit a previously started plugin provider.
@@ -154,14 +154,14 @@ quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
 restartDevelMain
     :: Internal.Config RPCConfig ()
     -> Maybe NeovimConfig
-    -> IO (Either String ([ThreadId], Internal.Config RPCConfig ()))
+    -> IO (Either Doc ([ThreadId], Internal.Config RPCConfig ()))
 restartDevelMain cfg mcfg = do
     quitDevelMain cfg
     develMain mcfg
 
 
 -- | Convenience function to run a stateless 'Neovim' function.
-runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either String a)
+runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either Doc a)
 runNeovim' cfg =
     fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
 

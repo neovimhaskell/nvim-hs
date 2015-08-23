@@ -26,7 +26,7 @@ call f args = do
     res <- fmap fst <$> runNeovim cfg () (f args)
     case res of
         Right x -> return x
-        Left e -> throw $ ErrorMessage e
+        Left e -> throw . ErrorMessage $ Right e
 
 
 isNeovimException :: NeovimException -> Bool

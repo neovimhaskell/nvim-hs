@@ -13,28 +13,29 @@ module Neovim.Main
     where
 
 import           Neovim.Config
-import qualified Neovim.Context.Internal    as Internal
+import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log
-import           Neovim.Plugin              as P
-import           Neovim.Plugin.Startup      (StartupConfig(..))
-import           Neovim.RPC.Common          as RPC
+import           Neovim.Plugin           as P
+import           Neovim.Plugin.Startup   (StartupConfig (..))
+import           Neovim.RPC.Common       as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
+import           Neovim.Util             (oneLineErrorMessage)
 
-import qualified Config.Dyre                as Dyre
-import qualified Config.Dyre.Relaunch       as Dyre
+import qualified Config.Dyre             as Dyre
+import qualified Config.Dyre.Relaunch    as Dyre
 import           Control.Concurrent
-import           Control.Concurrent.STM     (putTMVar, atomically)
+import           Control.Concurrent.STM  (atomically, putTMVar)
 import           Control.Monad
 import           Data.Default
 import           Data.Maybe
 import           Data.Monoid
 import           Options.Applicative
-import           System.IO                  (stdin, stdout)
+import           System.IO               (stdin, stdout)
 import           System.SetEnv
 
-import           System.Environment
 import           Prelude
+import           System.Environment
 
 
 logger :: String
@@ -194,7 +195,7 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
                             conf
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
-                errorM logger $ "Error initializing plugins: " <> e
+                errorM logger $ "Error initializing plugins: " <> oneLineErrorMessage e
                 putMVar (Internal.transitionTo conf) $ Internal.Failure e
                 transitionHandler [ehTid, srTid] conf
 
@@ -220,7 +221,7 @@ finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Dyre.relaunchMaster Nothing
 
     Internal.Failure e ->
-        errorM logger e
+        errorM logger $ oneLineErrorMessage e
 
     Internal.Quit ->
         return ()

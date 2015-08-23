@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -31,10 +32,12 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
-import           Data.ByteString.UTF8         (fromString)
+import qualified Data.ByteString.UTF8         as U (fromString)
+import           Data.Data                    (Typeable)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.MessagePack             (Object)
+import           Data.String                  (IsString (..))
 import           System.Log.Logger
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
@@ -84,16 +87,42 @@ asks' = Neovim . asks
 type Neovim' = Neovim () ()
 
 
+-- | Exceptions specific to /nvim-hs/.
+data NeovimException
+    = ErrorMessage (Either String Doc)
+    -- ^ Simply error message that is passed to neovim. It should currently only
+    -- contain one line of text.
+    deriving (Typeable, Show)
+
+
+instance Exception NeovimException
+
+
+instance IsString NeovimException where
+    fromString = ErrorMessage . Left
+
+
+instance Pretty NeovimException where
+    pretty = \case
+        ErrorMessage (Left s)  -> text s
+        ErrorMessage (Right s) -> s
+
+
+
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: Config r st
           -> st
           -> Neovim r st a
-          -> IO (Either String (a, st))
+          -> IO (Either Doc (a, st))
 runNeovim r st (Neovim a) = (try . runReaderT (runStateT (runResourceT a) st)) r >>= \case
-    Left e -> do
-        liftIO . errorM "Context" $ "Converting Exception to Error message: " ++ show e
-        return . Left $ show (e :: SomeException)
-    Right res -> return $ Right res
+    Left e -> case fromException e of
+        Just e' ->
+            return . Left . pretty $ (e' :: NeovimException)
+
+        Nothing -> do
+            liftIO . errorM "Context" $ "Converting Exception to Error message: " ++ show e
+            (return . Left . text . show) e
+    Right res -> (return . Right) res
 
 
 -- | Fork a neovim thread with the given custom config value and a custom
@@ -118,7 +147,7 @@ newUniqueFunctionName = do
     tu <- asks' uniqueCounter
     -- reverseing the integer string should distribute the first character more
     -- evently and hence cause faster termination for comparisons.
-    fmap (F . fromString . reverse . show) . liftIO . atomically $ do
+    fmap (F . U.fromString . reverse . show) . liftIO . atomically $ do
         u <- readTVar tu
         modifyTVar' tu succ
         return u
@@ -263,10 +292,10 @@ data StateTransition
     | Restart
     -- ^ Restart the plugin provider.
 
-    | Failure String
+    | Failure Doc
     -- ^ The plugin provider failed to start or some other error occured.
 
     | InitSuccess
     -- ^ The plugin provider started successfully.
 
-    deriving (Show, Read, Eq, Ord)
+    deriving (Show)

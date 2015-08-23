@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {- |
@@ -57,6 +58,7 @@ import           Data.Maybe                   (catMaybes)
 import           Data.MessagePack
 import           Data.Traversable             (forM)
 import           System.Log.Logger
+import           Text.PrettyPrint.ANSI.Leijen (Doc)
 
 import           Prelude
 
@@ -70,7 +72,7 @@ type StartupConfig = Plugin.StartupConfig NeovimConfig
 
 startPluginThreads :: Internal.Config StartupConfig ()
                    -> [Neovim StartupConfig () NeovimPlugin]
-                   -> IO (Either String ([FunctionMapEntry],[ThreadId]))
+                   -> IO (Either Doc ([FunctionMapEntry],[ThreadId]))
 startPluginThreads cfg = fmap (fmap fst)
     . runNeovim cfg ()
     . foldM go ([], [])
@@ -335,7 +337,7 @@ registerStatefulFunctionality (r, st, fs) = do
     res <- liftIO . runNeovim startupConfig st . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
-        Left e -> err e
+        Left e -> (err . ErrorMessage . Right) e
         Right (a,_) -> return $ catMaybes a
 
     let pluginThreadConfig = cfg

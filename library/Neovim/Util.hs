@@ -14,6 +14,7 @@ module Neovim.Util (
     withCustomEnvironment,
     whenM,
     unlessM,
+    oneLineErrorMessage,
     ) where
 
 import           Control.Monad       (forM, forM_, when, unless)
@@ -21,6 +22,7 @@ import           Control.Monad.Catch (MonadMask, bracket)
 import           Neovim.Context
 import           System.SetEnv
 import           System.Environment
+import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 
 -- | Execute the given action with a changed set of environment variables and
@@ -50,3 +52,9 @@ whenM mp a = mp >>= \p -> when p a
 -- | 'unless' with a monadic predicate.
 unlessM :: (Monad m) => m Bool -> m () -> m ()
 unlessM mp a = mp >>= \p -> unless p a
+
+
+oneLineErrorMessage :: P.Doc -> String
+oneLineErrorMessage d = case lines $ P.displayS (P.renderCompact d) "" of
+    (x:_) -> x
+    []    -> ""
