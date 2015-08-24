@@ -63,5 +63,5 @@ spec = parallel $ do
         let q = quickfixListItem (Left 1) (Left 0) :: QuickfixListItem String
         setqflist [q] Replace
         Right q' <- vim_eval "getqflist()"
-        liftIO $ fromObject q' `shouldBe` Right [q]
+        liftIO $ fromObjectUnsafe q' `shouldBe` [q]
 

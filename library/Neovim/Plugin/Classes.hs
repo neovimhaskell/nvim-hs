@@ -262,7 +262,7 @@ instance NvimObject CommandOptions where
             CmdNargs n    -> Just ("nargs"   , toObject n)
             _             -> Nothing
 
-    fromObject o = throwError $
+    fromObject o = throwError . text $
         "Did not expect to receive a CommandOptions object: " ++ show o
 
 
@@ -367,7 +367,7 @@ instance NvimObject CommandArguments where
 
     fromObject ObjectNil = return def
     fromObject o =
-        throwError $ "Expected a map for CommandArguments object, but got: " ++ show o
+        throwError . text $ "Expected a map for CommandArguments object, but got: " ++ show o
 
 
 -- | Options that can be used to register an autocmd. See @:h :autocmd@ or any
@@ -410,7 +410,7 @@ instance NvimObject AutocmdOptions where
             ] ++ catMaybes
             [ acmdGroup >>= \g -> return ("group", toObject g)
             ]
-    fromObject o = throwError $
+    fromObject o = throwError . text $
         "Did not expect to receive an AutocmdOptions object: " ++ show o
 
 -- | Conveniennce class to extract a name from some value.

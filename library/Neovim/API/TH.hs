@@ -40,7 +40,7 @@ import           Neovim.RPC.FunctionCall
 import           Language.Haskell.TH
 
 import           Control.Applicative
-import           Control.Arrow
+import           Control.Arrow (first)
 import           Control.Concurrent.STM   (STM)
 import           Control.Exception
 import           Control.Exception.Lifted
@@ -56,6 +56,7 @@ import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Set                 as Set
 import           Data.Text                (Text)
+import           Text.PrettyPrint.ANSI.Leijen (text, (<+>))
 
 import           Prelude
 
@@ -69,7 +70,7 @@ import           Prelude
 -- 'ByteString' or 'String'.
 generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
-    api <- either fail return =<< runIO parseAPI
+    api <- either (fail . show) return =<< runIO parseAPI
     let exceptionName = mkName "NeovimExceptionGen"
         exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
         customTypesN = first mkName <$> customTypes api
@@ -226,7 +227,10 @@ customTypeInstance typeName nis =
             let n = nameBase typeName
             clause
                 [ varP o ]
-                (normalB [|Left $ "Object is not convertible to: " <> n <> " Received: " <> show $(varE o)|])
+                (normalB [|throwError $
+                            text "Object is not convertible to:"
+                            <+> text n
+                            <+> text "Received:" <+> (text . show) $(varE o)|])
                 []
 
         toObjectClause :: Name -> Int64 -> Q Clause
@@ -480,6 +484,6 @@ functionImplementation functionName = do
     failedEvaluation :: Q Match
     failedEvaluation = newName "e" >>= \e ->
         match (conP (mkName "Left") [varP e])
-              (normalB [|(throw . ErrorMessage . Left) $(varE e)|])
+              (normalB [|(throw . ErrorMessage . Right) $(varE e)|])
               []
 

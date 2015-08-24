@@ -22,15 +22,17 @@ import           Neovim.Classes
 import           Control.Applicative
 import           Control.Exception.Lifted
 import           Control.Monad.Except
-import qualified Data.ByteString          as B
-import           Data.Map                 (Map)
-import qualified Data.Map                 as Map
+import qualified Data.ByteString              as B
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Serialize
-import           System.IO                (hClose)
+import           System.IO                    (hClose)
 import           System.Process
-import           Text.Parsec              as P
+import           Text.Parsec                  as P
+import           Text.PrettyPrint.ANSI.Leijen (Doc)
+import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import           Prelude
 
@@ -79,11 +81,15 @@ data NeovimAPI
     deriving (Show)
 
 -- | Run @nvim --api-info@ and parse its output.
-parseAPI :: IO (Either String NeovimAPI)
-parseAPI = join . fmap extractAPI <$> decodeAPI
+parseAPI :: IO (Either Doc NeovimAPI)
+parseAPI = decodeAPI >>= \case
+    Left e ->
+        (return . Left . P.text) e
 
+    Right o ->
+        (return . extractAPI) o
 
-extractAPI :: Object -> Either String NeovimAPI
+extractAPI :: Object -> Either Doc NeovimAPI
 extractAPI apiObj = NeovimAPI
     <$> extractErrorTypes apiObj
     <*> extractCustomTypes apiObj
@@ -105,22 +111,22 @@ decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
         terminateProcess ph
 
 
-oMap :: Object -> Either String (Map Object Object)
+oMap :: Object -> Either Doc (Map Object Object)
 oMap = \case
     ObjectMap m ->
         return m
 
     o ->
-        throwError $ "Object is not a map: " ++ show o
+        throwError . P.text $ "Object is not a map: " ++ show o
 
 
-oLookup :: Object -> Object -> Either String Object
+oLookup :: Object -> Object -> Either Doc Object
 oLookup qry o = oMap o
-    >>= maybe (throwError ("No entry for" <> show qry)) return
+    >>= maybe (throwError (P.text ("No entry for" <> show qry))) return
         . Map.lookup qry
 
 
-oLookupDefault :: Object -> Object -> Object -> Either String Object
+oLookupDefault :: Object -> Object -> Object -> Either Doc Object
 oLookupDefault d qry o = oMap o
     >>= maybe (return d) return . Map.lookup qry
 
@@ -128,7 +134,7 @@ oLookupDefault d qry o = oMap o
 -- | Extract a 'String' from on 'Object'.
 --
 -- Works on @ObjectBinary@ and @ObjectString@ constructor.
-oToString :: Object -> Either String String
+oToString :: Object -> Either Doc String
 oToString = fromObject
     -- ObjectBinary bs -> return $ U.toString bs
     -- ObjectString t  -> return $ U.toString t
@@ -137,24 +143,24 @@ oToString = fromObject
 
 -- | Extract an 'Int64' from an @Object@.
 --
-oInt :: Object -> Either String Int64
+oInt :: Object -> Either Doc Int64
 oInt = fromObject
 
 
-oArr :: Object -> Either String [Object]
+oArr :: Object -> Either Doc [Object]
 oArr = fromObject
 
 
-oToBool :: Object -> Either String Bool
+oToBool :: Object -> Either Doc Bool
 oToBool = fromObject
 
 
-extractErrorTypes :: Object -> Either String [(String, Int64)]
+extractErrorTypes :: Object -> Either Doc [(String, Int64)]
 extractErrorTypes objAPI =
     extractTypeNameAndID =<< oLookup (ObjectBinary "error_types") objAPI
 
 
-extractTypeNameAndID :: Object -> Either String [(String, Int64)]
+extractTypeNameAndID :: Object -> Either Doc [(String, Int64)]
 extractTypeNameAndID m = do
     types <- Map.toList <$> oMap m
     forM types $ \(errName, idMap) -> do
@@ -163,24 +169,24 @@ extractTypeNameAndID m = do
         return (n,i)
 
 
-extractCustomTypes :: Object -> Either String [(String, Int64)]
+extractCustomTypes :: Object -> Either Doc [(String, Int64)]
 extractCustomTypes objAPI =
     extractTypeNameAndID =<< oLookup (ObjectBinary "types") objAPI
 
 
-extractFunctions :: Object -> Either String [NeovimFunction]
+extractFunctions :: Object -> Either Doc [NeovimFunction]
 extractFunctions objAPI = do
     funList <- oArr =<< oLookup (ObjectBinary "functions") objAPI
     forM funList extractFunction
 
 
-toParameterlist :: [Object] -> Either String [(NeovimType, String)]
+toParameterlist :: [Object] -> Either Doc [(NeovimType, String)]
 toParameterlist ps = forM ps $ \p -> do
     [t, n] <- mapM oToString =<< oArr p
     t' <- parseType t
     return (t', n)
 
-extractFunction :: Object -> Either String NeovimFunction
+extractFunction :: Object -> Either Doc NeovimFunction
 extractFunction funDefMap = NeovimFunction
     <$> (oLookup (ObjectBinary "name") funDefMap >>= oToString)
     <*> (oLookup (ObjectBinary "parameters") funDefMap
@@ -191,8 +197,8 @@ extractFunction funDefMap = NeovimFunction
     <*> (oLookup (ObjectBinary "return_type") funDefMap
             >>= oToString >>= parseType)
 
-parseType :: String -> Either String NeovimType
-parseType s = either (throwError . show) return $ parse (pType <* eof) s s
+parseType :: String -> Either Doc NeovimType
+parseType s = either (throwError . P.text . show) return $ parse (pType <* eof) s s
 
 
 pType :: Parsec String u NeovimType

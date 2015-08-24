@@ -51,12 +51,13 @@ recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
 
 -- | Note that restarting the plugin provider implies compilation because Dyre
 -- does this automatically. However, if the recompilation fails, the previously
--- compiled bynary is executed. This essentially means that restarting may take
+-- compiled binary is executed. This essentially means that restarting may take
 -- more time then you might expect.
 restartNvimhs :: CommandArguments
               -> Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
 restartNvimhs CommandArguments{..} = do
     case bang of
+        -- TODO delete cache directory with bang
         Just True -> recompileNvimhs
         _         -> return ()
     (_, env) <- ask

@@ -93,7 +93,7 @@ instance NvimObject Message where
             return $ Notification n
 
         o ->
-            throwError $ "Not a known/valid msgpack-rpc message" ++ show o
+            throwError . text $ "Not a known/valid msgpack-rpc message" ++ show o
 
 
 instance Pretty Message where

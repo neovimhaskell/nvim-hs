@@ -57,8 +57,8 @@ spec :: Spec
 spec = do
   describe "Deserializing ans serializing" $ do
     it "should be id for CommandArguments" . property $ do
-      \args -> (fromObject . toObject . getRandomCommandArguments) args
-        `shouldBe` Right (getRandomCommandArguments args)
+      \args -> (fromObjectUnsafe . toObject . getRandomCommandArguments) args
+        `shouldBe` getRandomCommandArguments args
 
   describe "If a sync option is set for commands" $ do
     let isSyncOption = \case
