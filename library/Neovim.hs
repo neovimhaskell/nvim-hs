@@ -468,7 +468,7 @@ nextRandom = do
     'modify' 'tail'    -- set the list to its tail
     'return' r
 
-setNextRandom :: 'Int' -> 'Neovim' r ['Int16'] ()
+setNextRandom :: 'Int16' -> 'Neovim' r ['Int16'] ()
 setNextRandom n = 'modify' (n:) -- cons to the front of the infinite list
 @
 
