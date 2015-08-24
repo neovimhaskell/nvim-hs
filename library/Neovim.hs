@@ -263,7 +263,7 @@ import Neovim
 main = 'neovim' 'defaultConfig'
 @
 
-Adjust the fields in 'defaultConfig' according to the the parameters in 'NeovimConfig'.
+Adjust the fields in 'defaultConfig' according to the parameters in 'NeovimConfig'.
 Depending on how you define the parameters, you may have to add some language extensions
 which GHC should point you to.
 
@@ -394,11 +394,11 @@ is 'String' because neovim cannot handle big numbers so well. :-)
 You can use any argument or result type as long as it is an instance of 'NvimObject'.
 
 The second part of of the puzzle, which is the definition of @plugin@
-in @~\/.config\/nvim\/lib\/Fibonaccin.hs@, shows what a plugin is. It is essentially two
+in @~\/.config\/nvim\/lib\/Fibonacci.hs@, shows what a plugin is. It is essentially two
 lists of stateless and stateful functionality. A functionality can currently be one
 of three things: a function, a command and an autocmd in the context of vim
 terminology. In the end, all of those functionalities map to a function at the side
-of /nvim-hs/. If you really want to know what the distinction between those, you
+of /nvim-hs/. If you really want to know what the distinction between those is, you
 have to consult the @:help@ pages of neovim (e.g. @:help :function@, @:help :command@
 and @:help :autocmd@). What's relevant from the side of /nvim-hs/ is the distinction
 between __stateful__ and __stateless__. A stateless function can be called at any
@@ -468,7 +468,7 @@ nextRandom = do
     'modify' 'tail'    -- set the list to its tail
     'return' r
 
-setNextRandom :: 'Int' -> 'Neovim' r ['Int16'] ()
+setNextRandom :: 'Int16' -> 'Neovim' r ['Int16'] ()
 setNextRandom n = 'modify' (n:) -- cons to the front of the infinite list
 @
 
