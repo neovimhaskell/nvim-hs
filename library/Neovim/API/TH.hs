@@ -246,7 +246,7 @@ customTypeInstance typeName nis =
         ]
 
 
--- | Define an exported function by providing a cutom name and referencing the
+-- | Define an exported function by providing a custom name and referencing the
 -- function you want to export.
 --
 -- Note that the name must start with an upper case letter.
@@ -329,8 +329,8 @@ classifyArgType t = do
 -- Example: @ $(command \"RememberThePrime\" 'someFunction) ['CmdBang'] @
 --
 -- Note that the list of command options (i.e. the last argument) removes
--- duplicate options by means of some internally convienient sorting. You should
--- simply not defined the same option twice.
+-- duplicate options by means of some internally convenient sorting. You should
+-- simply not define the same option twice.
 command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
