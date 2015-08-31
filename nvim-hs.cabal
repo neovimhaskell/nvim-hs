@@ -108,6 +108,7 @@ library
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3
                       , optparse-applicative
+                      , time-locale-compat
                       , parsec >= 3.1.9
                       , process
                       , resourcet
@@ -154,6 +155,7 @@ test-suite hspec
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3
                       , messagepack >= 0.4
+                      , time-locale-compat
                       , network
                       , optparse-applicative
                       , parsec >= 3.1.9
