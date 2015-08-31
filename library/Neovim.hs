@@ -74,6 +74,8 @@ module Neovim (
     waitErr,
     waitErr',
     err,
+    Doc,
+    text,
     NeovimException(..),
     -- ** Generated functions for neovim interaction
     module Neovim.API.String,
@@ -95,36 +97,37 @@ module Neovim (
     ) where
 
 import           Control.Applicative
-import           Control.Monad              (void)
-import           Control.Monad.IO.Class     (liftIO)
-import           Data.Default               (def)
-import           Data.Int                   (Int16, Int32, Int64, Int8)
-import           Data.MessagePack           (Object (..))
+import           Control.Monad                (void)
+import           Control.Monad.IO.Class       (liftIO)
+import           Data.Default                 (def)
+import           Data.Int                     (Int16, Int32, Int64, Int8)
+import           Data.MessagePack             (Object (..))
 import           Data.Monoid
-import           Data.Word                  (Word, Word16, Word32, Word8)
+import           Data.Word                    (Word, Word16, Word32, Word8)
 import           Neovim.API.String
-import           Neovim.API.TH              (autocmd, command, command',
-                                             function, function')
-import           Neovim.Classes             (Dictionary, NvimObject (..))
-import           Neovim.Config              (NeovimConfig (..))
-import           Neovim.Context             (Neovim, Neovim',
-                                             NeovimException (ErrorMessage),
-                                             ask, asks, err, get, gets, modify,
-                                             put)
-import           Neovim.Main                (neovim)
-import           Neovim.Plugin              (addAutocmd, addAutocmd')
-import           Neovim.Plugin.Classes      (AutocmdOptions (..),
-                                             CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
-                                             RangeSpecification (..),
-                                             Synchronous (..))
-import qualified Neovim.Plugin.ConfigHelper as ConfigHelper
-import           Neovim.Plugin.Internal     (NeovimPlugin (..), Plugin (..),
-                                             wrapPlugin)
-import           Neovim.Plugin.Startup      (StartupConfig (..))
-import           Neovim.RPC.FunctionCall    (wait, wait', waitErr, waitErr')
-import           Neovim.Util                (unlessM, whenM,
-                                             withCustomEnvironment)
-import           System.Log.Logger          (Priority (..))
+import           Neovim.API.TH                (autocmd, command, command',
+                                               function, function')
+import           Neovim.Classes               (Dictionary, NvimObject (..))
+import           Neovim.Config                (NeovimConfig (..))
+import           Neovim.Context               (Neovim, Neovim',
+                                               NeovimException (ErrorMessage),
+                                               ask, asks, err, get, gets,
+                                               modify, put)
+import           Neovim.Main                  (neovim)
+import           Neovim.Plugin                (addAutocmd, addAutocmd')
+import           Neovim.Plugin.Classes        (AutocmdOptions (..),
+                                               CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
+                                               RangeSpecification (..),
+                                               Synchronous (..))
+import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
+import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
+                                               wrapPlugin)
+import           Neovim.Plugin.Startup        (StartupConfig (..))
+import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
+import           Neovim.Util                  (unlessM, whenM,
+                                               withCustomEnvironment)
+import           System.Log.Logger            (Priority (..))
+import           Text.PrettyPrint.ANSI.Leijen (Doc, text)
 
 -- Installation {{{1
 -- tl;dr installation {{{2

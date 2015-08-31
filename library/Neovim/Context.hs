@@ -51,8 +51,9 @@ import           Control.Monad.State
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
 
 
--- | @'throw'@ specialized to 'NeovimException'. This allows you to use the
--- 'IsString' instance to conventiently print error messages in neovim.
+-- | @'throw'@ specialized to 'Doc'. If you do not care about pretty printing,
+-- you can simply use 'text' in front of your string or use the
+-- @OverloadedStrings@ extension to specify the error message.
 err :: Doc ->  Neovim r st a
 err = throw . ErrorMessage
 
