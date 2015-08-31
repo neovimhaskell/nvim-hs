@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Context
 Description :  The Neovim context
@@ -20,6 +21,7 @@ module Neovim.Context (
     runNeovim,
     forkNeovim,
     err,
+    errOnInvalidResult,
     restart,
     quit,
 
@@ -35,6 +37,7 @@ module Neovim.Context (
     ) where
 
 
+import           Neovim.Classes
 import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
                                                Neovim, Neovim',
                                                NeovimException (ErrorMessage),
@@ -48,7 +51,8 @@ import           Control.Monad.Except
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.State
-import           Text.PrettyPrint.ANSI.Leijen (Doc)
+import           Data.MessagePack             (Object)
+import           Text.PrettyPrint.ANSI.Leijen (Doc, text)
 
 
 -- | @'throw'@ specialized to 'Doc'. If you do not care about pretty printing,
@@ -56,6 +60,19 @@ import           Text.PrettyPrint.ANSI.Leijen (Doc)
 -- @OverloadedStrings@ extension to specify the error message.
 err :: Doc ->  Neovim r st a
 err = throw . ErrorMessage
+
+
+errOnInvalidResult :: (NvimObject o) => Neovim r st (Either Object Object) -> Neovim r st o
+errOnInvalidResult a = a >>= \case
+    Left o ->
+        (err . text . show) o
+
+    Right o -> case fromObject o of
+        Left e ->
+            err e
+
+        Right x ->
+            return x
 
 
 -- | Initiate a restart of the plugin provider.

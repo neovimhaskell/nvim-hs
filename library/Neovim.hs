@@ -75,6 +75,7 @@ module Neovim (
     waitErr',
     err,
     Doc,
+    errOnInvalidResult,
     text,
     NeovimException(..),
     -- ** Generated functions for neovim interaction
@@ -111,7 +112,8 @@ import           Neovim.Classes               (Dictionary, NvimObject (..))
 import           Neovim.Config                (NeovimConfig (..))
 import           Neovim.Context               (Neovim, Neovim',
                                                NeovimException (ErrorMessage),
-                                               ask, asks, err, get, gets,
+                                               ask, asks, err,
+                                               errOnInvalidResult, get, gets,
                                                modify, put)
 import           Neovim.Main                  (neovim)
 import           Neovim.Plugin                (addAutocmd, addAutocmd')
