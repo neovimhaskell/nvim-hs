@@ -35,25 +35,26 @@ module Neovim.Context (
     ) where
 
 
-import           Neovim.Context.Internal (FunctionMap, FunctionMapEntry, Neovim,
-                                          Neovim',
-                                          NeovimException (ErrorMessage),
-                                          forkNeovim, mkFunctionMap,
-                                          newUniqueFunctionName, runNeovim)
-import qualified Neovim.Context.Internal as Internal
+import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
+                                               Neovim, Neovim',
+                                               NeovimException (ErrorMessage),
+                                               forkNeovim, mkFunctionMap,
+                                               newUniqueFunctionName, runNeovim)
+import qualified Neovim.Context.Internal      as Internal
 
-import           Control.Concurrent      (putMVar)
+import           Control.Concurrent           (putMVar)
 import           Control.Exception
 import           Control.Monad.Except
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Text.PrettyPrint.ANSI.Leijen (Doc)
 
 
 -- | @'throw'@ specialized to 'NeovimException'. This allows you to use the
 -- 'IsString' instance to conventiently print error messages in neovim.
-err :: NeovimException ->  Neovim r st a
-err = throw
+err :: Doc ->  Neovim r st a
+err = throw . ErrorMessage
 
 
 -- | Initiate a restart of the plugin provider.

@@ -89,7 +89,7 @@ type Neovim' = Neovim () ()
 
 -- | Exceptions specific to /nvim-hs/.
 data NeovimException
-    = ErrorMessage (Either String Doc)
+    = ErrorMessage Doc
     -- ^ Simply error message that is passed to neovim. It should currently only
     -- contain one line of text.
     deriving (Typeable, Show)
@@ -99,14 +99,12 @@ instance Exception NeovimException
 
 
 instance IsString NeovimException where
-    fromString = ErrorMessage . Left
+    fromString = ErrorMessage . fromString
 
 
 instance Pretty NeovimException where
     pretty = \case
-        ErrorMessage (Left s)  -> text s
-        ErrorMessage (Right s) -> s
-
+        ErrorMessage s -> s
 
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.

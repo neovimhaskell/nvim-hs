@@ -337,7 +337,7 @@ registerStatefulFunctionality (r, st, fs) = do
     res <- liftIO . runNeovim startupConfig st . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
-        Left e -> (err . ErrorMessage . Right) e
+        Left e -> err e
         Right (a,_) -> return $ catMaybes a
 
     let pluginThreadConfig = cfg

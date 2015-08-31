@@ -453,7 +453,7 @@ functionImplementation functionName = do
     -- _ -> err "Wrong number of arguments"
     errorCase :: Q Match
     errorCase = match wildP
-        (normalB [|throw . ErrorMessage . Left $ "Wrong number of arguments for function: "
+        (normalB [|throw . ErrorMessage . text $ "Wrong number of arguments for function: "
                         ++ $(litE (StringL (nameBase functionName))) |]) []
 
     -- [x,y] -> case pure add <*> fromObject x <*> fromObject y of ...
@@ -484,6 +484,6 @@ functionImplementation functionName = do
     failedEvaluation :: Q Match
     failedEvaluation = newName "e" >>= \e ->
         match (conP (mkName "Left") [varP e])
-              (normalB [|(throw . ErrorMessage . Right) $(varE e)|])
+              (normalB [|err $(varE e)|])
               []
 

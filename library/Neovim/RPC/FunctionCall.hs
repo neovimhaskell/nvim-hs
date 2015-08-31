@@ -32,10 +32,10 @@ import qualified Neovim.RPC.Classes        as MsgpackRPC
 
 import           Control.Applicative
 import           Control.Concurrent.STM
-import           Control.Exception         (throw)
 import           Control.Monad.Reader
 import           Data.MessagePack
 import           Data.Monoid
+import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import           Prelude
 
@@ -124,15 +124,15 @@ wait' = void . wait
 
 -- | Wait for the result of the 'STM' action and call @'err' . (loc++) . show@
 -- if the action returned an error.
-waitErr :: (Show e)
+waitErr :: (P.Pretty e)
         => String                              -- ^ Prefix error message with this.
         -> Neovim r st (STM (Either e result)) -- ^ Function call to neovim
         -> Neovim r st result
-waitErr loc act = wait act >>= either (throw . ErrorMessage . Left . (loc++) . show) return
+waitErr loc act = wait act >>= either (err . (P.<>) (P.text loc) . P.pretty) return
 
 
 -- | 'waitErr' that discards the result.
-waitErr' :: (Show e)
+waitErr' :: (P.Pretty e)
          => String
          -> Neovim r st (STM (Either e result))
          -> Neovim r st ()
