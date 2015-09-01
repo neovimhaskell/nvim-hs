@@ -23,12 +23,14 @@ import           Neovim.Util             (withCustomEnvironment)
 
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
+import           Config.Dyre.Paths       (getPaths)
 import           Control.Applicative     hiding (many, (<|>))
 import           Control.Monad           (void, forM_)
 import           Data.Char
 import           Text.Parsec             hiding (Error, count)
 import           Text.Parsec.String
 import           System.SetEnv
+import           System.Directory        (removeDirectoryRecursive)
 
 import           Prelude
 
@@ -53,13 +55,22 @@ recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
 -- does this automatically. However, if the recompilation fails, the previously
 -- compiled binary is executed. This essentially means that restarting may take
 -- more time then you might expect.
+--
+-- If you provide a bang to the command, the cache directory of /nvim-hs/ is
+-- forcibly removed.
 restartNvimhs :: CommandArguments
               -> Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
 restartNvimhs CommandArguments{..} = do
     case bang of
-        -- TODO delete cache directory with bang
-        Just True -> recompileNvimhs
-        _         -> return ()
+        Just True -> do
+            (_,_,_, cacheDir,_) <- liftIO . getPaths =<< asks fst
+            liftIO $ removeDirectoryRecursive cacheDir
+
+        _ ->
+            return ()
+
+    recompileNvimhs
+
     (_, env) <- ask
     forM_ env $ \(var, val) -> liftIO $ do
         maybe (unsetEnv var) (setEnv var) val
