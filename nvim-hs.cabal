@@ -30,6 +30,7 @@ copyright:           Copyright (C) Sebastian Witte
 category:            Editor
 build-type:          Simple
 cabal-version:       >=1.10
+tested-with:         GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.2
 extra-source-files:    TestPlugins.vim
                      , TestPlugins.hs
                      , TestPlugins.sh
