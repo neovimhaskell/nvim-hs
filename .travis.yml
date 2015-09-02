@@ -28,8 +28,8 @@ install:
   - cabal install --only-dependencies --enable-tests
 
 script:
-  - cabal configure --enable-tests
-  - cabal install # Tests won't work without this
+  - cabal clean
+  - cabal install --enable-tests # Tests won't work without this
   - cabal clean
   - cabal configure --enable-tests
   - cabal test
