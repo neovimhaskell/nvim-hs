@@ -340,17 +340,17 @@ This is a bit unfortunate, but it will save you a lot of boring boilerplate and
 it will present you with helpful error messages if your plugin's functions do
 not work together with neovim.
 
-So, let's write a plugin that calculates the @n@th Fibonacci number. Don't we all
+So, let\'s write a plugin that calculates the @n@th Fibonacci number. Don\'t we all
 love those!
 
-File @~\/.config\/nvim\/lib\/Fibonacci/Plugin.hs@
+File @\~\/.config\/nvim\/lib\/Fibonacci\/Plugin.hs@:
 
 @
 module Fibonacci.Plugin (fibonacci) where
 
 import "Neovim"
 
--- | Neovim is not really good with big numbers, so we return a 'String' here.
+\-\- \| Neovim is not really good with big numbers, so we return a 'String' here.
 fibonacci :: 'Int' -> 'Neovim'' 'String'
 fibonacci n = 'return' . 'show' \$ fibs !! n
   where
@@ -358,7 +358,7 @@ fibonacci n = 'return' . 'show' \$ fibs !! n
     fibs = 0:1:'scanl1' (+) fibs
 @
 
-File @~\/.config\/nvim\/lib/Fibonacci.hs@:
+File @\~\/.config\/nvim\/lib\/Fibonacci.hs@:
 
 @
 \{\-\# LANGUAGE TemplateHaskell \#\-\}
@@ -454,7 +454,7 @@ mode:
 -}
 -- 2}}}
 -- Creating a stateful plugin {{{2
-{- $remote
+{- $statefulplugin
 Now that we are a little bit comfortable with the interface provided by /nvim-hs/,
 we can start to write a more complicated plugin. Let's create a random number
 generator!
@@ -466,7 +466,7 @@ module Random.Plugin (nextRandom, setNextRandom) where
 
 import "Neovim"
 
--- | Neovim isn't so good with big numbers here either.
+\-\- | Neovim isn't so good with big numbers here either.
 nextRandom :: 'Neovim' r ['Int16'] 'Int16'
 nextRandom = do
     r <- 'gets' 'head' -- get the head of the infinite random number list
