@@ -107,10 +107,9 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#FunctionOnHost", toObject n))
                 (\c -> ("remote#define#FunctionOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction
-            [ host, toObject functionName, toObject s
-            , toObject functionName, toObject (Map.empty :: Dictionary)
-            ]
+        ret <- vim_call_function defineFunction $
+            host +: functionName +: s +: functionName +: (Map.empty :: Dictionary) +: []
+
         case ret of
             Left e -> do
                 liftIO . errorM logger $
@@ -133,10 +132,9 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#CommandOnHost", toObject n))
                 (\c -> ("remote#define#CommandOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction
-            [ host, toObject functionName, toObject sync
-            , toObject functionName, toObject copts
-            ]
+        ret <- vim_call_function defineFunction $
+                    host +: functionName +: sync +: functionName +: copts +: []
+
         case ret of
             Left e -> do
                 liftIO . errorM logger $
@@ -153,10 +151,8 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#AutocmdOnHost", toObject n))
                 (\c -> ("remote#define#AutocmdOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction
-            [ host, toObject functionName, toObject Async
-            , toObject acmdType , toObject opts
-            ]
+        ret <- vim_call_function defineFunction $
+                    host +:  functionName +:  Async  +:  acmdType  +:  opts +: []
         case ret of
             Left e -> do
                 liftIO . errorM logger $

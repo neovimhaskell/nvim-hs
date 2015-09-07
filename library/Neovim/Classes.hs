@@ -17,6 +17,7 @@ Stability   :  experimental
 module Neovim.Classes
     ( NvimObject(..)
     , Dictionary
+    , (+:)
 
     , module Data.Int
     , module Data.Word
@@ -44,6 +45,14 @@ import           Prelude
 -- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
 import qualified Data.ByteString.UTF8         as U (fromString, toString)
 import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
+
+
+infixr 5 +:
+
+
+-- | Convenient operator to create a list of 'Object' from normal values.
+(+:) :: (NvimObject o) => o -> [Object] -> [Object]
+o +: os = toObject o : os
 
 
 -- | A generic vim dictionary is a simply a map from strings to objects.  This

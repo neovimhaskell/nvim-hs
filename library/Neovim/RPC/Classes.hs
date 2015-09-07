@@ -17,7 +17,7 @@ module Neovim.RPC.Classes
     ( Message (..),
     ) where
 
-import           Neovim.Classes               (NvimObject (..))
+import           Neovim.Classes               (NvimObject (..), (+:))
 import           Neovim.Plugin.Classes        (FunctionName (..))
 import qualified Neovim.Plugin.IPC.Classes    as IPC
 
@@ -59,16 +59,16 @@ instance IPC.Message Message
 instance NvimObject Message where
     toObject = \case
         Request (IPC.Request (F m) i ps) ->
-            ObjectArray [ ObjectInt 0, ObjectInt i, ObjectBinary m, ObjectArray ps ]
+            ObjectArray $  (0 :: Int64) +: i +: m +: ps +: []
 
         Response i (Left e) ->
-            ObjectArray [ ObjectInt 1, ObjectInt i, e, ObjectNil]
+            ObjectArray $ (1 :: Int64) +: i +: e +: () +: []
 
         Response i (Right r) ->
-            ObjectArray [ ObjectInt 1, ObjectInt i, ObjectNil, r]
+            ObjectArray $ (1 :: Int64) +: i +: () +: r +: []
 
         Notification (IPC.Notification (F m) ps) ->
-            ObjectArray [ ObjectInt 2, ObjectBinary m, ObjectArray ps ]
+            ObjectArray $ (2 :: Int64) +: m +: ps +: []
 
 
     fromObject = \case

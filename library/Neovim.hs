@@ -41,6 +41,7 @@ module Neovim (
     NeovimPlugin(..),
     Plugin(..),
     NvimObject(..),
+    (+:),
     Dictionary,
     Object(..),
     wrapPlugin,
@@ -108,7 +109,7 @@ import           Data.Word                    (Word, Word16, Word32, Word8)
 import           Neovim.API.String
 import           Neovim.API.TH                (autocmd, command, command',
                                                function, function')
-import           Neovim.Classes               (Dictionary, NvimObject (..))
+import           Neovim.Classes               (Dictionary, NvimObject (..), (+:))
 import           Neovim.Config                (NeovimConfig (..))
 import           Neovim.Context               (Neovim, Neovim',
                                                NeovimException (ErrorMessage),
