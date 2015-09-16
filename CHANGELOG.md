@@ -1,7 +1,12 @@
 # 0.0.6
 
+* Noteworthy new API functions for the user's convenience:
+
+  - `errOnInvalidResult`
+  - `(:+)`
+
 * ansi-wl-pprint is used for pretty printing of various things now. Most
-  notably, the error type has mostly been changed from `String` to `Doc`.
+  notably, the error type has been changed from `String` to `Doc`.
   This is a breaking change, but it was kind of announced in the issues
   list. In any case, uses of `err` can be fixed by enabling the
   `OverloadedStrings` extension. Other breakages have to be fixed by hand.
