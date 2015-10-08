@@ -53,8 +53,9 @@ spec = do
         fname `shouldBe` (F "TestFunction2")
 
     it "should return 2 for proper arguments" $
-      call testFun [ObjectNil, ObjectBinary "ignored"
-                   , ObjectArray [ObjectBinary "42"]
+      call testFun [ ObjectNil
+                   , ObjectString "ignored"
+                   , ObjectArray [ObjectString "42"]
                    ]
         `shouldReturn` ObjectDouble 2
 

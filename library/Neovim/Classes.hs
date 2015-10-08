@@ -40,15 +40,13 @@ import           Text.PrettyPrint.ANSI.Leijen (Doc, displayS, lparen,
                                                renderPretty, rparen, text)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
-import           Prelude
-
--- FIXME saep 2014-11-28 Is assuming UTF-8 reasonable?
-import qualified Data.ByteString.UTF8         as U (fromString, toString)
+import qualified Data.ByteString.UTF8         as UTF8 (fromString, toString)
 import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
+
+import           Prelude
 
 
 infixr 5 +:
-
 
 -- | Convenient operator to create a list of 'Object' from normal values.
 (+:) :: (NvimObject o) => o -> [Object] -> [Object]
@@ -209,7 +207,7 @@ instance NvimObject Int where
 
 
 instance NvimObject Char where
-    toObject c = ObjectBinary . U.fromString $ [c]
+    toObject c = ObjectBinary . UTF8.fromString $ [c]
 
     fromObject str = case fromObject str of
         Right [c] -> return c
@@ -217,11 +215,11 @@ instance NvimObject Char where
 
 
 instance NvimObject [Char] where
-    toObject                    = ObjectBinary . U.fromString
+    toObject                    = ObjectBinary . UTF8.fromString
 
-    fromObject (ObjectBinary o) = return $ U.toString o
-    fromObject (ObjectString o) = return $ U.toString o
-    fromObject o                = throwError . text $ "Expected ObjectBinary, but got " <> show o
+    fromObject (ObjectBinary o) = return $ UTF8.toString o
+    fromObject (ObjectString o) = return $ UTF8.toString o
+    fromObject o                = throwError . text $ "Expected ObjectString, but got " <> show o
 
 
 instance NvimObject o => NvimObject [o] where
@@ -281,6 +279,7 @@ instance NvimObject ByteString where
     toObject                    = ObjectBinary
 
     fromObject (ObjectBinary o) = return o
+    fromObject (ObjectString o) = return o
     fromObject o                = throwError . text $ "Expected ObjectBinary, but got " <> show o
 
 
