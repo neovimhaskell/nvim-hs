@@ -1,3 +1,7 @@
+# 0.0.7
+
+* Adjust handling of string sent by neovim in API generation.
+
 # 0.0.6
 
 * Noteworthy new API functions for the user's convenience:
