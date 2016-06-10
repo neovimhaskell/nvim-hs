@@ -90,6 +90,7 @@ instance NvimObject Bool where
 
     fromObject (ObjectBool o)     = return o
     fromObject (ObjectInt  0)     = return False
+    fromObject (ObjectUInt 0)     = return False
     fromObject ObjectNil          = return False
     fromObject (ObjectBinary "0") = return False
     fromObject (ObjectBinary "")  = return False
@@ -104,6 +105,7 @@ instance NvimObject Double where
     fromObject (ObjectDouble o) = return o
     fromObject (ObjectFloat o)  = return $ realToFrac o
     fromObject (ObjectInt o)    = return $ fromIntegral o
+    fromObject (ObjectUInt o)   = return $ fromIntegral o
     fromObject o                = throwError . text $ "Expected ObjectDouble, but got " <> show o
 
 
@@ -111,6 +113,7 @@ instance NvimObject Integer where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt o)    = return $ toInteger o
+    fromObject (ObjectUInt o)   = return $ toInteger o
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected ObjectInt, but got " <> show o
@@ -120,6 +123,7 @@ instance NvimObject Int64 where
     toObject                    = ObjectInt
 
     fromObject (ObjectInt i)    = return i
+    fromObject (ObjectUInt o)   = return $ fromIntegral o
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -129,6 +133,7 @@ instance NvimObject Int32 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -138,6 +143,7 @@ instance NvimObject Int16 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -147,6 +153,7 @@ instance NvimObject Int8 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -156,6 +163,7 @@ instance NvimObject Word where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -165,6 +173,7 @@ instance NvimObject Word64 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -174,6 +183,7 @@ instance NvimObject Word32 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -183,6 +193,7 @@ instance NvimObject Word16 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -192,6 +203,7 @@ instance NvimObject Word8 where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
@@ -201,6 +213,7 @@ instance NvimObject Int where
     toObject                    = ObjectInt . fromIntegral
 
     fromObject (ObjectInt i)    = return $ fromIntegral i
+    fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
