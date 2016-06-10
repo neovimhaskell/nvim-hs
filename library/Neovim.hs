@@ -277,7 +277,7 @@ which GHC should point you to.
 
 
 -- | Default configuration options for /nvim-hs/. If you want to keep the
--- default plugins enabled, you can define you rconfig like this:
+-- default plugins enabled, you can define your config like this:
 --
 -- @
 -- main = 'neovim' 'defaultConfig'
@@ -329,10 +329,10 @@ project once they are mature enough. This also makes them easy to share!
 -- Creating a plugin {{{2
 {- $creatingplugins
 Creating plugins isn't difficult either. You just have to follow and survive the
-the compile time errors of seemingly valid code. This may
-sound scary, but it is not so bad. We will cover most pitfalls in the following
-paragraphs and if there isn't a solution for your error, you can always ask any
-friendly Haskeller in \#haskell on @irc.freenode.net@!
+compile time errors of seemingly valid code. This may sound scary, but it is not
+so bad. We will cover most pitfalls in the following paragraphs and if there
+isn't a solution for your error, you can always ask any friendly Haskeller in
+\#haskell on @irc.freenode.net@!
 
 Enough scary stuff said for now, let's write a plugin!
 Due to a stage restriction in GHC when using Template Haskell, we must define
