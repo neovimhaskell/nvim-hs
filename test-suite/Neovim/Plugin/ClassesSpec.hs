@@ -55,7 +55,7 @@ instance Arbitrary RandomCommandOptions where
 
 spec :: Spec
 spec = do
-  describe "Deserializing ans serializing" $ do
+  describe "Deserializing and serializing" $ do
     it "should be id for CommandArguments" . property $ do
       \args -> (fromObjectUnsafe . toObject . getRandomCommandArguments) args
         `shouldBe` getRandomCommandArguments args

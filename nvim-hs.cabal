@@ -107,7 +107,7 @@ library
                       , filepath
                       , foreign-store
                       , hslogger
-                      , messagepack >= 0.4
+                      , messagepack >= 0.5
                       , monad-control
                       , network
                       , lifted-base
@@ -159,7 +159,7 @@ test-suite hspec
                       , hslogger
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3
-                      , messagepack >= 0.4
+                      , messagepack >= 0.5
                       , time-locale-compat
                       , network
                       , optparse-applicative
