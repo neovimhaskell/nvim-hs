@@ -71,7 +71,7 @@ runSocketReader readableHandle cfg =
         -- closed since that would cause neovim to stop the plugin provider (I
         -- think).
         sourceHandle readableHandle
-            $= conduitGet Data.Serialize.get
+            $= conduitGet2 Data.Serialize.get
             $$ messageHandlerSink
 
 

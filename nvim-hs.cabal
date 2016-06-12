@@ -96,7 +96,7 @@ library
                       , ansi-wl-pprint
                       , bytestring
                       , cereal
-                      , cereal-conduit
+                      , cereal-conduit >= 0.7.3
                       , conduit
                       , conduit-extra
                       , containers
