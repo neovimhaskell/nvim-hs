@@ -1,3 +1,8 @@
+# 0.0.8
+
+* Adjust version range for messagepack rpc library and adjust implementation to
+  the changes in that library
+
 # 0.0.7
 
 * Adjust handling of string sent by neovim in API generation.
