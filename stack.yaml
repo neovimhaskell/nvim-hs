@@ -1,8 +1,4 @@
 flags: {}
 packages:
 - '.'
-extra-deps:
-        - dyre-0.8.12
-        - io-storage-0.3
-        - xdg-basedir-0.2.2
 resolver: lts-6.2
