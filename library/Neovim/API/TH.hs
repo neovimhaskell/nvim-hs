@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE CPP #-}
 {- |
 Module      :  Neovim.API.TH
 Description :  Template Haskell API generation module
@@ -60,6 +61,13 @@ import           Text.PrettyPrint.ANSI.Leijen (text, (<+>))
 
 import           Prelude
 
+dataD' :: CxtQ -> Name -> [TyVarBndr] -> [ConQ] -> [Name] -> DecQ
+#if __GLASGOW_HASKELL__ < 800
+dataD' = dataD
+#else
+dataD' cxtQ n tyvarbndrs conq ns =
+    dataD cxtQ n tyvarbndrs Nothing conq (mapM conT ns)
+#endif
 
 -- | Generate the API types and functions provided by @nvim --api-info@.
 --
@@ -183,11 +191,16 @@ createFunction typeMap nf = do
 createDataTypeWithByteStringComponent :: Name -> [Name] -> Q Dec
 createDataTypeWithByteStringComponent nme cs = do
         tObject <- [t|ByteString|]
-        dataD
+#if __GLASGOW_HASKELL__ < 800
+        let strictNess = (IsStrict, tObject)
+#else
+        let strictNess = (Bang NoSourceUnpackedness SourceStrict, tObject)
+#endif
+        dataD'
             (return [])
             nme
             []
-            (map (\n-> normalC n [return (IsStrict, tObject)]) cs)
+            (map (\n-> normalC n [return strictNess]) cs)
             (mkName <$> ["Typeable", "Eq", "Show"])
 
 
@@ -426,7 +439,11 @@ functionImplementation :: Name -> Q ([ArgType], Exp)
 functionImplementation functionName = do
     fInfo <- reify functionName
     nargs <- mapM classifyArgType $ case fInfo of
+#if __GLASGOW_HASKELL__ < 800
             VarI _ functionType _ _ ->
+#else
+            VarI _ functionType _ ->
+#endif
                 determineNumberOfArguments functionType
 
             x ->
