@@ -174,11 +174,14 @@ getProviderName = do
             return p
 
         Nothing -> do
-            api <- wait vim_get_api_info
+            api <- nvim_get_api_info
             case api of
-                (ObjectInt i:_) -> do
+                Right (ObjectInt i:_) -> do
                     liftIO . atomically . putTMVar mp . Right $ fromIntegral i
                     return . Right $ fromIntegral i
+
+                Left _ ->
+                    err "Unexpected error when quering via nvim_get_api_info."
 
                 _ ->
                     err "Could not determine provider name."

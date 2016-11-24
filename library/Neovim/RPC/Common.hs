@@ -88,7 +88,7 @@ createHandle = \case
     createUnixSocketHandle f =
         liftIO $ getSocketUnix f >>= flip socketToHandle ReadWriteMode
 
-    createTCPSocketHandle :: (Functor io, MonadIO io) => Int -> String -> io Handle
+    createTCPSocketHandle :: (MonadIO io) => Int -> String -> io Handle
     createTCPSocketHandle p h = liftIO $ getSocketTCP (fromString h) p
         >>= flip socketToHandle ReadWriteMode . fst
 

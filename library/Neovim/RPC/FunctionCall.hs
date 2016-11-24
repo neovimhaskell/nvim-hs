@@ -52,7 +52,7 @@ unexpectedException fn _ = error $
 -- | Strip the error result from the function call. This should only be used by
 -- the Template Haskell API generated code for functions that declare
 -- themselves as unfailable.
-withIgnoredException :: (Functor f, NvimObject result)
+withIgnoredException :: (Functor f)
                      => FunctionName -- ^ For better error messages
                      -> f (Either err result)
                      -> f result
