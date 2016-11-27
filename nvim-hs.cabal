@@ -32,10 +32,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 -- TODO uncomment when somebody has cared about the new travis infrastructure (see #39)
 -- tested-with:         GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.2
-extra-source-files:    TestPlugins.vim
-                     , TestPlugins.hs
-                     , TestPlugins.sh
-                     , nvim-hs-devel.sh
+extra-source-files:    nvim-hs-devel.sh
                      , test-files/compile-error-for-quickfix-test1
                      , test-files/compile-error-for-quickfix-test2
                      , test-files/compile-error-for-quickfix-test3
