@@ -69,6 +69,15 @@ spec = do
       errorType q1 `shouldBe` Warning
       errorType q2 `shouldBe` Warning
 
+    it "should match this test file 6" $ do
+      e <- readFile "./test-files/compile-error-for-quickfix-test6"
+      let [q1] = parseQuickfixItems e
+      bufOrFile q1 `shouldBe` Right "/home/test/.config/nvim/nvim.hs"
+      lnumOrPattern q1 `shouldBe` Left 8
+      col q1 `shouldBe` Just (7, True)
+      nr q1 `shouldBe` Nothing
+      errorType q1 `shouldBe` Error
+
     it "should parse all files concatenated" $ do
       e1 <- readFile "./test-files/compile-error-for-quickfix-test1"
       e2 <- readFile "./test-files/compile-error-for-quickfix-test2"

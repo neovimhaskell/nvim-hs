@@ -146,8 +146,8 @@ extractFunction :: Map String Object -> Either Doc NeovimFunction
 extractFunction funDefMap = NeovimFunction
     <$> (oLookup "name" funDefMap)
     <*> (oLookup "parameters" funDefMap >>= toParameterlist)
-    <*> (oLookupDefault False "can_fail" funDefMap)
-    <*> (oLookup "async" funDefMap)
+    <*> (oLookupDefault True "can_fail" funDefMap)
+    <*> (oLookupDefault False "async" funDefMap)
     <*> (oLookup "return_type" funDefMap >>= parseType)
 
 

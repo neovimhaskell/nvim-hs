@@ -24,7 +24,7 @@ if [ -d "$sandbox_directory/.cabal-sandbox" ] ; then
 elif [ -d "$sandbox_directory/.stack-work" ] ; then
     # Stack leaves behind a .stack-work directory, so we take its present as a
     # sign to use this approach.
-    PATH=`stack path --bin-path` stack exec nvim-hs -- "$@"
+    stack exec nvim-hs -- "$@"
 else
     echo "No development directories found. Have you built the project?"
     exit 2

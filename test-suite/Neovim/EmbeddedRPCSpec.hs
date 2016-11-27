@@ -50,13 +50,13 @@ spec = parallel $ do
         liftIO $ cl1 `shouldBe` Right testContent
 
     it "should create a new buffer" . withNeovimEmbedded Nothing $ do
-        bs0 <- vim_get_buffers
+        Right bs0 <- vim_get_buffers
         liftIO $ length bs0 `shouldBe` 1
         vim_command "new"
-        bs1 <- vim_get_buffers
+        Right bs1 <- vim_get_buffers
         liftIO $ length bs1 `shouldBe` 2
         vim_command "new"
-        bs2 <- vim_get_buffers
+        Right bs2 <- vim_get_buffers
         liftIO $ length bs2 `shouldBe` 3
 
     it "should set the quickfix list" . withNeovimEmbedded Nothing $ do

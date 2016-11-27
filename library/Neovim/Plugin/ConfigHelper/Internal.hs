@@ -92,9 +92,7 @@ pQuickfixListItem = do
     (f,l,c) <- pLocation
 
     void $ many spaceChar
-    e <- option Error $ do
-        void . try $ string "Warning:"
-        return Warning
+    e <- pSeverity
     desc <- try pShortDesrciption <|> pLongDescription
     return $ (quickfixListItem (Right f) (Left l))
         { col = Just (c, True)
@@ -102,6 +100,11 @@ pQuickfixListItem = do
         , errorType = e
         }
 
+pSeverity :: Parser QuickfixErrorType
+pSeverity = do
+    try (string "Warning:" *> return Warning)
+    <|> try (string "error:"   *> return Error)
+    <|> return Error
 
 pShortDesrciption :: Parser String
 pShortDesrciption = (:)

@@ -71,7 +71,7 @@ class NvimObject o where
             P.<+> lparen P.<> e P.<> rparen
         Right obj -> obj
 
-    fromObject :: (NvimObject o) => Object -> Either Doc o
+    fromObject :: Object -> Either Doc o
     fromObject = return . fromObjectUnsafe
 
 
