@@ -1,3 +1,8 @@
+# 0.1.0
+
+* Adjust parser for output of `nvim --api-info`
+* Adjust parser of ConfigHelper plugin
+
 # 0.0.7
 
 * Adjust handling of string sent by neovim in API generation.
