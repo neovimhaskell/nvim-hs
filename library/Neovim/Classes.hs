@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverlappingInstances  #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {- |
@@ -227,7 +226,7 @@ instance NvimObject Char where
         _   -> throwError . text $ "Expected one element string but got: " <> show str
 
 
-instance NvimObject [Char] where
+instance {-# OVERLAPPING #-} NvimObject [Char] where
     toObject                    = ObjectBinary . UTF8.fromString
 
     fromObject (ObjectBinary o) = return $ UTF8.toString o
@@ -235,7 +234,7 @@ instance NvimObject [Char] where
     fromObject o                = throwError . text $ "Expected ObjectString, but got " <> show o
 
 
-instance NvimObject o => NvimObject [o] where
+instance {-# OVERLAPPABLE #-} NvimObject o => NvimObject [o] where
     toObject                    = ObjectArray . map toObject
 
     fromObject (ObjectArray os) = mapM fromObject os
