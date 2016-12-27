@@ -176,9 +176,13 @@ getProviderName = do
         Nothing -> do
             api <- nvim_get_api_info
             case api of
-                Right (ObjectInt i:_) -> do
-                    liftIO . atomically . putTMVar mp . Right $ fromIntegral i
-                    return . Right $ fromIntegral i
+                Right (i:_) -> do
+                    case fromObject i :: Either Doc Int of
+                      Left _ ->
+                          err "Expected an integral value as the first argument of nvim_get_api_info"
+                      Right channelId -> do
+                          liftIO . atomically . putTMVar mp . Right $ fromIntegral channelId
+                          return . Right $ fromIntegral channelId
 
                 Left _ ->
                     err "Unexpected error when quering via nvim_get_api_info."
