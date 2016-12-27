@@ -156,7 +156,7 @@ test-suite hspec
                       , hslogger
                       , lifted-base
                       , mtl >= 2.2.1 && < 2.3
-                      , messagepack >= 0.5
+                      , messagepack >= 0.5.4
                       , time-locale-compat
                       , network
                       , optparse-applicative
