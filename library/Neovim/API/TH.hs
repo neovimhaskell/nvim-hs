@@ -57,7 +57,7 @@ import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Set                 as Set
 import           Data.Text                (Text)
-import           Text.PrettyPrint.ANSI.Leijen (text, (<+>))
+import           Text.PrettyPrint.ANSI.Leijen (text, (<+>), Doc)
 
 import           Prelude
 
@@ -501,6 +501,6 @@ functionImplementation functionName = do
     failedEvaluation :: Q Match
     failedEvaluation = newName "e" >>= \e ->
         match (conP (mkName "Left") [varP e])
-              (normalB [|err $(varE e)|])
+              (normalB [|err ($(varE e) :: Doc)|])
               []
 

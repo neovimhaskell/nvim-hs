@@ -76,6 +76,7 @@ module Neovim (
     waitErr',
     err,
     Doc,
+    Pretty(..),
     errOnInvalidResult,
     text,
     NeovimException(..),
@@ -130,7 +131,7 @@ import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,
                                                withCustomEnvironment)
 import           System.Log.Logger            (Priority (..))
-import           Text.PrettyPrint.ANSI.Leijen (Doc, text)
+import           Text.PrettyPrint.ANSI.Leijen (Doc, text, Pretty(..))
 
 -- Installation {{{1
 -- tl;dr installation {{{2
