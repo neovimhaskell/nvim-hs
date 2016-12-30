@@ -63,7 +63,7 @@ withIgnoredException fn = fmap (either ((unexpectedException . show) fn) id)
 acall :: (NvimObject result)
      => FunctionName
      -> [Object]
-     -> Neovim r st (STM (Either Object result))
+     -> Neovim r st (STM (Either NeovimException result))
 acall fn parameters = do
     q <- Internal.asks' Internal.eventQueue
     mv <- liftIO newEmptyTMVarIO
@@ -71,13 +71,13 @@ acall fn parameters = do
     atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
     return $ convertObject <$> readTMVar mv
   where
+    convertObject :: (NvimObject result)
+                  => Either Object Object -> Either NeovimException result
     convertObject = \case
-        Left e -> Left e
+        Left e -> Left $ ErrorResult e
         Right o -> case fromObject o of
-            Left e -> Left (toObject e)
-            Right r -> Right r
-
-
+                     Left e -> Left $ ErrorMessage e
+                     Right r -> Right r
 
 -- | Helper function similar to 'acall' that throws a runtime exception if the
 -- result is an error object.
@@ -93,7 +93,7 @@ acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 scall :: (NvimObject result)
       => FunctionName
       -> [Object]      -- ^ Parameters in an 'Object' array
-      -> Neovim r st (Either Object result)
+      -> Neovim r st (Either NeovimException result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
 

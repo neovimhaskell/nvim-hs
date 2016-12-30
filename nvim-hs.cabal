@@ -1,5 +1,5 @@
 name:                nvim-hs
-version:             0.1.1
+version:             0.2.0
 synopsis:            Haskell plugin backend for neovim
 description:
   This package provides a plugin provider for neovim. It allows you to write
@@ -130,7 +130,7 @@ library
 
 test-suite hspec
   type:                 exitcode-stdio-1.0
-  hs-source-dirs:       test-suite,library
+  hs-source-dirs:       test-suite
   main-is:              Spec.hs
   default-language:     Haskell2010
   build-depends:        base >= 4.6 && < 5
@@ -173,38 +173,13 @@ test-suite hspec
                       , transformers-base
                       , utf8-string
                       , HUnit
-  other-modules:        Neovim
-                      , Neovim.API.Parser
-                      , Neovim.API.String
-                      , Neovim.API.TH
-                      , Neovim.API.THSpec
+
+  other-modules:        Neovim.API.THSpec
                       , Neovim.API.THSpecFunctions
-                      , Neovim.Classes
-                      , Neovim.Config
-                      , Neovim.Context
-                      , Neovim.Context.Internal
                       , Neovim.EmbeddedRPCSpec
-                      , Neovim.Log
-                      , Neovim.Main
-                      , Neovim.Plugin
-                      , Neovim.Plugin.Classes
                       , Neovim.Plugin.ClassesSpec
-                      , Neovim.Plugin.ConfigHelper
-                      , Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.Plugin.ConfigHelperSpec
-                      , Neovim.Plugin.IPC
-                      , Neovim.Plugin.IPC.Classes
-                      , Neovim.Plugin.Internal
-                      , Neovim.Plugin.Startup
-                      , Neovim.Quickfix
-                      , Neovim.RPC.Classes
-                      , Neovim.RPC.Common
-                      , Neovim.RPC.EventHandler
-                      , Neovim.RPC.FunctionCall
-                      , Neovim.RPC.SocketReader
                       , Neovim.RPC.SocketReaderSpec
-                      , Neovim.Test
-                      , Neovim.Util
 
   ghc-options:          -threaded -rtsopts -with-rtsopts=-N
 

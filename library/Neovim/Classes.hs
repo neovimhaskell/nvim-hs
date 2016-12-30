@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {- |
 Module      :  Neovim.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
@@ -22,13 +23,17 @@ module Neovim.Classes
     , module Data.Word
     ) where
 
+import           Neovim.Types.Exceptions                 (NeovimException(..))
+
 import           Control.Applicative
 import           Control.Arrow
+import           Control.Exception.Lifted     (throwIO)
 import           Control.Monad.Except
+import           Control.Monad.Base           (MonadBase(..))
 import           Data.ByteString              (ByteString)
 import           Data.Int                     (Int16, Int32, Int64, Int8)
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
+import qualified Data.Map.Lazy                as LMap
+import qualified Data.Map.Strict              as SMap
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                    as Text (Text)
@@ -55,7 +60,7 @@ o +: os = toObject o : os
 -- | A generic vim dictionary is a simply a map from strings to objects.  This
 -- type alias is sometimes useful as a type annotation especially if the
 -- OverloadedStrings extension is enabled.
-type Dictionary = Map ByteString Object
+type Dictionary = SMap.Map ByteString Object
 
 
 -- | Conversion from 'Object' files to Haskell types and back with respect
@@ -72,6 +77,9 @@ class NvimObject o where
 
     fromObject :: Object -> Either Doc o
     fromObject = return . fromObjectUnsafe
+
+    fromObject' :: (MonadBase IO io) => Object -> io o
+    fromObject' = either (throwIO . ErrorMessage) return . fromObject
 
 
 -- Instances for NvimObject {{{1
@@ -266,15 +274,15 @@ instance (NvimObject l, NvimObject r) => NvimObject (Either l r) where
 
 
 instance (Ord key, NvimObject key, NvimObject val)
-        => NvimObject (Map key val) where
+        => NvimObject (SMap.Map key val) where
     toObject = ObjectMap
-        . Map.fromList . map (toObject *** toObject) . Map.toList
+        . SMap.fromList . map (toObject *** toObject) . SMap.toList
 
-    fromObject (ObjectMap om) = Map.fromList <$>
+    fromObject (ObjectMap om) = SMap.fromList <$>
         (sequenceA
             . map (uncurry (liftA2 (,))
                     . (fromObject *** fromObject))
-                . Map.toList) om
+                . SMap.toList) om
 
     fromObject o = throwError . text $ "Expected ObjectMap, but got " <> show o
 

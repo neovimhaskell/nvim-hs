@@ -145,7 +145,7 @@ createFunction typeMap nf = do
     let withDeferred | async nf    = appT [t|STM|]
                      | otherwise   = id
 
-        withException | canFail nf = appT [t|Either Object|]
+        withException | canFail nf = appT [t|Either NeovimException|]
                       | otherwise  = id
 
         callFn | async nf && canFail nf = [|acall|]
@@ -368,7 +368,7 @@ command customFunctionName@(c:_) functionName
                     [ "Trying to generate a command without compatible types."
                     , "Due to a limitation burdened on us by vimL, we can only"
                     , "use a limited amount type signatures for commands. See"
-                    , "the documentation for 'command' for am ore thorough"
+                    , "the documentation for 'command' for a more thorough"
                     , "explanation."
                     ]
         [|\copts -> EF (Command
