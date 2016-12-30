@@ -30,7 +30,6 @@ import           Data.Data                    (Typeable, cast)
 import           Data.Int                     (Int64)
 import           Data.MessagePack
 import           Data.Time
-import           Data.Time.Locale.Compat
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 import           Prelude

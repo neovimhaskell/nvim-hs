@@ -34,11 +34,9 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import qualified Data.ByteString.UTF8         as U (fromString)
-import           Data.Data                    (Typeable)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.MessagePack             (Object)
-import           Data.String                  (IsString (..))
 import           System.Log.Logger
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
