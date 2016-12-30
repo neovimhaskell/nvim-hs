@@ -39,11 +39,13 @@ module Neovim.Context (
 
 import           Neovim.Classes
 import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
-                                               Neovim, Neovim',
-                                               NeovimException (ErrorMessage),
-                                               forkNeovim, mkFunctionMap,
+                                               Neovim, Neovim', forkNeovim,
+                                               mkFunctionMap,
                                                newUniqueFunctionName, runNeovim)
+import           Neovim.Exceptions            (NeovimException (..))
+
 import qualified Neovim.Context.Internal      as Internal
+
 
 import           Control.Concurrent           (putMVar)
 import           Control.Exception
@@ -52,7 +54,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.MessagePack             (Object)
-import           Text.PrettyPrint.ANSI.Leijen (Doc, text, Pretty(..))
+import           Text.PrettyPrint.ANSI.Leijen (Pretty (..))
 
 
 -- | @'throw'@ specialized to a 'Pretty' value.

@@ -70,6 +70,7 @@ library
                       , Neovim.Config
                       , Neovim.Context
                       , Neovim.Context.Internal
+                      , Neovim.Exceptions
                       , Neovim.Plugin
                       , Neovim.Plugin.Classes
                       , Neovim.Plugin.Internal
@@ -84,8 +85,7 @@ library
                       , Neovim.RPC.SocketReader
                       , Neovim.Plugin.Startup
                       , Neovim.Util
-
-  other-modules:        Neovim.Plugin.ConfigHelper.Internal
+                      , Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.API.Parser
                       , Neovim.API.TH
   -- other-extensions:

@@ -21,6 +21,7 @@ module Neovim.Context.Internal
 
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.IPC            (SomeMessage)
+import           Neovim.Exceptions            (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Concurrent           (ThreadId, forkIO)
@@ -85,26 +86,6 @@ asks' = Neovim . asks
 
 -- | Convenience alias for @'Neovim' () ()@.
 type Neovim' = Neovim () ()
-
-
--- | Exceptions specific to /nvim-hs/.
-data NeovimException
-    = ErrorMessage Doc
-    -- ^ Simply error message that is passed to neovim. It should currently only
-    -- contain one line of text.
-    deriving (Typeable, Show)
-
-
-instance Exception NeovimException
-
-
-instance IsString NeovimException where
-    fromString = ErrorMessage . fromString
-
-
-instance Pretty NeovimException where
-    pretty = \case
-        ErrorMessage s -> s
 
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.

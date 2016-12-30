@@ -15,6 +15,7 @@ module Neovim.RPC.FunctionCall (
     acall',
     scall,
     scall',
+    scallThrow,
     atomically',
     wait,
     wait',
@@ -29,9 +30,11 @@ import qualified Neovim.Context.Internal   as Internal
 import           Neovim.Plugin.Classes     (FunctionName)
 import           Neovim.Plugin.IPC.Classes
 import qualified Neovim.RPC.Classes        as MsgpackRPC
+import           Neovim.Exceptions         (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Concurrent.STM
+import           Control.Exception.Lifted  (throwIO)
 import           Control.Monad.Reader
 import           Data.MessagePack
 import           Data.Monoid
@@ -96,6 +99,13 @@ scall :: (NvimObject result)
       -> Neovim r st (Either NeovimException result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
+
+-- | Similar to 'scall', but throw a 'NeovimException' instead of returning it.
+scallThrow :: (NvimObject result)
+           => FunctionName
+           -> [Object]
+           -> Neovim r st result
+scallThrow fn parameters = scall fn parameters >>= either throwIO return
 
 
 -- | Helper function similar to 'scall' that throws a runtime exception if the

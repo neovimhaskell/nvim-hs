@@ -148,36 +148,41 @@ createFunction typeMap nf = do
         withException | canFail nf = appT [t|Either NeovimException|]
                       | otherwise  = id
 
-        callFn | async nf && canFail nf = [|acall|]
-               | async nf               = [|acall'|]
-               | canFail nf             = [|scall|]
-               | otherwise              = [|scall'|]
+        callFns | async nf && canFail nf = [ [|acall|] ]
+                | async nf               = [ [|acall'|] ]
+                | canFail nf             = [ [|scall|], [|scallThrow|] ]
+                | otherwise              = [ [|scall'|] ]
 
-        functionName = (mkName . name) nf
+        functionNames = map mkName [ name nf, name nf ++ "'" ]
         toObjVar v = [|toObject $(varE v)|]
 
 
-    ret <- let (r,st) = (mkName "r", mkName "st")
-           in forallT [PlainTV r, PlainTV st] (return [])
-            . appT ([t|Neovim $(varT r) $(varT st) |])
-            . withDeferred . withException
-            . apiTypeToHaskellType typeMap $ returnType nf
+    retTypes <- let (r,st) = (mkName "r", mkName "st")
+                    createSig retTypeFun =
+                        forallT [PlainTV r, PlainTV st] (return [])
+                        . appT ([t|Neovim $(varT r) $(varT st) |])
+                        . withDeferred . retTypeFun
+                        . apiTypeToHaskellType typeMap $ returnType nf
+                in mapM createSig [ withException, id ]
 
     vars <- mapM (\(t,n) -> (,) <$> apiTypeToHaskellType typeMap t
                                 <*> newName n)
             $ parameters nf
-    sequence
-        [ sigD functionName . return
-            . foldr (AppT . AppT ArrowT) ret $ map fst vars
-        , funD functionName
-            [ clause
-                (map (varP . snd) vars)
-                (normalB (callFn
-                    `appE` ([| (F . fromString) |] `appE` (litE . stringL . name) nf)
-                    `appE` listE (map (toObjVar . snd) vars)))
-                []
+
+    let impl functionName callFn retType =
+            [ sigD functionName . return
+                . foldr (AppT . AppT ArrowT) retType $ map fst vars
+            , funD functionName
+                [ clause
+                    (map (varP . snd) vars)
+                    (normalB (callFn
+                        `appE` ([| (F . fromString) |] `appE` (litE . stringL . name) nf)
+                        `appE` listE (map (toObjVar . snd) vars)))
+                    []
+                ]
             ]
-        ]
+
+    sequence . concat $ zipWith3 impl functionNames callFns retTypes
 
 
 -- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@

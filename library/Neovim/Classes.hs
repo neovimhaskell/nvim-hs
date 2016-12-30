@@ -23,7 +23,7 @@ module Neovim.Classes
     , module Data.Word
     ) where
 
-import           Neovim.Types.Exceptions                 (NeovimException(..))
+import           Neovim.Exceptions                 (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Arrow
@@ -32,7 +32,6 @@ import           Control.Monad.Except
 import           Control.Monad.Base           (MonadBase(..))
 import           Data.ByteString              (ByteString)
 import           Data.Int                     (Int16, Int32, Int64, Int8)
-import qualified Data.Map.Lazy                as LMap
 import qualified Data.Map.Strict              as SMap
 import           Data.MessagePack
 import           Data.Monoid
