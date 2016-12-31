@@ -1,3 +1,10 @@
+# 0.2.0
+
+* Replace error code of remote functions to return
+  `Either NeovimException a` instead of a generic messagepack `Object`
+* Export API functions that throw a `NeovimException` instead of returning
+  `Either NeovimExeception a`.
+
 # 0.1.0
 
 * Adjust parser for output of `nvim --api-info`

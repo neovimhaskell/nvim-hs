@@ -223,7 +223,7 @@ retypeConfig :: r -> st -> Config anotherR anotherSt -> Config r st
 retypeConfig r _ cfg = cfg { pluginSettings = Nothing, customConfig = r }
 
 
--- | This GADT is used to share informatino between stateless and stateful
+-- | This GADT is used to share information between stateless and stateful
 -- plugin threads since they work fundamentally in the same way. They both
 -- contain a function to register some functionality in the plugin provider
 -- as well as some values which are specific to the one or the other context.
@@ -276,3 +276,4 @@ data StateTransition
     -- ^ The plugin provider started successfully.
 
     deriving (Show)
+
