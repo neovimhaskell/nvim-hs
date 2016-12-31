@@ -25,6 +25,7 @@ module Neovim.Debug (
     ) where
 
 import           Neovim
+import           Neovim.Classes
 import           Neovim.Context               (runNeovim)
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Log                   (disableLogger)
@@ -62,7 +63,8 @@ debug r st a = disableLogger $ do
             return $ Left e
 
         Internal.InitSuccess -> do
-            res <- Internal.runNeovim
+            res <- Internal.runNeovimInternal
+                return
                 (cfg { Internal.customConfig = r, Internal.pluginSettings = Nothing })
                 st
                 a
@@ -161,7 +163,8 @@ restartDevelMain cfg mcfg = do
 
 
 -- | Convenience function to run a stateless 'Neovim' function.
-runNeovim' :: Internal.Config r st -> Neovim' a -> IO (Either Doc a)
+runNeovim' :: NFData a
+           => Internal.Config r st -> Neovim' a -> IO (Either Doc a)
 runNeovim' cfg =
     fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
 

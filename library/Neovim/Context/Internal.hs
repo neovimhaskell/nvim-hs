@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {- |
 Module      :  Neovim.Context.Internal
 Description :  Abstract description of the plugin provider's internal context
@@ -19,14 +20,17 @@ To shorten function and data type names, import this qualfied as @Internal@.
 module Neovim.Context.Internal
     where
 
+import           Neovim.Classes
+import           Neovim.Exceptions            (NeovimException (..))
 import           Neovim.Plugin.Classes
 import           Neovim.Plugin.IPC            (SomeMessage)
-import           Neovim.Exceptions            (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Concurrent           (ThreadId, forkIO)
 import           Control.Concurrent           (MVar, newEmptyMVar)
 import           Control.Concurrent.STM
+import           Control.Exception            (ArithException, ArrayException,
+                                               ErrorCall, PatternMatchFail)
 import           Control.Monad.Base
 import           Control.Monad.Catch
 import           Control.Monad.Except
@@ -85,21 +89,41 @@ asks' = Neovim . asks
 -- | Convenience alias for @'Neovim' () ()@.
 type Neovim' = Neovim () ()
 
+exceptionHandlers :: [Handler IO (Either Doc a)]
+exceptionHandlers =
+    [ Handler $ \(_ :: ArithException)   -> ret "ArithException (e.g. division by 0)"
+    , Handler $ \(_ :: ArrayException)   -> ret "ArrayException"
+    , Handler $ \(_ :: ErrorCall)        -> ret "ErrorCall (e.g. call of undefined or error"
+    , Handler $ \(_ :: PatternMatchFail) -> ret "Pattern match failure"
+    , Handler $ \(_ :: SomeException)    -> ret "Unhandled exception"
+    ]
+  where
+    ret = return . Left . pretty
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
-runNeovim :: Config r st
+runNeovim :: NFData a
+          => Config r st
           -> st
           -> Neovim r st a
           -> IO (Either Doc (a, st))
-runNeovim r st (Neovim a) = (try . runReaderT (runStateT (runResourceT a) st)) r >>= \case
-    Left e -> case fromException e of
-        Just e' ->
-            return . Left . pretty $ (e' :: NeovimException)
+runNeovim = runNeovimInternal (\(a,st) -> a `deepseq` return (a, st))
 
-        Nothing -> do
-            liftIO . errorM "Context" $ "Converting Exception to Error message: " ++ show e
-            (return . Left . text . show) e
-    Right res -> (return . Right) res
+runNeovimInternal :: ((a, st) -> IO (a, st))
+                  -> Config r st
+                  -> st
+                  -> Neovim r st a
+                  -> IO (Either Doc (a, st))
+runNeovimInternal f r st (Neovim a) =
+    (try . runReaderT (runStateT (runResourceT a) st)) r >>= \case
+        Left e -> case fromException e of
+            Just e' ->
+                return . Left . pretty $ (e' :: NeovimException)
+
+            Nothing -> do
+                liftIO . errorM "Context" $ "Converting Exception to Error message: " ++ show e
+                (return . Left . text . show) e
+        Right res ->
+            (Right <$> f res) `catches` exceptionHandlers
 
 
 -- | Fork a neovim thread with the given custom config value and a custom
@@ -107,7 +131,7 @@ runNeovim r st (Neovim a) = (try . runReaderT (runStateT (runResourceT a) st)) r
 -- returend immediately.
 -- FIXME This function is pretty much unused and mayhave undesired effects,
 --       namely that you cannot register autocmds in the forked thread.
-forkNeovim :: ir -> ist -> Neovim ir ist a -> Neovim r st ThreadId
+forkNeovim :: NFData a => ir -> ist -> Neovim ir ist a -> Neovim r st ThreadId
 forkNeovim r st a = do
     cfg <- ask'
     let threadConfig = cfg

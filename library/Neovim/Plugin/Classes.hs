@@ -88,7 +88,10 @@ data FunctionalityDescription
     -- * Name for the function to call
     -- * Options for the autocmd (use 'def' here if you don't want to change anything)
 
-    deriving (Show, Read, Eq, Ord)
+    deriving (Show, Read, Eq, Ord, Generic)
+
+
+instance NFData FunctionalityDescription
 
 
 instance Pretty FunctionalityDescription where

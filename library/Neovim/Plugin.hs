@@ -34,7 +34,7 @@ import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Config
 import           Neovim.Context
-import           Neovim.Context.Internal      (FunctionType (..))
+import           Neovim.Context.Internal      (FunctionType (..), runNeovimInternal)
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Plugin.Classes        hiding (register)
 import           Neovim.Plugin.Internal
@@ -73,7 +73,7 @@ startPluginThreads :: Internal.Config StartupConfig ()
                    -> [Neovim StartupConfig () NeovimPlugin]
                    -> IO (Either Doc ([FunctionMapEntry],[ThreadId]))
 startPluginThreads cfg = fmap (fmap fst)
-    . runNeovim cfg ()
+    . runNeovimInternal return cfg ()
     . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [ThreadId])
@@ -231,7 +231,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
             liftIO $ warningM logger "Free not implemented for functions."
 
 
-    free cfg = const . void . liftIO . runNeovim cfg () . freeFun
+    free cfg = const . void . liftIO . runNeovimInternal return cfg () . freeFun
 
 
 -- | Register a functoinality in a stateless context.
@@ -336,7 +336,7 @@ registerStatefulFunctionality (r, st, fs) = do
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
                 (registerInStatefulContext (\_ -> return ())) q route
             }
-    res <- liftIO . runNeovim startupConfig st . forM fs $ \f ->
+    res <- liftIO . runNeovimInternal return startupConfig st . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
         Left e -> err e
@@ -348,7 +348,7 @@ registerStatefulFunctionality (r, st, fs) = do
                 (registerInStatefulContext registerInGlobalFunctionMap) q route
             }
 
-    tid <- liftIO . forkIO . void . runNeovim pluginThreadConfig st $ do
+    tid <- liftIO . forkIO . void . runNeovimInternal return pluginThreadConfig st $ do
                 listeningThread q route
 
     return (map fst es, tid) -- NB: dropping release functions/keys here
@@ -365,7 +365,7 @@ registerStatefulFunctionality (r, st, fs) = do
 
     listeningThread :: TQueue SomeMessage
                     -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-                    -> Neovim r st loop
+                    -> Neovim r st ()
     listeningThread q route = do
         msg <- liftIO . atomically $ readTQueue q
 
