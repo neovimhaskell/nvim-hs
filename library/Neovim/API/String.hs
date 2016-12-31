@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE DeriveGeneric      #-}
 {- |
 Module      :  Neovim.API.String
 Description :  String based API

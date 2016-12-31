@@ -80,13 +80,13 @@ generateAPI :: Map String (Q Type) -> Q [Dec]
 generateAPI typeMap = do
     api <- either (fail . show) return =<< runIO parseAPI
     let exceptionName = mkName "NeovimExceptionGen"
-        exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) <$> errorTypes api
-        customTypesN = first mkName <$> customTypes api
+        exceptions = (\(n,i) -> (mkName ("Neovim" <> n), i)) `map` errorTypes api
+        customTypesN = first mkName `map` customTypes api
     join <$> sequence
-        [ fmap return . createDataTypeWithByteStringComponent exceptionName $ fst <$> exceptions
+        [ fmap (join . return) $ createDataTypeWithByteStringComponent exceptionName (map fst exceptions)
         , exceptionInstance exceptionName
         , customTypeInstance exceptionName exceptions
-        , mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ fst <$> customTypesN
+        , fmap join . mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ (map fst customTypesN)
         , join <$> mapM (\(n,i) -> customTypeInstance n [(n,i)]) customTypesN
         , fmap join . mapM (createFunction typeMap) $ functions api
         ]
@@ -193,7 +193,7 @@ createFunction typeMap nf = do
 --               deriving (Typeable, Eq, Show)
 -- @
 --
-createDataTypeWithByteStringComponent :: Name -> [Name] -> Q Dec
+createDataTypeWithByteStringComponent :: Name -> [Name] -> Q [Dec]
 createDataTypeWithByteStringComponent nme cs = do
         tObject <- [t|ByteString|]
 #if __GLASGOW_HASKELL__ < 800
@@ -201,12 +201,15 @@ createDataTypeWithByteStringComponent nme cs = do
 #else
         let strictNess = (Bang NoSourceUnpackedness SourceStrict, tObject)
 #endif
-        dataD'
-            (return [])
-            nme
-            []
-            (map (\n-> normalC n [return strictNess]) cs)
-            (mkName <$> ["Typeable", "Eq", "Show"])
+        sequence
+            [ dataD'
+                (return [])
+                nme
+                []
+                (map (\n-> normalC n [return strictNess]) cs)
+                (mkName <$> ["Typeable", "Eq", "Show", "Generic"])
+            , instanceD (return []) (appT (conT (mkName "NFData")) (conT nme)) []
+            ]
 
 
 -- | If the first parameter is @mkName NeovimException@, this function will

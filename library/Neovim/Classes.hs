@@ -18,15 +18,18 @@ module Neovim.Classes
     ( NvimObject(..)
     , Dictionary
     , (+:)
+    , Generic
 
     , module Data.Int
     , module Data.Word
+    , module Control.DeepSeq
     ) where
 
 import           Neovim.Exceptions                 (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Arrow
+import           Control.DeepSeq
 import           Control.Exception.Lifted     (throwIO)
 import           Control.Monad.Except
 import           Control.Monad.Base           (MonadBase(..))
@@ -39,8 +42,9 @@ import           Data.Text                    as Text (Text)
 import           Data.Traversable             hiding (forM, mapM)
 import           Data.Word                    (Word, Word16, Word32, Word64,
                                                Word8)
-import           Text.PrettyPrint.ANSI.Leijen (Doc, displayS, lparen,
-                                               renderPretty, rparen, text)
+import           GHC.Generics                 (Generic)
+import           Text.PrettyPrint.ANSI.Leijen (Doc, lparen,
+                                               rparen, text)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import qualified Data.ByteString.UTF8         as UTF8 (fromString, toString)
@@ -64,7 +68,11 @@ type Dictionary = SMap.Map ByteString Object
 
 -- | Conversion from 'Object' files to Haskell types and back with respect
 -- to neovim's interpretation.
-class NvimObject o where
+--
+-- The 'NFData' constraint has been added to allow forcing results of function
+-- evaluations in order to catch exceptions from pure code. This adds more
+-- stability to the plugin provider and seems to be a cleaner approach.
+class NFData o => NvimObject o where
     toObject :: o -> Object
 
     fromObjectUnsafe :: Object -> o
@@ -307,12 +315,6 @@ instance NvimObject Object where
 
     fromObject = return
     fromObjectUnsafe = id
-
-
-instance NvimObject Doc where
-    toObject d = toObject $ displayS (renderPretty 1.0 240 d) ""
-
-    fromObject = fmap text . fromObject
 
 
 -- By the magic of vim, i will create these.

@@ -88,7 +88,7 @@ library
                       , Neovim.Plugin.ConfigHelper.Internal
                       , Neovim.API.Parser
                       , Neovim.API.TH
-  -- other-extensions:
+  other-extensions:     DeriveGeneric
   build-depends:        base >=4.6 && < 5
                       , ansi-wl-pprint
                       , bytestring
@@ -98,6 +98,7 @@ library
                       , conduit-extra
                       , containers
                       , data-default
+                      , deepseq >= 1.1 && < 1.5
                       , directory
                       , dyre
                       , exceptions

@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {- |
 Module      :  Neovim.Plugin.Classes
 Description :  Classes and data types related to plugins
@@ -47,7 +48,10 @@ import           Prelude                      hiding (sequence)
 
 -- | Essentially just a string.
 newtype FunctionName = F ByteString
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generic)
+
+
+instance NFData FunctionName
 
 
 instance Pretty FunctionName where
@@ -115,8 +119,9 @@ data Synchronous
     -- ^ Call the function and wait for its result. This is only synchronous on
     -- the neovim side. This means that the GUI will (probably) not
     -- allow any user input until a reult is received.
-    deriving (Show, Read, Eq, Ord, Enum)
+    deriving (Show, Read, Eq, Ord, Enum, Generic)
 
+instance NFData Synchronous
 
 instance Pretty Synchronous where
     pretty = \case
@@ -181,7 +186,9 @@ data CommandOption = CmdSync Synchronous
                    --
                    -- Stringliteral: \"!\"
 
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generic)
+
+instance NFData CommandOption
 
 
 instance Pretty CommandOption where
@@ -221,8 +228,9 @@ instance IsString CommandOption where
 -- object of this type is sorted and only contains zero or one object for each
 -- possible option.
 newtype CommandOptions = CommandOptions { getCommandOptions :: [CommandOption] }
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generic)
 
+instance NFData CommandOptions
 
 instance Pretty CommandOptions where
     pretty (CommandOptions os) =
@@ -277,8 +285,9 @@ data RangeSpecification
     | RangeCount Int
     -- ^ Let the command operate on each line in the given range.
 
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generic)
 
+instance NFData RangeSpecification
 
 instance Pretty RangeSpecification where
     pretty = \case
@@ -323,7 +332,10 @@ data CommandArguments = CommandArguments
     , register :: Maybe String
     -- ^ Register that the command can\/should\/must use.
     }
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generic)
+
+
+instance NFData CommandArguments
 
 
 instance Pretty CommandArguments where
@@ -384,7 +396,10 @@ data AutocmdOptions = AutocmdOptions
     , acmdGroup   :: Maybe String
     -- ^ Group in which the autocmd should be registered.
     }
-    deriving (Show, Read, Eq, Ord)
+    deriving (Show, Read, Eq, Ord, Generic)
+
+
+instance NFData AutocmdOptions
 
 
 instance Pretty AutocmdOptions where

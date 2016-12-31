@@ -47,6 +47,7 @@ import           Data.Monoid
 import qualified Data.Serialize             (get)
 import           System.IO                  (Handle)
 import           System.Log.Logger
+import           Text.PrettyPrint.ANSI.Leijen (renderCompact, displayS)
 
 import           Prelude
 
@@ -141,7 +142,7 @@ handleRequestOrNotification mi m params = do
             res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage . MsgpackRPC.Response i $ either (Left . toObject) Right res
+                . SomeMessage . MsgpackRPC.Response i $ either (Left . toObject . flip displayS "" . renderCompact) Right res
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO

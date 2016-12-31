@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {- |
 Module      :  Neovim.Quickfix
 Description :  API for interacting with the quickfix list
@@ -67,11 +68,17 @@ data QuickfixListItem strType = QFItem
 
     , errorType     :: QuickfixErrorType
     -- ^ Type of error.
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
+
+
+instance (NFData strType) => NFData (QuickfixListItem strType)
 
 
 data QuickfixErrorType = Warning | Error
-    deriving (Eq, Ord, Show, Read, Enum, Bounded)
+    deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
+
+
+instance NFData QuickfixErrorType
 
 
 instance NvimObject QuickfixErrorType where
@@ -159,7 +166,10 @@ data QuickfixAction
     = Append -- ^ Add items to the current list (or create a new one if none exists).
     | Replace -- ^ Replace current list (or create a new one if none exists).
     | New    -- ^ Create a new list.
-    deriving (Eq, Ord, Enum, Bounded, Show)
+    deriving (Eq, Ord, Enum, Bounded, Show, Generic)
+
+
+instance NFData QuickfixAction
 
 
 instance NvimObject QuickfixAction where

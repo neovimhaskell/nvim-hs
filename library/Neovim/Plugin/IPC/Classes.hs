@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {- |
 Module      :  Neovim.Plugin.IPC.Classes
 Description :  Classes used for Inter Plugin Communication
@@ -23,6 +24,7 @@ module Neovim.Plugin.IPC.Classes (
     module Data.Time,
     ) where
 
+import           Neovim.Classes
 import           Neovim.Plugin.Classes        (FunctionName)
 
 import           Control.Concurrent.STM
@@ -82,7 +84,10 @@ data Request = Request
     -- ^ Identifier to map the result to a function call invocation.
     , reqArgs   :: [Object]
     -- ^ Arguments for the function.
-    } deriving (Eq, Ord, Show, Typeable)
+    } deriving (Eq, Ord, Show, Typeable, Generic)
+
+
+instance NFData Request
 
 
 instance Message Request
@@ -104,7 +109,10 @@ data Notification = Notification
     -- ^ Name of the function to call.
     , notArgs   :: [Object]
     -- ^ Arguments for the function.
-    } deriving (Eq, Ord, Show, Typeable)
+    } deriving (Eq, Ord, Show, Typeable, Generic)
+
+
+instance NFData Notification
 
 
 instance Message Notification

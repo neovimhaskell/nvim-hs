@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE LambdaCase         #-}
 {-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE DeriveGeneric      #-}
 {- |
 Module      :  Neovim.RPC.Classes
 Description :  Data types and classes for the RPC components
@@ -17,7 +18,7 @@ module Neovim.RPC.Classes
     ( Message (..),
     ) where
 
-import           Neovim.Classes               (NvimObject (..), (+:))
+import           Neovim.Classes
 import           Neovim.Plugin.Classes        (FunctionName (..))
 import qualified Neovim.Plugin.IPC.Classes    as IPC
 
@@ -50,7 +51,10 @@ data Message
 
     | Notification IPC.Notification
     -- ^ Notification in the sense of the msgpack rpc specification
-    deriving (Eq, Ord, Show, Typeable)
+    deriving (Eq, Ord, Show, Typeable, Generic)
+
+
+instance NFData Message
 
 
 instance IPC.Message Message
