@@ -19,6 +19,8 @@ module Neovim.Classes
     , Dictionary
     , (+:)
     , Generic
+    , docToObject
+    , docFromObject
 
     , module Data.Int
     , module Data.Word
@@ -44,7 +46,7 @@ import           Data.Word                    (Word, Word16, Word32, Word64,
                                                Word8)
 import           GHC.Generics                 (Generic)
 import           Text.PrettyPrint.ANSI.Leijen (Doc, lparen,
-                                               rparen, text)
+                                               rparen, text, displayS, renderCompact)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import qualified Data.ByteString.UTF8         as UTF8 (fromString, toString)
@@ -59,6 +61,16 @@ infixr 5 +:
 (+:) :: (NvimObject o) => o -> [Object] -> [Object]
 o +: os = toObject o : os
 
+
+-- | Convert a 'Doc'-ument to a messagepack 'Object'. This is more a convenience
+-- method to transport error message from and to neovim. It generally does not
+-- hold that 'docToObject . docFromObject' = 'id'.
+docToObject :: Doc -> Object
+docToObject = toObject . flip displayS "" . renderCompact
+
+-- | See 'docToObject'.
+docFromObject :: Object -> Either Doc Doc
+docFromObject o = P.pretty . UTF8.toString <$> fromObject o
 
 -- | A generic vim dictionary is a simply a map from strings to objects.  This
 -- type alias is sometimes useful as a type annotation especially if the

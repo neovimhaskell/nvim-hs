@@ -90,6 +90,8 @@ module Neovim (
     withCustomEnvironment,
     whenM,
     unlessM,
+    docToObject,
+    docFromObject,
     Priority(..),
     module Control.Monad,
     module Control.Applicative,
@@ -110,7 +112,8 @@ import           Data.Word                    (Word, Word16, Word32, Word8)
 import           Neovim.API.String
 import           Neovim.API.TH                (autocmd, command, command',
                                                function, function')
-import           Neovim.Classes               (Dictionary, NvimObject (..), (+:))
+import           Neovim.Classes               (Dictionary, NvimObject (..),
+                                               docFromObject, docToObject, (+:))
 import           Neovim.Config                (NeovimConfig (..))
 import           Neovim.Context               (Neovim, Neovim',
                                                NeovimException (ErrorMessage),
@@ -120,7 +123,8 @@ import           Neovim.Context               (Neovim, Neovim',
 import           Neovim.Main                  (neovim)
 import           Neovim.Plugin                (addAutocmd, addAutocmd')
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),
-                                               CommandArguments (..), CommandOption (CmdSync, CmdRegister, CmdRange, CmdCount, CmdBang),
+                                               CommandArguments (..),
+                                               CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
                                                RangeSpecification (..),
                                                Synchronous (..))
 import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
@@ -131,7 +135,7 @@ import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,
                                                withCustomEnvironment)
 import           System.Log.Logger            (Priority (..))
-import           Text.PrettyPrint.ANSI.Leijen (Doc, text, Pretty(..))
+import           Text.PrettyPrint.ANSI.Leijen (Doc, Pretty (..), text)
 
 -- Installation {{{1
 -- tl;dr installation {{{2

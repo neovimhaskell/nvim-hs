@@ -62,7 +62,9 @@ err :: Pretty err => err ->  Neovim r st a
 err = throw . ErrorMessage . pretty
 
 
-errOnInvalidResult :: (NvimObject o) => Neovim r st (Either Object Object) -> Neovim r st o
+errOnInvalidResult :: (NvimObject o)
+                   => Neovim r st (Either NeovimException Object)
+                   -> Neovim r st o
 errOnInvalidResult a = a >>= \case
     Left o ->
         (err . show) o
