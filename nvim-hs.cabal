@@ -105,7 +105,7 @@ library
                       , filepath
                       , foreign-store
                       , hslogger
-                      , messagepack >= 0.5
+                      , messagepack >= 0.5.4
                       , monad-control
                       , network
                       , lifted-base
