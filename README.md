@@ -209,6 +209,13 @@ described in the previous chapter.
 The downside of this is that your compilation times will be longer the more
 plugins you include this way.
 
+### Writing your own functions that you can call from neovim
+
+The stack template generated a few files for you that you can use as a
+template to write your own plugins. If you edit them and make a mistake that
+the Haskell compiler can detect, an item in the quickfix list should appear.
+This is, unless you removed `plugins defaultConfig` from `nvim.hs`.
+
 # Contributing
 
 Documentation, typo fixes and alike will almost always be merged.
