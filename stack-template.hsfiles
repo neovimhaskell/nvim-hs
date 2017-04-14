@@ -1,0 +1,136 @@
+{-# START_FILE {{name}}.cabal #-}
+name:                {{name}}
+version:             0.1.0.0
+synopsis:            Haskell Neovim plugins
+description:         Personal project to manage plugin dependencies.
+-- Take a license that you like. Only relevant if you want to make your config
+-- used by other people.
+--license:             BSD3
+--license-file:        LICENSE
+author:              Author name here
+--maintainer:          example@example.com
+copyright:           2017 Author name here
+category:            Neovim
+build-type:          Simple
+--extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      lib
+--  hs-source-dirs:      nvim-hs
+--  TODO rename to nvim-hs see https://github.com/neovimhaskell/nvim-hs/issues/52
+  exposed-modules:     Neovim.Example.Plugin
+                     , Neovim.Example.Plugin.Fibonacci
+                     , Neovim.Example.Plugin.Random
+  build-depends:       base >= 4.7 && < 5
+                     , nvim-hs >= 0.1.0 && < 1.0.0
+                     -- The dependency below is only needed for the example plugin
+                     , random
+  default-language:    Haskell2010
+
+{-# START_FILE lib/Neovim/Example/Plugin.hs #-}
+{-# LANGUAGE TemplateHaskell #-}
+-- Template Haskell is used to remove a lot of manual boiler-plate from
+-- declaring the functions you want to export.
+module Neovim.Example.Plugin
+    ( plugin
+    ) where
+
+import Neovim
+
+import Neovim.Example.Plugin.Random (nextRandom, setNextRandom, randomNumbers)
+import Neovim.Example.Plugin.Fibonacci (fibonacci)
+
+plugin :: Neovim (StartupConfig NeovimConfig) () NeovimPlugin
+plugin = do
+    randomPluginState <- randomNumbers
+    wrapPlugin Plugin
+        { exports         =
+            [ $(function' 'fibonacci) Sync
+            -- Notice the quotation mark before the functin name, this is
+            -- important!
+            ]
+        , statefulExports =
+            [ ((), randomPluginState,
+                [ $(function' 'nextRandom) Sync
+                , $(function "SetNextRandom" 'setNextRandom) Async
+                ])
+            ]
+}
+
+{-# START_FILE lib/Neovim/Example/Plugin/Random.hs #-}
+{-# LANGUAGE TemplateHaskell #-}
+module Neovim.Example.Plugin.Random
+    ( nextRandom
+    , setNextRandom
+    , randomNumbers
+    ) where
+
+import Neovim
+import System.Random (newStdGen, randoms)
+
+-- | This is the start up code. It initializes the random number generator and
+-- returns a convenient list of random numbers.
+--
+-- Except for the last @[Int16]@ return values, this type signature is mandatory
+-- for your startup code. The internals of the plugin recompilation leak here a
+-- bit, it might be changed in the future. If you don't mind warnings, you can
+-- leave the signature undefined, but then you would have to add a type
+-- signature to the value of @randoms g@.
+--
+-- See <https://github.com/neovimhaskell/nvim-hs/issues/13> for details.
+--
+-- Neovim isn't so good with big numbers, so limit to 16 bits.
+randomNumbers :: Neovim (StartupConfig NeovimConfig) () [Int16]
+randomNumbers = do
+    g <- liftIO newStdGen -- Create a new seed for a pseudo random number generator
+    return (randoms g)    -- Return an infinite list of random numbers
+
+-- You could write this shorter in more idiomatic Haskell:
+-- randomNumbers = randoms <$> liftIO newStdGen
+
+-- | Get the next random number and update the state of the list.
+nextRandom :: Neovim r [Int16] Int16
+nextRandom = do
+    r <- gets head -- get the head of the infinite random number list
+    modify tail    -- set the list to its tail
+    return r
+
+-- An alternative equivalent implementation with pattern matching on the list
+-- nextRandom :: Neovim r [Int16] Int16
+-- nextRandom = do
+--     (r:rs) <- get
+--     put rs
+--     return r
+
+-- | You probably don't want this in a random number generator, but this shows
+-- hoy you can edit the state of a stateful plugin.
+setNextRandom :: Int16 -> Neovim r [Int16] ()
+setNextRandom n = modify (n:) -- cons n to the front of the infinite list
+
+{-# START_FILE lib/Neovim/Example/Plugin/Fibonacci.hs #-}
+module Neovim.Example.Plugin.Fibonacci
+    ( fibonacci
+    ) where
+
+import Neovim
+
+-- | All fibonacci numbers.
+fibonacciNumbers :: [Integer]
+fibonacciNumbers = 0:fibs -- Since were using !! to index an element in a list, we need a 0 in front
+    where fibs = 1:scanl1 (+) fibs
+
+-- | Neovim is not really good with big numbers, so we return a 'String' here.
+fibonacci :: Int -> Neovim' String
+fibonacci n = return . show $ fibonacciNumbers !! n
+
+{-# START_FILE nvim.hs #-}
+import Neovim
+
+import qualified Neovim.Example.Plugin as Example
+
+main :: IO ()
+main = do
+    neovim defaultConfig
+        { plugins = plugins defaultConfig ++ [ Example.plugin ]
+        }
