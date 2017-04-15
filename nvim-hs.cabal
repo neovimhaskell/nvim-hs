@@ -29,9 +29,8 @@ maintainer:          woozletoff@gmail.com
 copyright:           Copyright 2015 Sebastian Witte <woozletoff@gmail.com>
 category:            Editor
 build-type:          Simple
-cabal-version:       >=1.10
--- TODO uncomment when somebody has cared about the new travis infrastructure (see #39)
--- tested-with:         GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.2
+cabal-version:       >=1.18
+tested-with:         GHC == 7.10.3, GHC == 8.0.2
 extra-source-files:    nvim-hs-devel.sh
                      , test-files/compile-error-for-quickfix-test1
                      , test-files/compile-error-for-quickfix-test2
@@ -39,9 +38,11 @@ extra-source-files:    nvim-hs-devel.sh
                      , test-files/compile-error-for-quickfix-test4
                      , test-files/compile-error-for-quickfix-test5
                      , test-files/hello
+                     , apiblobs/0.1.7.msgpack
 
 extra-doc-files:       CHANGELOG.md
                      , README.md
+                     , apiblobs/README.md
 
 source-repository head
     type:            git
@@ -156,8 +157,8 @@ test-suite hspec
                       , foreign-store
                       , hslogger
                       , lifted-base
-                      , mtl >= 2.2.1 && < 2.3
-                      , messagepack >= 0.5.4
+                      , mtl
+                      , messagepack
                       , time-locale-compat
                       , network
                       , optparse-applicative

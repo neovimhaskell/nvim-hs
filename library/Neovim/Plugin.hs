@@ -183,9 +183,6 @@ getProviderName = do
                           liftIO . atomically . putTMVar mp . Right $ fromIntegral channelId
                           return . Right $ fromIntegral channelId
 
-                Left _ ->
-                    err "Unexpected error when quering via nvim_get_api_info."
-
                 _ ->
                     err "Could not determine provider name."
 

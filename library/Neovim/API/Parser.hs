@@ -82,7 +82,7 @@ data NeovimAPI
 
 -- | Run @nvim --api-info@ and parse its output.
 parseAPI :: IO (Either Doc NeovimAPI)
-parseAPI = either (Left . P.text) extractAPI <$> decodeAPI
+parseAPI = either (Left . P.text) extractAPI <$> (decodeAPI `catch` readFromAPIFile)
 
 extractAPI :: Object -> Either Doc NeovimAPI
 extractAPI apiObj = fromObject apiObj >>= \apiMap -> NeovimAPI
@@ -90,9 +90,16 @@ extractAPI apiObj = fromObject apiObj >>= \apiMap -> NeovimAPI
     <*> extractCustomTypes apiMap
     <*> extractFunctions apiMap
 
+readFromAPIFile :: SomeException -> IO (Either String Object)
+readFromAPIFile _ = (decode <$> B.readFile "api") `catch` returnPreviousExceptionAsText
+  where
+      returnPreviousExceptionAsText :: SomeException -> IO (Either String Object)
+      returnPreviousExceptionAsText _ = return . Left $
+        "The 'nvim' process could not be started and there is no file named\
+        \ 'api' in the working directory as a substitute."
 
 decodeAPI :: IO (Either String Object)
-decodeAPI = bracket queryNeovimAPI clean $ \(out, _) -> do
+decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
     decode <$> B.hGetContents out
 
   where

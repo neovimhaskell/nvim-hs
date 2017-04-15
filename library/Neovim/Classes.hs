@@ -245,14 +245,6 @@ instance NvimObject Int where
     fromObject o                = throwError . text $ "Expected any Integer value, but got " <> show o
 
 
-instance NvimObject Char where
-    toObject c = ObjectBinary . UTF8.fromString $ [c]
-
-    fromObject str = case fromObject str of
-        Right [c] -> return c
-        _   -> throwError . text $ "Expected one element string but got: " <> show str
-
-
 instance {-# OVERLAPPING #-} NvimObject [Char] where
     toObject                    = ObjectBinary . UTF8.fromString
 
