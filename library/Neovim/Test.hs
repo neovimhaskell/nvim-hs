@@ -12,6 +12,7 @@ Portability :  GHC
 -}
 module Neovim.Test (
     testWithEmbeddedNeovim,
+    Seconds(..),
     ) where
 
 import           Neovim
@@ -32,7 +33,7 @@ import           System.Process
 
 
 -- | Type synonym for 'Word'.
-type Seconds = Word
+newtype Seconds = Seconds Word
 
 
 -- | Run the given 'Neovim' action according to the given parameters.
@@ -72,9 +73,9 @@ testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) = do
 
 startEmbeddedNvim
     :: Maybe FilePath
-    -> Word
+    -> Seconds
     -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig st)
-startEmbeddedNvim file timeout = do
+startEmbeddedNvim file (Seconds timeout) = do
     args <- case file of
                 Nothing ->
                     return []

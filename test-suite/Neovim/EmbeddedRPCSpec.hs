@@ -29,7 +29,7 @@ import           System.Process
 spec :: Spec
 spec = parallel $ do
   let helloFile = "test-files/hello"
-      withNeovimEmbedded f a = testWithEmbeddedNeovim f 3 () () a
+      withNeovimEmbedded f a = testWithEmbeddedNeovim f (Seconds 3) () () a
   describe "Read hello test file" .
     it "should match 'Hello, World!'" . withNeovimEmbedded (Just helloFile) $ do
         bs <- vim_get_buffers
