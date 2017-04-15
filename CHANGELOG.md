@@ -2,12 +2,20 @@
 
 * Replace error code of remote functions to return
   `Either NeovimException a` instead of a generic messagepack `Object`
+
 * Export API functions that throw a `NeovimException` instead of returning
   `Either NeovimExeception a`.
+
+* Replace three element tuple for stateful function declaration (#53)
+
+* Add a stack template for easier setup
+
+* Exceptions from pure code are now caught (#48)
 
 # 0.1.0
 
 * Adjust parser for output of `nvim --api-info`
+
 * Adjust parser of ConfigHelper plugin
 
 # 0.0.7
