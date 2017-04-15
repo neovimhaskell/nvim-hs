@@ -47,6 +47,9 @@ your plugins, I (saep) recommend the stack template approach.
 
 First, you must [install stack](https://docs.haskellstack.org/en/stable/README/).
 
+You have to have installed neovim and the executable `nvim` must be on the path.
+(The API code generation calls `nvim --api-info`.)
+
 Afterwards, you switch to your neovim configuration folder (typically `~/.config/nvim`) and
 you have to create your plugin project.
 
