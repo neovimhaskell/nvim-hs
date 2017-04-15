@@ -40,14 +40,18 @@ plugin = asks dyreParams >>= \case
                 [ $(function' 'pingNvimhs) Sync
                 ]
             , statefulExports =
-                [ ((params, ghcEnv), [],
-                    [ $(autocmd 'recompileNvimhs) "BufWritePost" def
-                            { acmdPattern = cfgFile
-                            }
-                    , $(autocmd 'recompileNvimhs) "BufWritePost" def
-                            { acmdPattern = libsDir++"/*"
-                            }
-                    , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
-                    ])
+                [ StatefulFunctionality
+                    { readOnly = (params, ghcEnv)
+                    , writable = []
+                    , functionalities =
+                        [ $(autocmd 'recompileNvimhs) "BufWritePost" def
+                                { acmdPattern = cfgFile
+                                }
+                        , $(autocmd 'recompileNvimhs) "BufWritePost" def
+                                { acmdPattern = libsDir++"/*"
+                                }
+                        , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
+                        ]
+                    }
                 ]
             }

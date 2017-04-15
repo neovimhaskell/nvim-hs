@@ -45,18 +45,22 @@ plugin :: Neovim (StartupConfig NeovimConfig) () NeovimPlugin
 plugin = do
     randomPluginState <- randomNumbers
     wrapPlugin Plugin
-        { exports         =
+        { exports =
             [ $(function' 'fibonacci) Sync
             -- Notice the quotation mark before the functin name, this is
             -- important!
             ]
         , statefulExports =
-            [ ((), randomPluginState,
-                [ $(function' 'nextRandom) Sync
-                , $(function "SetNextRandom" 'setNextRandom) Async
-                ])
+            [ StatefulFunctionality
+                { readOnly = ()
+                , writable = randomPluginState
+                , functionalities =
+                    [ $(function' 'nextRandom) Sync
+                    , $(function "SetNextRandom" 'setNextRandom) Async
+                    ]
+                }
             ]
-}
+        }
 
 {-# START_FILE lib/Neovim/Example/Plugin/Random.hs #-}
 {-# LANGUAGE TemplateHaskell #-}

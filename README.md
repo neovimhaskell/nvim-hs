@@ -72,7 +72,7 @@ packages:
 - .
 
 extra-deps:
-- nvim-hs-0.1.0
+- nvim-hs-0.2.0
 ```
 
 Now, you have to compile everything.
@@ -85,17 +85,20 @@ If there are no errors (there shouldn't be any), you only have to tell neovim ho
 Add the following to your `init.vim`:
 
 ```vimL
-if has('nvim') " This if allows you to use this config with a normal vim as well
+if has('nvim') " This way, you can also put this in your plain vim config
 
-  " This function simply starts the nvim-hs executable with the right compilation progress
+	" function which starts a nvim-hs instance with the supplied name
 	function! s:RequireHaskellHost(name)
+		" It is important that the current working directory (cwd) is where
+		" your configuration files are.
 		return jobstart(['stack', 'exec', 'nvim-hs', a:name.name], {'rpc': v:true, 'cwd': expand('$HOME') . '/.config/nvim'})
 	endfunction
 
-  " Register nvim-hs with neovim
+	" Register a plugin host that is started when a haskell file is opened
 	call remote#host#Register('haskell', "*.l\?hs", function('s:RequireHaskellHost'))
 
-  " Force starting nvim-hs with the neovim-internal name 'haskell'
+	" But if you need it for other files as well, you may just start it
+	" forcefully by requiring it
 	let hc=remote#host#Require('haskell')
 endif
 ```
@@ -116,7 +119,7 @@ like this:
 
 ```cabal
   build-depends:       base >= 4.7 && < 5
-                     , nvim-hs >= 0.1.0 && < 1.0.0
+                     , nvim-hs >= 0.2.0 && < 1.0.0
                      , nvim-hs-ghcid
 ```
 
@@ -126,9 +129,9 @@ The `extra-deps` section of the `stack.yaml` should look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.1.0
-- nvim-hs-contrib-0.1.0
-- nvim-hs-ghcid-0.1.0
+- nvim-hs-0.2.0
+- nvim-hs-contrib-0.2.0
+- nvim-hs-ghcid-0.2.0
 ```
 
 What is the `nvim-hs-contrib` dependency we had to add there? The plugin we
@@ -199,8 +202,8 @@ dependencies to the `stack.yaml` file, though. It should look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.1.0
-- nvim-hs-contrib-0.1.0
+- nvim-hs-0.2.0
+- nvim-hs-contrib-0.2.0
 ```
 
 Add the plugin to the plugins list in `nvim.hs` in exactly the same way as

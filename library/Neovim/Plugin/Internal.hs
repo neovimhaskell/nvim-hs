@@ -12,6 +12,7 @@ Portability :  GHC
 -}
 module Neovim.Plugin.Internal (
     ExportedFunctionality(..),
+    StatefulFunctionality(..),
     getFunction,
     getDescription,
     NeovimPlugin(..),
@@ -45,11 +46,20 @@ instance HasFunctionName (ExportedFunctionality r st) where
     name = name . getDescription
 
 
+-- | This datatype contains the initial state (mutable and immutable) for the
+-- functionalities defined here.
+data StatefulFunctionality r st = StatefulFunctionality
+    { readOnly        :: r
+    , writable        :: st
+    , functionalities :: [ExportedFunctionality r st]
+    }
+
+
 -- | This data type contains meta information for the plugin manager.
 --
 data Plugin r st = Plugin
     { exports         :: [ExportedFunctionality () ()]
-    , statefulExports :: [(r, st, [ExportedFunctionality r  st])]
+    , statefulExports :: [StatefulFunctionality r st]
     }
 
 
@@ -60,5 +70,5 @@ data NeovimPlugin = forall r st. NeovimPlugin (Plugin r st)
 
 -- | Wrap a 'Plugin' in some nice blankets, so that we can put them in a simple
 -- list.
-wrapPlugin :: Monad m => Plugin r st -> m NeovimPlugin
-wrapPlugin = return . NeovimPlugin
+wrapPlugin :: Applicative m => Plugin r st -> m NeovimPlugin
+wrapPlugin = pure . NeovimPlugin

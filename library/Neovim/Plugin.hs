@@ -323,9 +323,9 @@ addAutocmd' event opts f = do
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
-    :: (r, st, [ExportedFunctionality r st])
+    :: StatefulFunctionality r st
     -> Neovim anyconfig anyState ([FunctionMapEntry], ThreadId)
-registerStatefulFunctionality (r, st, fs) = do
+registerStatefulFunctionality (StatefulFunctionality r st fs) = do
     q <- liftIO newTQueueIO
     route <- liftIO $ newTVarIO Map.empty
 

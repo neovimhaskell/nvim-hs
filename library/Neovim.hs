@@ -16,11 +16,7 @@ writing plugins.
 -}
 module Neovim (
     -- * Installation
-    -- ** tl;dr
-    -- $tldrinstallation
-
-    -- ** Explained
-    -- $explainedinstallation
+    -- $installation
 
     -- * Tutorial
     -- ** tl;dr
@@ -39,6 +35,7 @@ module Neovim (
     -- ** Creating a plugin
     -- $creatingplugins
     NeovimPlugin(..),
+    StatefulFunctionality(..),
     Plugin(..),
     NvimObject(..),
     (+:),
@@ -129,7 +126,7 @@ import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                Synchronous (..))
 import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
-                                               wrapPlugin)
+                                               StatefulFunctionality(..), wrapPlugin)
 import           Neovim.Plugin.Startup        (StartupConfig (..))
 import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,
@@ -138,114 +135,12 @@ import           System.Log.Logger            (Priority (..))
 import           Text.PrettyPrint.ANSI.Leijen (Doc, Pretty (..), text)
 
 -- Installation {{{1
--- tl;dr installation {{{2
-{- $tldrinstallation
+{- $installation
 
-Make sure that neovim's executable (@nvim@) is on your @\$PATH@ during the
-cabal commands!
-
-/nvim-hs/ is a normal haskell program and a normal haskell library. You can install it
-in various flavors. These steps describe a more laborous approach that is suited for
-developing plugins or /nvim-hs/ itself.
-
-The following steps will install `nvim-hs` from git
-(example assumes you clone to @\$HOME\/git\/nvim-hs@)
-using a sandbox:
-
-@
-\$ mkdir -p ~\/git ; cd ~\/git
-\$ git clone https:\/\/github.com\/neovimhaskell\/nvim-hs
-\$ cd nvim-hs
-\$ cabal sandbox init
-\$ cabal install
-@
-
-Or in one line for copy-pasting:
-
-@
-mkdir -p ~\/git ; cd ~\/git ; git clone https:\/\/github.com\/neovimhaskell\/nvim-hs && cd nvim-hs && cabal sandbox init && cabal install
-@
-
-Copy the script @nvim-hs-devel.sh@ to a location you like, make it executable
-and __follow the brief instructions__ in the comments.
-
-@
-\$ cp nvim-hs-devel.sh ~\/bin\/
-\$ chmod +x ~\/bin\/nvim-hs-devel.sh
-@
-
-Assuming you have copied the script to @\$HOME\/bin\/nvim-hs-devel.sh@,
-put this in your neovim config file (typically @~\/.nvimrc@ or @~\/.nvim\/nvimrc@):
-
-@
-if has(\'nvim\') \" This way you can also put it in your vim config file
-    call rpcrequest(rpcstart(expand(\'\$HOME\/.bin\/nvim-hs-devel.sh\')), \"PingNvimhs\")
-endif
-@
+Installation instructions are in the README.md file that comes with the source
+of this package. It is also on the repositories front page.
 
 -}
--- 2}}}
-
--- Explained {{{2
-{- $explainedinstallation
-
-If you want to use or write plugins written in haskell for /nvim-hs/, you first
-have to make sure that neovim is installed and that it is available on your
-@\$PATH@ during the compilation of /nvim-hs/. Neovim emits information about its
-remotely callable API if you call it with the `--api-info` command line
-argument. This output is used to generate the API functions you need
-to create useful plugins. Also, some internal functionality requires some of
-these functions.
-
-The instructions to install /nvim-hs/ should be self-explanatory. In any case, I
-(saep) recommend using a sandbox for now since I the version constraints of the
-dependencies are quire lax and there are still changes on the way. Also, there is
-no official neovim release yet, so you may have to reinstall /nvim-hs/ a few times
-because the generated API could change or something similar. A sandboxed environment
-can be saefly deleted and it requires you only to copy and edit a small shell script!
-
-Using a sandbox requires you to install all
-the libraries you want or have to use in your plugins to be installed inside the
-sandbox! Some Vim plugins (e.g. ghc-mod) may show weird errors inside neovim for
-your configuration file because the sandbox is not inside your configuration folder.
-For /nvim-hs/ you don't need to worry about that, though, because it has a
-builtin plugin which puts all compile-errors in the quickfix
-list automatically after you save your configuration file, so you don't need
-another plugin to detect compile time errors here. But we will discuss this
-later in more detail. The executable script mentioned in the tl;dr installation
-instructions sets up the build environment for /nvim-hs/ to use the sandbox.
-
-The Vim-script snippet is a bit conservative and may have a negative impact on
-your startup time. You can remove the @rpcrequest()@ wrapping and call the function
-@PingNvimhs@ at a later time when you need /nvim-hs/ to be initialized. Use your
-own judgement!  In any case, the snippet can be put anywhere in your neovim
-configuration. You may wonder why we have to explicitly
-call @PingNvimhs@ with the function @rpcrequest@ here. The short answer is:
-The internals for registering functions from a remote host require this. The
-longer answer is as follows: Registering functions from a remote host does not
-define a function directly. It instead installs a hook via an autocmd that
-defines the function. This way, only functions that are actually used are
-registered and this probably was implemented this way for performance reasons.
-Buf, if we try to call a function from a remote host too early, the hooks may
-not yet be in place and we receive error messages. Since we do not generate any
-Vim-script files which contain those hooks, /nvim-hs/ must be started and
-initialized and create those hooks. So the best way to make sure that /nvim-hs/
-is initialized is to try to call some functionon on the msgpack-rpc channel that
-/nvim-hs/ listens on. The function must not even exist, but not throwing an
-error message is probably nicer, so /nvim-hs/ provides a function \"PingNvimhs\"
-which takes no arguments and returns @\"Pong\"@.
-
-Using /nvim-hs/ essentially means to use a static binary that incorporates all
-plugins. It is generated using the 'Dyre' library and the binary itself is found
-in @\$XDG_CACHE_DIR\/nvim@ (usually @~\/.cache\/nvim@). The 'Dyre' library makes
-it feel more like a scripting language, because the binary is automatically
-created and executed without having to restart neovim. You can also use the
-functions from the "Neovim.Debug" module if you want to develop your plugins in
-a REPL environment. This is probably a bit more difficult to use, so I won't go
-into detail here.
-
--}
--- 2}}}
 -- 1}}}
 
 -- Tutorial {{{1
@@ -499,12 +394,14 @@ plugin = do
     let randomNumbers = 'randoms' g -- an infinite list of random numbers
     'wrapPlugin' 'Plugin'
         { 'exports'         = []
-        , 'statefulExports' =
-            [ ((), randomNumbers,
+        , 'statefulExports' =  [ 'StatefulFunctionality'
+            { readOnly = ()
+            , writable = randomNumbers
+            , functionalities =
                 [ $('function'' 'nextRandom) 'Sync'
                 , $('function' \"SetNextRandom\" 'setNextRandom) 'Async'
-                ])
-            ]
+                ]
+            }]
         }
 @
 
