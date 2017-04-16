@@ -176,14 +176,15 @@ main = do
 
 ### Installing a plugin from git
 
-This method is best suited for plugins update a lot and for which you need
+This method is best suited for plugins that update a lot and for which you need
 the most recent version most of the time. If you don't intend to work on the
-code of that plugin repository, you can add it to the plugin list of
-vim-plug. This way, you get updates if you update all your vim plugins.
+code of that plugin repository, you can add it to the plugin list of your
+plugin manager (e.g. [vim-plug](https://github.com/junegunn/vim-plug)). 
+This way, you get updates if you update all your normal vim plugins.
 To stay with the example of the previous section, we use the `nvim-hs-ghcid`
 plugin again.
 
-Add the plugin to vim-plug:
+Add the plugin to your plugin manager (here with vim-plug as an example):
 
 ```vimL
 Plug 'saep/nvim-hs-ghcid', { 'for': ['haskell'] }
