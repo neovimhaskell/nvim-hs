@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP        #-}
 {-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Context
@@ -34,6 +35,9 @@ module Neovim.Context (
 
     throwError,
     module Control.Monad.IO.Class,
+#if __GLASGOW_HASKELL__ <= 710
+    module Control.Applicative,
+#endif
     ) where
 
 
@@ -46,6 +50,9 @@ import           Neovim.Exceptions            (NeovimException (..))
 
 import qualified Neovim.Context.Internal      as Internal
 
+#if __GLASGOW_HASKELL__ <= 710
+import           Control.Applicative
+#endif
 
 import           Control.Concurrent           (putMVar)
 import           Control.Exception

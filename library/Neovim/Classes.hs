@@ -4,6 +4,10 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ < 710
+{-# LANGUAGE OverlappingInstances  #-}
+#endif
 {- |
 Module      :  Neovim.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types

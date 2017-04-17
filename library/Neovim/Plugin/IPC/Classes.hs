@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RecordWildCards           #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {- |
 Module      :  Neovim.Plugin.IPC.Classes
 Description :  Classes used for Inter Plugin Communication
@@ -20,8 +20,10 @@ module Neovim.Plugin.IPC.Classes (
     Request(..),
     Notification(..),
 
+    UTCTime,
+    getCurrentTime,
+
     module Data.Int,
-    module Data.Time,
     ) where
 
 import           Neovim.Classes
@@ -31,7 +33,9 @@ import           Control.Concurrent.STM
 import           Data.Data                    (Typeable, cast)
 import           Data.Int                     (Int64)
 import           Data.MessagePack
-import           Data.Time
+import           Data.Time                    (UTCTime, formatTime,
+                                               getCurrentTime)
+import           Data.Time.Locale.Compat      (defaultTimeLocale)
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 import           Prelude
