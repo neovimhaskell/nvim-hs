@@ -27,8 +27,8 @@ import           Config.Dyre.Paths       (getPaths)
 import           Control.Applicative     hiding (many, (<|>))
 import           Control.Monad           (void, forM_)
 import           Data.Char
-import           Text.Parsec             hiding (Error, count)
-import           Text.Parsec.String
+import           Text.Megaparsec         hiding (count)
+import           Text.Megaparsec.String
 import           System.SetEnv
 import           System.Directory        (removeDirectoryRecursive)
 
@@ -91,7 +91,7 @@ pQuickfixListItem = do
     _ <- many blankLine
     (f,l,c) <- pLocation
 
-    void $ many spaceChar
+    void $ many tabOrSpace
     e <- pSeverity
     desc <- try pShortDesrciption <|> pLongDescription
     return $ (quickfixListItem (Right f) (Left l))
@@ -109,7 +109,7 @@ pSeverity = do
 pShortDesrciption :: Parser String
 pShortDesrciption = (:)
     <$> (notFollowedBy blankLine *> anyChar)
-    <*> anyChar `manyTill` (void (many1 blankLine) <|> eof)
+    <*> anyChar `manyTill` (void (some blankLine) <|> eof)
 
 
 pLongDescription :: Parser String
@@ -118,12 +118,12 @@ pLongDescription = anyChar `manyTill` (blank <|> eof)
     blank = try (try newline *> try blankLine)
 
 
-spaceChar :: Parser Char
-spaceChar = satisfy $ \c -> c == ' ' || c == '\t'
+tabOrSpace :: Parser Char
+tabOrSpace = satisfy $ \c -> c == ' ' || c == '\t'
 
 
 blankLine :: Parser ()
-blankLine = void . try $ many spaceChar >> newline
+blankLine = void . try $ many tabOrSpace >> newline
 
 
 -- | Skip anything until the next location information appears.
@@ -135,11 +135,11 @@ blankLine = void . try $ many spaceChar >> newline
 -- @\/some\/path\/to\/a\/file.hs:42:88:@
 pLocation :: Parser (String, Int, Int)
 pLocation = (,,)
-    <$> many1 (noneOf ":\n\t\r") <* char ':'
+    <$> some (noneOf ":\n\t\r") <* char ':'
     <*> pInt <* char ':'
-    <*> pInt <* char ':' <* many spaceChar
+    <*> pInt <* char ':' <* many tabOrSpace
 
 
 pInt :: Parser Int
-pInt = read <$> many1 (satisfy isDigit)
+pInt = read <$> some (satisfy isDigit)
 -- 1}}}

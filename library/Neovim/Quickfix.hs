@@ -74,6 +74,7 @@ data QuickfixListItem strType = QFItem
 instance (NFData strType) => NFData (QuickfixListItem strType)
 
 
+-- | Simple error type enum.
 data QuickfixErrorType = Warning | Error
     deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 

@@ -7,7 +7,7 @@ import           Test.HUnit                          (assertFailure)
 import           Neovim.Plugin.ConfigHelper.Internal
 import           Neovim.Quickfix
 
-import           Text.Parsec                         hiding (Error)
+import           Text.Megaparsec
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True

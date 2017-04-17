@@ -30,7 +30,8 @@ import           Data.Monoid
 import           Data.Serialize
 import           System.IO                    (hClose)
 import           System.Process
-import           Text.Parsec                  as P
+import           Text.Megaparsec              as P
+import           Text.Megaparsec.String
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
@@ -162,23 +163,23 @@ parseType :: String -> Either Doc NeovimType
 parseType s = either (throwError . P.text . show) return $ parse (pType <* eof) s s
 
 
-pType :: Parsec String u NeovimType
+pType :: Parser NeovimType
 pType = pArray P.<|> pVoid P.<|> pSimple
 
 
-pVoid :: Parsec String u NeovimType
+pVoid :: Parser NeovimType
 pVoid = const Void <$> (P.try (string "void") <* eof)
 
 
-pSimple :: Parsec String u NeovimType
-pSimple = SimpleType <$> many1 (noneOf ",)")
+pSimple :: Parser NeovimType
+pSimple = SimpleType <$> some (noneOf [',', ')'])
 
 
-pArray :: Parsec String u NeovimType
+pArray :: Parser NeovimType
 pArray = NestedType <$> (P.try (string "ArrayOf(") *> pType)
-                    <*> optionMaybe pNum <* char ')'
+                    <*> optional pNum <* char ')'
 
 
-pNum :: Parsec String u Int
-pNum = read <$> (P.try (char ',') *> spaces *> many1 (oneOf ['0'..'9']))
+pNum :: Parser Int
+pNum = read <$> (P.try (char ',') *> space *> some (oneOf ['0'..'9']))
 
