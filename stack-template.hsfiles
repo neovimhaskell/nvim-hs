@@ -15,11 +15,10 @@ build-type:          Simple
 --extra-source-files:  README.md
 cabal-version:       >=1.10
 
-library
-  hs-source-dirs:      lib
---  hs-source-dirs:      nvim-hs
---  TODO rename to nvim-hs see https://github.com/neovimhaskell/nvim-hs/issues/52
-  exposed-modules:     Neovim.Example.Plugin
+executable my-nvim-hs
+  main-is:             nvim.hs
+  hs-source-dirs:      ., lib
+  other-modules:       Neovim.Example.Plugin
                      , Neovim.Example.Plugin.Fibonacci
                      , Neovim.Example.Plugin.Random
   build-depends:       base >= 4.7 && < 5
