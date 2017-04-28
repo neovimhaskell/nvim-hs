@@ -13,13 +13,15 @@
 
 6. Commit and push everything (do not tag yet)
 
-7. Tag if travis build is okay
+7. Create a distribution tarball and build/test with the contents
 
-8. Generate the haddock documentation (unless you know you don't have to)
+8. Tag if travis build is okay
 
-9. Generate a distribution tarball
+9. Generate the haddock documentation (unless you know you don't have to)
 
-10. Upload tarball and documentation
+10. Generate a distribution tarball
 
-11. Create a new commit where the version numbers are incremented
+11. Upload tarball and documentation
+
+12. Create a new commit where the version numbers are incremented
 
