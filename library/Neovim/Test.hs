@@ -23,13 +23,16 @@ import           Neovim.RPC.SocketReader      (runSocketReader)
 
 import           Control.Concurrent
 import           Control.Concurrent.STM       (atomically, putTMVar)
+import           Control.Exception.Lifted
 import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.State          (runStateT)
 import           Control.Monad.Trans.Resource (runResourceT)
+import           GHC.IO.Exception             (ioe_filename)
 import           System.Directory
 import           System.Exit                  (ExitCode (..))
 import           System.IO                    (Handle)
 import           System.Process
+import           Text.PrettyPrint.ANSI.Leijen (red, text, putDoc, (<$$>))
 
 
 -- | Type synonym for 'Word'.
@@ -50,26 +53,38 @@ testWithEmbeddedNeovim
     -> st             -- ^ State
     -> Neovim r st a  -- ^ Test case
     -> IO ()
-testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) = do
-    (_, _, ph, cfg) <- startEmbeddedNvim file timeout
+testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) =
+    runTest `catch` catchIfNvimIsNotOnPath
+  where
+    runTest = do
+        (_, _, ph, cfg) <- startEmbeddedNvim file timeout
 
-    let testCfg = Internal.retypeConfig r st cfg
+        let testCfg = Internal.retypeConfig r st cfg
 
-    void $ runReaderT (runStateT (runResourceT a) st) testCfg
+        void $ runReaderT (runStateT (runResourceT a) st) testCfg
 
-    -- vim_command isn't asynchronous, so we need to avoid waiting for the
-    -- result of the operation since neovim cannot send a result if it
-    -- has quit.
-    let Internal.Neovim q = vim_command "qa!"
-    void . forkIO . void $ runReaderT (runStateT (runResourceT q) st ) testCfg
+        -- vim_command isn't asynchronous, so we need to avoid waiting for the
+        -- result of the operation since neovim cannot send a result if it
+        -- has quit.
+        let Internal.Neovim q = vim_command "qa!"
+        void . forkIO . void $ runReaderT (runStateT (runResourceT q) st ) testCfg
 
-    waitForProcess ph >>= \case
-        ExitFailure i ->
-            fail $ "Neovim returned with an exit status of: " ++ show i
+        waitForProcess ph >>= \case
+            ExitFailure i ->
+                fail $ "Neovim returned with an exit status of: " ++ show i
 
-        ExitSuccess ->
-            return ()
+            ExitSuccess ->
+                return ()
 
+
+catchIfNvimIsNotOnPath :: IOException -> IO ()
+catchIfNvimIsNotOnPath e = case ioe_filename e of
+    Just "nvim" ->
+        putDoc . red $ text "The neovim executable 'nvim' is not on the PATH."
+                    <$$> text "You may not be testing fully!"
+
+    _           ->
+        throw e
 
 startEmbeddedNvim
     :: Maybe FilePath
