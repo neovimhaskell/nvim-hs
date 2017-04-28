@@ -68,9 +68,9 @@ optParser = Opt
         <> help (unlines
                 [ "Name that associates the plugin provider with neovim."
                 , "This option has only an effect if you start nvim-hs"
-                , "with rpcstart() and use the factory method approach."
+                , "with rpcstart()/jobstart() and use the factory method approach."
                 , "Since it is extremely hard to figure that out inside"
-                , "nvim-hs, this options is assumed to used if the input"
+                , "nvim-hs, this option is assumed to used if the input"
                 , "and output is tied to standard in and standard out."
                 ])))
     <*> optional ((,)
