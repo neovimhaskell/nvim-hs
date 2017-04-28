@@ -2,5 +2,4 @@ flags: {}
 packages:
 - '.'
 resolver: lts-8.10
-extra-deps:
-- messagepack-0.5.4
+extra-deps: []
