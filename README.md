@@ -75,7 +75,7 @@ packages:
 - .
 
 extra-deps:
-- nvim-hs-0.2.0
+- nvim-hs-0.2.2
 ```
 
 Now, you have to compile everything.
@@ -132,7 +132,7 @@ The `extra-deps` section of the `stack.yaml` should look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.2.0
+- nvim-hs-0.2.2
 - nvim-hs-contrib-0.2.0
 - nvim-hs-ghcid-0.2.0
 ```
@@ -206,7 +206,7 @@ dependencies to the `stack.yaml` file, though. It should look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.2.0
+- nvim-hs-0.2.2
 - nvim-hs-contrib-0.2.0
 ```
 
