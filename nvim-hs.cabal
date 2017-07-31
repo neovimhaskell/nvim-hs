@@ -1,5 +1,5 @@
 name:                nvim-hs
-version:             0.2.3
+version:             0.2.4
 synopsis:            Haskell plugin backend for neovim
 description:
   This package provides a plugin provider for neovim. It allows you to write
