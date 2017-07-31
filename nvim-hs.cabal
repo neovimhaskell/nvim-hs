@@ -40,6 +40,7 @@ extra-source-files:    nvim-hs-devel.sh
                      , test-files/compile-error-for-quickfix-test6
                      , test-files/hello
                      , apiblobs/0.1.7.msgpack
+                     , apiblobs/0.2.0.msgpack
                      , api
 
 extra-doc-files:       CHANGELOG.md
