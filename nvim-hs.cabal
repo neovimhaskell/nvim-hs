@@ -129,6 +129,7 @@ library
                       , transformers
                       , transformers-base
                       , utf8-string
+                      , void
   hs-source-dirs:       library
   default-language:     Haskell2010
   ghc-options:          -Wall
