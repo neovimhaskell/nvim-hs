@@ -1,8 +1,7 @@
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {- |
 Module      :  Neovim.API.Parser
-Description :  Parser for the msgpack output stram API
+Description :  P.Parser for the msgpack output stram API
 Copyright   :  (c) Sebastian Witte
 License     :  Apache-2.0
 
@@ -30,13 +29,11 @@ import           Data.Monoid
 import           Data.Serialize
 import           System.IO                    (hClose)
 import           System.Process
-import           Text.Megaparsec              as P
-import           Text.Megaparsec.String
+import           Neovim.Compat.Megaparsec     as P
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import           Prelude
-
 
 data NeovimType = SimpleType String
                 | NestedType NeovimType (Maybe Int)
@@ -163,23 +160,23 @@ parseType :: String -> Either Doc NeovimType
 parseType s = either (throwError . P.text . show) return $ parse (pType <* eof) s s
 
 
-pType :: Parser NeovimType
+pType :: P.Parser NeovimType
 pType = pArray P.<|> pVoid P.<|> pSimple
 
 
-pVoid :: Parser NeovimType
+pVoid :: P.Parser NeovimType
 pVoid = const Void <$> (P.try (string "void") <* eof)
 
 
-pSimple :: Parser NeovimType
+pSimple :: P.Parser NeovimType
 pSimple = SimpleType <$> some (noneOf [',', ')'])
 
 
-pArray :: Parser NeovimType
+pArray :: P.Parser NeovimType
 pArray = NestedType <$> (P.try (string "ArrayOf(") *> pType)
                     <*> optional pNum <* char ')'
 
 
-pNum :: Parser Int
+pNum :: P.Parser Int
 pNum = read <$> (P.try (char ',') *> space *> some (oneOf ['0'..'9']))
 

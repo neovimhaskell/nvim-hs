@@ -21,14 +21,14 @@ import           Neovim.Plugin.Classes
 import           Neovim.Quickfix
 import           Neovim.Util             (withCustomEnvironment)
 
+import           Neovim.Compat.Megaparsec as P hiding (count)
+
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
 import           Config.Dyre.Paths       (getPaths)
 import           Control.Applicative     hiding (many, (<|>))
 import           Control.Monad           (void, forM_)
 import           Data.Char
-import           Text.Megaparsec         hiding (count)
-import           Text.Megaparsec.String
 import           System.SetEnv
 import           System.Directory        (removeDirectoryRecursive)
 
@@ -86,7 +86,7 @@ parseQuickfixItems s =
         Left _   -> []
 
 
-pQuickfixListItem :: Parser (QuickfixListItem String)
+pQuickfixListItem :: P.Parser (QuickfixListItem String)
 pQuickfixListItem = do
     _ <- many blankLine
     (f,l,c) <- pLocation
@@ -100,29 +100,29 @@ pQuickfixListItem = do
         , errorType = e
         }
 
-pSeverity :: Parser QuickfixErrorType
+pSeverity :: P.Parser QuickfixErrorType
 pSeverity = do
     try (string "Warning:" *> return Warning)
     <|> try (string "error:"   *> return Error)
     <|> return Error
 
-pShortDesrciption :: Parser String
+pShortDesrciption :: P.Parser String
 pShortDesrciption = (:)
     <$> (notFollowedBy blankLine *> anyChar)
     <*> anyChar `manyTill` (void (some blankLine) <|> eof)
 
 
-pLongDescription :: Parser String
+pLongDescription :: P.Parser String
 pLongDescription = anyChar `manyTill` (blank <|> eof)
   where
     blank = try (try newline *> try blankLine)
 
 
-tabOrSpace :: Parser Char
+tabOrSpace :: P.Parser Char
 tabOrSpace = satisfy $ \c -> c == ' ' || c == '\t'
 
 
-blankLine :: Parser ()
+blankLine :: P.Parser ()
 blankLine = void . try $ many tabOrSpace >> newline
 
 
@@ -133,13 +133,13 @@ blankLine = void . try $ many tabOrSpace >> newline
 -- | Try to parse location information.
 --
 -- @\/some\/path\/to\/a\/file.hs:42:88:@
-pLocation :: Parser (String, Int, Int)
+pLocation :: P.Parser (String, Int, Int)
 pLocation = (,,)
     <$> some (noneOf ":\n\t\r") <* char ':'
     <*> pInt <* char ':'
     <*> pInt <* char ':' <* many tabOrSpace
 
 
-pInt :: Parser Int
+pInt :: P.Parser Int
 pInt = read <$> some (satisfy isDigit)
 -- 1}}}

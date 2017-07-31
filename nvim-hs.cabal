@@ -71,6 +71,7 @@ library
   -- this library should have the freedom to do what she wants.
                       , Neovim.API.String
                       , Neovim.Classes
+                      , Neovim.Compat.Megaparsec
                       , Neovim.Config
                       , Neovim.Context
                       , Neovim.Context.Internal
@@ -116,7 +117,7 @@ library
                       , mtl >= 2.2.1 && < 2.3
                       , optparse-applicative
                       , time-locale-compat
-                      , megaparsec < 6
+                      , megaparsec
                       , process
                       , resourcet
                       , setenv >= 0.1.1.3
