@@ -5,7 +5,8 @@ module Neovim.API.THSpec
 
 import           Neovim.API.THSpecFunctions
 
-import           Neovim.API.TH
+import           Neovim.API.TH              hiding (function)
+import qualified Neovim.API.TH              as TH
 import           Neovim.Context
 import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes
@@ -36,7 +37,7 @@ isNeovimException _ = True
 spec :: Spec
 spec = do
   describe "calling function without an argument" $ do
-    let EF (Function fname _, testFun) = $(function  "TestFunction0" 'testFunction0) Sync
+    let EF (Function fname _, testFun) = $(TH.function  "TestFunction0" 'testFunction0) Sync
     it "should have a capitalized prefix" $
         fname `shouldBe` (F "TestFunction0")
 
@@ -85,7 +86,7 @@ spec = do
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
 
   describe "calling test function with a map argument" $ do
-      let EF (Function fname _, testFun) = $(function "TestFunctionMap" 'testFunctionMap) Sync
+      let EF (Function fname _, testFun) = $(TH.function "TestFunctionMap" 'testFunctionMap) Sync
       it "should capitalize the first letter" $
           fname `shouldBe` (F "TestFunctionMap")
 
