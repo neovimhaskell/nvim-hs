@@ -64,9 +64,12 @@ import           Prelude
 dataD' :: CxtQ -> Name -> [TyVarBndr] -> [ConQ] -> [Name] -> DecQ
 #if __GLASGOW_HASKELL__ < 800
 dataD' = dataD
-#else
+#elif __GLASGOW_HASKELL__ < 802
 dataD' cxtQ n tyvarbndrs conq ns =
     dataD cxtQ n tyvarbndrs Nothing conq (mapM conT ns)
+#else
+dataD' cxtQ n tyvarbndrs conq ns =
+    dataD cxtQ n tyvarbndrs Nothing conq ((return . return . DerivClause Nothing . map ConT) ns)
 #endif
 
 -- | Generate the API types and functions provided by @nvim --api-info@.
