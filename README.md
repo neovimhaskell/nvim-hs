@@ -11,6 +11,8 @@ handy work, some exotic operating systems and architectures may not work.
 
 [![Build Status](https://travis-ci.org/neovimhaskell/nvim-hs.svg?branch=master)](https://travis-ci.org/neovimhaskell/nvim-hs)
 [![Hackage version](https://img.shields.io/hackage/v/nvim-hs.svg?style=flat)](https://hackage.haskell.org/package/nvim-hs)
+[![nvim-hs on latest Stackage LTS](http://stackage.org/package/nvim-hs/badge/lts)](http://stackage.org/lts/package/nvim-hs)
+[![nvim-hs on Stackage Nightly](http://stackage.org/package/nvim-hs/badge/nightly)](http://stackage.org/nightly/package/nvim-hs)
 
 # What do I have to expect if I were to use it now?
 
