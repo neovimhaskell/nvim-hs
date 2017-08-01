@@ -57,27 +57,6 @@ you have to create your plugin project.
 
 > stack new my-nvim-hs https://raw.githubusercontent.com/neovimhaskell/nvim-hs/master/stack-template.hsfiles --bare --omit-packages --ignore-subdirs
 
-Since `nvim-hs` is not yet on stackage, you have to edit the generated
-`stack.yaml` file by hand (sorry about that). Replace the packages list with
-one containing the current directory and the extra-deps list with a
-dependency to nvim-hs. The lines of the file that look like this
-
-```yaml
-packages: []
-
-extra-deps: []
-```
-
-should become:
-
-```yaml
-packages:
-- .
-
-extra-deps:
-- nvim-hs-0.2.2
-```
-
 Now, you have to compile everything.
 
 > stack setup
