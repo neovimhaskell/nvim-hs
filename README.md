@@ -96,7 +96,8 @@ should print a random number.
 ### Installing a plugin from Hackage
 
 Let's take [nvim-hs-ghcid](http://hackage.haskell.org/package/nvim-hs-ghcid)
-as an example. Since it is not on stackage, have to declare the dependency
+as an example. Let's also pretend, that it's not on stackage. 
+We have to declare the dependency
 in the `my-nvim-hs.cabal` file and in the `stack.yaml` file. In the `.cabal`
 file, add `nvim-hs-ghcid` to the `build-depends` section. It should look
 like this:
@@ -113,27 +114,20 @@ The `extra-deps` section of the `stack.yaml` should look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.2.2
-- nvim-hs-contrib-0.2.0
 - nvim-hs-ghcid-0.2.0
 ```
 
-What is the `nvim-hs-contrib` dependency we had to add there? The plugin we
-chose to install had a dependency to a haskell project that is not on
-stackage. You have to add these to the stack.yaml file as well, although you
-do not necessarily have to add them to the cabal file. This is exactly the
-disadvantage of using stack for this.  The benefit is that you will have a
-reproducible build in the future and you don't have to hunt down a working
-set of version boundariesfor every dependency you have. A little effort now
-will save you more time later!
+If `nvim-hs-ghcid` depended upon any other package that is not on stackage,
+you would have to add those dependencies there as well. The output of 
+`stack build` should tell you which you have to add. You don't have to add
+these transitive dependencies to the `build-depends` of the cabal file because
+you are not accessing anything from these packages directly.
 
-Note that I (saep) intend to add `nvim-hs` and `nvim-hs-contrib` to stackage
-once I feel I should switch to version 1.0.0. Then, you wouldn't have to
-edit the `stack.yaml` for this. If you want to update a dependency/plugin,
-you have to manually increment the version number in the stack.yaml file and
-possibly fix the compilation errors that arise. If you want a rolling
-release for a plugin, follow the instructions for installing a plugin from
-git.
+Adding all these explicit versions seems to be the disadvantage of using stack. 
+However, the benefit is that you will have a
+reproducible build in the future and you don't have to hunt down a working
+set of version boundaries for every dependency you have. A little effort now
+will save you more time later!
 
 To use the plugin, add it to the plugins list of the `nvim.hs` file in
 `~/.config/nvim`:
@@ -154,11 +148,17 @@ main = do
         }
 ```
 
+If you want to update a dependency/plugin,
+you have to manually increment the version number in the stack.yaml file and
+possibly fix the compilation errors that arise. If you want a rolling
+release for a plugin, follow the instructions for installing a plugin from
+git.
 
 ### Installing a plugin from git
 
 This method is best suited for plugins that update a lot and for which you need
-the most recent version most of the time. If you don't intend to work on the
+the most recent version most of the time. This also works for plugins that do not
+have a hackage release. If you don't intend to work on the
 code of that plugin repository, you can add it to the plugin list of your
 plugin manager (e.g. [vim-plug](https://github.com/junegunn/vim-plug)). 
 This way, you get updates if you update all your normal vim plugins.
@@ -178,24 +178,24 @@ like this:
 ```yaml
 packages:
 - .
-- plugged/nvim-hs-ghcid
+- plugged/nvim-hs-ghcid # or the appropriate relative path the folder you configured
 ```
 
 As long as you have the repository in this list, you don't have to specify
 it as a dependency  anywhere else, you still have to add the plugins'
-dependencies to the `stack.yaml` file, though. It should look like this:
+dependencies to the `stack.yaml` file, though. It chould look like this:
 
 ```yaml
 extra-deps:
-- nvim-hs-0.2.2
-- nvim-hs-contrib-0.2.0
+- some-dependency-0.2.4
+- and-another-one-13.8.5.2
 ```
 
 Add the plugin to the plugins list in `nvim.hs` in exactly the same way as
-described in the previous chapter.
+described at the end of the previous chapter.
 
-The downside of this is that your compilation times will be longer the more
-plugins you include this way.
+The downside of this approach is that your compilation times will be longer the more
+plugins you include this way. 
 
 ### Writing your own functions that you can call from neovim
 
