@@ -169,7 +169,7 @@ pVoid = const Void <$> (P.try (string "void") <* eof)
 
 
 pSimple :: P.Parser NeovimType
-pSimple = SimpleType <$> some (noneOf [',', ')'])
+pSimple = SimpleType <$> P.some (noneOf [',', ')'])
 
 
 pArray :: P.Parser NeovimType
@@ -178,5 +178,5 @@ pArray = NestedType <$> (P.try (string "ArrayOf(") *> pType)
 
 
 pNum :: P.Parser Int
-pNum = read <$> (P.try (char ',') *> space *> some (oneOf ['0'..'9']))
+pNum = read <$> (P.try (char ',') *> space *> P.some (oneOf ['0'..'9']))
 

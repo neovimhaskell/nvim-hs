@@ -81,17 +81,17 @@ restartNvimhs CommandArguments{..} = do
 -- error messages look like.
 parseQuickfixItems :: String -> [QuickfixListItem String]
 parseQuickfixItems s =
-    case parse (many pQuickfixListItem) "Quickfix parser" s of
+    case parse (P.many pQuickfixListItem) "Quickfix parser" s of
         Right qs -> qs
         Left _   -> []
 
 
 pQuickfixListItem :: P.Parser (QuickfixListItem String)
 pQuickfixListItem = do
-    _ <- many blankLine
+    _ <- P.many blankLine
     (f,l,c) <- pLocation
 
-    void $ many tabOrSpace
+    void $ P.many tabOrSpace
     e <- pSeverity
     desc <- try pShortDesrciption <|> pLongDescription
     return $ (quickfixListItem (Right f) (Left l))
@@ -109,7 +109,7 @@ pSeverity = do
 pShortDesrciption :: P.Parser String
 pShortDesrciption = (:)
     <$> (notFollowedBy blankLine *> anyChar)
-    <*> anyChar `manyTill` (void (some blankLine) <|> eof)
+    <*> anyChar `manyTill` (void (P.some blankLine) <|> eof)
 
 
 pLongDescription :: P.Parser String
@@ -123,7 +123,7 @@ tabOrSpace = satisfy $ \c -> c == ' ' || c == '\t'
 
 
 blankLine :: P.Parser ()
-blankLine = void . try $ many tabOrSpace >> newline
+blankLine = void . try $ P.many tabOrSpace >> newline
 
 
 -- | Skip anything until the next location information appears.
@@ -135,11 +135,11 @@ blankLine = void . try $ many tabOrSpace >> newline
 -- @\/some\/path\/to\/a\/file.hs:42:88:@
 pLocation :: P.Parser (String, Int, Int)
 pLocation = (,,)
-    <$> some (noneOf ":\n\t\r") <* char ':'
+    <$> P.some (noneOf ":\n\t\r") <* char ':'
     <*> pInt <* char ':'
-    <*> pInt <* char ':' <* many tabOrSpace
+    <*> pInt <* char ':' <* P.many tabOrSpace
 
 
 pInt :: P.Parser Int
-pInt = read <$> some (satisfy isDigit)
+pInt = read <$> P.some (satisfy isDigit)
 -- 1}}}
