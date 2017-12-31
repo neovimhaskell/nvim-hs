@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {- |
@@ -29,7 +30,11 @@ import           Control.Monad.State.Strict
 import           Control.Monad.Trans.Resource
 import           Data.ByteString              (ByteString)
 import           Data.Conduit                 as C
+#if MIN_VERSION_conduit_extra(1,2,2)
+import           Data.Conduit.Binary          (sinkHandleFlush)
+#else
 import           Data.Conduit.Binary          (sinkHandle)
+#endif
 import qualified Data.Map                     as Map
 import           Data.Serialize               (encode)
 import           System.IO                    (Handle)
@@ -49,7 +54,11 @@ runEventHandler writeableHandle env =
             $= eventHandler
             $$ addCleanup
                 (cleanUpHandle writeableHandle)
+#if MIN_VERSION_conduit_extra(1,2,2)
+                (sinkHandleFlush writeableHandle)
+#else
                 (sinkHandle writeableHandle)
+#endif
 
 
 -- | Convenient monad transformer stack for the event handler
@@ -70,7 +79,7 @@ eventHandlerSource = asks Internal.eventQueue >>= \q ->
     forever $ yield =<< atomically' (readTQueue q)
 
 
-eventHandler :: ConduitM SomeMessage ByteString EventHandler ()
+eventHandler :: ConduitM SomeMessage EncodedResponse EventHandler ()
 eventHandler = await >>= \case
     Nothing ->
         return () -- i.e. close the conduit -- TODO signal shutdown globally
@@ -80,14 +89,24 @@ eventHandler = await >>= \case
         eventHandler
 
 
-yield' :: (MonadIO io) => MsgpackRPC.Message -> ConduitM i ByteString io ()
+#if MIN_VERSION_conduit_extra(1,2,2)
+type EncodedResponse = Flush ByteString
+#else
+type EncodedResponse = ByteString
+#endif
+
+yield' :: (MonadIO io) => MsgpackRPC.Message -> ConduitM i EncodedResponse io ()
 yield' o = do
     liftIO . debugM "EventHandler" $ "Sending: " ++ show o
+#if MIN_VERSION_conduit_extra(1,2,2)
+    yield . Chunk . encode $ toObject o
+    yield Flush
+#else
     yield . encode $ toObject o
-
+#endif
 
 handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPC.Message)
-              -> ConduitM i ByteString EventHandler ()
+              -> ConduitM i EncodedResponse EventHandler ()
 handleMessage = \case
     (Just (FunctionCall fn params reply time), _) -> do
         i <- get
