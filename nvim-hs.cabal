@@ -100,7 +100,16 @@ library
                       , cereal
                       , cereal-conduit >= 0.7.3
                       , conduit
-                      , conduit-extra
+
+                      -- sinkHandle flushed after every yield in the releases
+                      -- [1.1.2, 1.1.17) and in release 1.2.2 an API was added
+                      -- to flush manually, so any other version probably does
+                      -- not work unless you set NoBuffering on the handle (see #61)
+                      -- I think having NoBuffering on TCP-Handles is kind of
+                      -- ridicilous, so the version range [1.1.17, 1.2.2) is
+                      -- simply excluded
+                      , conduit-extra >= 1.1.2 && < 1.1.17 || >= 1.2.2
+
                       , containers
                       , data-default
                       , deepseq >= 1.1 && < 1.5
