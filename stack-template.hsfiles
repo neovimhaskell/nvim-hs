@@ -22,7 +22,7 @@ executable my-nvim-hs
                      , Neovim.Example.Plugin.Fibonacci
                      , Neovim.Example.Plugin.Random
   build-depends:       base >= 4.7 && < 5
-                     , nvim-hs >= 0.2.0 && < 1.0.0
+                     , nvim-hs >= 0.2.5 && < 1.0.0
                      -- The dependency below is only needed for the example plugin
                      , random
   default-language:    Haskell2010
