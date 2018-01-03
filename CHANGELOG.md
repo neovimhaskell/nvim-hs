@@ -1,3 +1,10 @@
+# 0.2.5
+
+* Older versions of `nvim-hs` may not function if some versions of a
+  dependency are used. This version has proper bounds for the dependency and
+  should cause a compile time failure if an incompatible version of the
+  dependency is used (see #61).
+
 # 0.2.0
 
 * Replace error code of remote functions to return
