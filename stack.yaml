@@ -1,5 +1,9 @@
 flags: {}
 packages:
 - '.'
-resolver: lts-10.1
-extra-deps: []
+resolver: nightly-2018-03-10
+extra-deps:
+- resourcet-1.2.0
+- conduit-1.3.0
+- conduit-extra-1.3.0
+- cereal-conduit-0.8.0
