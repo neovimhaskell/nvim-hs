@@ -18,7 +18,6 @@ import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.State          (runStateT)
-import           Control.Monad.Trans.Resource (runResourceT)
 import qualified Data.Map                     as Map
 import           System.Directory
 import           System.Exit                  (ExitCode (..))

@@ -115,7 +115,7 @@ library
                       , time-locale-compat
                       , megaparsec
                       , process
-                      , resourcet >= 1.1.10
+                      , resourcet >= 1.1.11
                       , setenv >= 0.1.1.3
                       , stm
                       , streaming-commons
