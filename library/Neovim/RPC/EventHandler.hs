@@ -28,12 +28,7 @@ import           Control.Concurrent.STM       hiding (writeTQueue)
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.ByteString              (ByteString)
-import           Data.Conduit                 as C
-#if MIN_VERSION_conduit_extra(1,2,2)
-import           Data.Conduit.Binary          (sinkHandleFlush)
-#else
-import           Data.Conduit.Binary          (sinkHandle)
-#endif
+import           Conduit                      as C
 import qualified Data.Map                     as Map
 import           Data.Serialize               (encode)
 import           System.IO                    (Handle)
@@ -51,11 +46,7 @@ runEventHandler writeableHandle env =
     runEventHandlerContext env . runConduit $ do
         eventHandlerSource
             .| eventHandler
-#if MIN_VERSION_conduit_extra(1,2,2)
             .| (sinkHandleFlush writeableHandle)
-#else
-            .| (sinkHandle writeableHandle)
-#endif
 
 
 -- | Convenient monad transformer stack for the event handler
@@ -86,21 +77,13 @@ eventHandler = await >>= \case
         eventHandler
 
 
-#if MIN_VERSION_conduit_extra(1,2,2)
-type EncodedResponse = Flush ByteString
-#else
-type EncodedResponse = ByteString
-#endif
+type EncodedResponse = C.Flush ByteString
 
 yield' :: (MonadIO io) => MsgpackRPC.Message -> ConduitM i EncodedResponse io ()
 yield' o = do
     liftIO . debugM "EventHandler" $ "Sending: " ++ show o
-#if MIN_VERSION_conduit_extra(1,2,2)
     yield . Chunk . encode $ toObject o
     yield Flush
-#else
-    yield . encode $ toObject o
-#endif
 
 handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPC.Message)
               -> ConduitM i EncodedResponse EventHandler ()

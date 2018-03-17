@@ -1,5 +1,5 @@
 name:                nvim-hs
-version:             0.3.0
+version:             1.0.0.0
 synopsis:            Haskell plugin backend for neovim
 description:
   This package provides a plugin provider for neovim. It allows you to write
@@ -99,17 +99,7 @@ library
                       , bytestring
                       , cereal
                       , cereal-conduit >= 0.7.3
-                      , conduit
-
-                      -- sinkHandle flushed after every yield in the releases
-                      -- [1.1.2, 1.1.17) and in release 1.2.2 an API was added
-                      -- to flush manually, so any other version probably does
-                      -- not work unless you set NoBuffering on the handle (see #61)
-                      -- I think having NoBuffering on TCP-Handles is kind of
-                      -- ridicilous, so the version range [1.1.17, 1.2.2) is
-                      -- simply excluded
-                      , conduit-extra >= 1.1.2 && < 1.1.17 || >= 1.2.2
-
+                      , conduit >= 1.3.0
                       , containers
                       , data-default
                       , deepseq >= 1.1 && < 1.5
@@ -125,7 +115,7 @@ library
                       , time-locale-compat
                       , megaparsec
                       , process
-                      , resourcet
+                      , resourcet >= 1.1.10
                       , setenv >= 0.1.1.3
                       , stm
                       , streaming-commons
@@ -134,7 +124,7 @@ library
                       , time
                       , transformers
                       , transformers-base
-                      , unliftio
+                      , unliftio >= 0.2
                       , unliftio-core
                       , utf8-string
                       , void
@@ -160,7 +150,6 @@ test-suite hspec
                       , cereal
                       , cereal-conduit
                       , conduit
-                      , conduit-extra
                       , containers
                       , data-default
                       , directory

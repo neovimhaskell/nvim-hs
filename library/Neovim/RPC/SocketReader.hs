@@ -36,9 +36,8 @@ import           Control.Concurrent         (forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad              (void)
 import           Control.Monad.Trans.Class  (lift)
-import           Data.Conduit               as C
-import           Data.Conduit.Binary
-import           Data.Conduit.Cereal
+import           Conduit               as C
+import           Data.Conduit.Cereal        (conduitGet2)
 import           Data.Default               (def)
 import           Data.Foldable              (foldl', forM_)
 import qualified Data.Map                   as Map
@@ -65,12 +64,6 @@ runSocketReader :: Handle
                 -> IO ()
 runSocketReader readableHandle cfg =
     void . runNeovim (Internal.retypeConfig (Internal.customConfig cfg) cfg) . runConduit $ do
-        -- addCleanup (cleanUpHandle h) (sourceHandle h)
-        -- TODO test whether/how this should be handled
-        -- this has been commented out because I think that restarting the
-        -- plugin provider should not cause the stdin and stdout handles to be
-        -- closed since that would cause neovim to stop the plugin provider (I
-        -- think).
         sourceHandle readableHandle
             .| conduitGet2 Data.Serialize.get
             .| messageHandlerSink
