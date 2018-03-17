@@ -37,7 +37,7 @@ import           Prelude
 setqflist :: (Monoid strType, NvimObject strType)
           => [QuickfixListItem strType]
           -> QuickfixAction
-          -> Neovim r st ()
+          -> Neovim env ()
 setqflist qs a =
     void $ vim_call_function "setqflist" $ qs +: a +: []
 

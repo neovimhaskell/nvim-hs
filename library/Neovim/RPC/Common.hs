@@ -41,6 +41,9 @@ data RPCConfig = RPCConfig
     -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
     -- timestamp and a 'TMVar' that is used to communicate the result back to
     -- the calling thread.
+
+    , nextMessageId :: TVar Int64
+    -- ^ Message identifier for the next message as per RPC spec.
     }
 
 -- | Create a new basic configuration containing a communication channel for
@@ -49,6 +52,7 @@ data RPCConfig = RPCConfig
 newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
 newRPCConfig = RPCConfig
     <$> liftIO (newTVarIO mempty)
+    <*> liftIO (newTVarIO 1)
 
 -- | Simple data type defining the kind of socket the socket reader should use.
 data SocketType = Stdout Handle

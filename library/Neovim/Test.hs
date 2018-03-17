@@ -23,9 +23,7 @@ import           Neovim.RPC.SocketReader      (runSocketReader)
 
 import           Control.Concurrent
 import           Control.Concurrent.STM       (atomically, putTMVar)
-import           Control.Exception.Lifted
 import           Control.Monad.Reader         (runReaderT)
-import           Control.Monad.State          (runStateT)
 import           Control.Monad.Trans.Resource (runResourceT)
 import           GHC.IO.Exception             (ioe_filename)
 import           System.Directory
@@ -33,6 +31,7 @@ import           System.Exit                  (ExitCode (..))
 import           System.IO                    (Handle)
 import           System.Process
 import           Text.PrettyPrint.ANSI.Leijen (red, text, putDoc, (<$$>))
+import           UnliftIO.Exception
 
 
 -- | Type synonym for 'Word'.
@@ -49,25 +48,24 @@ newtype Seconds = Seconds Word
 testWithEmbeddedNeovim
     :: Maybe FilePath -- ^ Optional path to a file that should be opened
     -> Seconds        -- ^ Maximum time (in seconds) that a test is allowed to run
-    -> r              -- ^ Read-only configuration
-    -> st             -- ^ State
-    -> Neovim r st a  -- ^ Test case
+    -> env            -- ^ Read-only configuration
+    -> Neovim env a   -- ^ Test case
     -> IO ()
-testWithEmbeddedNeovim file timeout r st (Internal.Neovim a) =
+testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
     runTest `catch` catchIfNvimIsNotOnPath
   where
     runTest = do
         (_, _, ph, cfg) <- startEmbeddedNvim file timeout
 
-        let testCfg = Internal.retypeConfig r st cfg
+        let testCfg = Internal.retypeConfig r cfg
 
-        void $ runReaderT (runStateT (runResourceT a) st) testCfg
+        void $ runReaderT (runResourceT a) testCfg
 
         -- vim_command isn't asynchronous, so we need to avoid waiting for the
         -- result of the operation since neovim cannot send a result if it
         -- has quit.
         let Internal.Neovim q = vim_command "qa!"
-        void . forkIO . void $ runReaderT (runStateT (runResourceT q) st ) testCfg
+        void . forkIO . void $ runReaderT (runResourceT q) testCfg
 
         waitForProcess ph >>= \case
             ExitFailure i ->
@@ -84,12 +82,12 @@ catchIfNvimIsNotOnPath e = case ioe_filename e of
                     <$$> text "You may not be testing fully!"
 
     _           ->
-        throw e
+        throwIO e
 
 startEmbeddedNvim
     :: Maybe FilePath
     -> Seconds
-    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig st)
+    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig)
 startEmbeddedNvim file (Seconds timeout) = do
     args <- case file of
                 Nothing ->

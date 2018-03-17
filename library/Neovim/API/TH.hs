@@ -21,7 +21,7 @@ module Neovim.API.TH
     , autocmd
     , defaultAPITypeToHaskellTypeMap
 
-    , module Control.Exception.Lifted
+    , module UnliftIO.Exception
     , module Neovim.Classes
     , module Data.Data
     , module Data.MessagePack
@@ -44,7 +44,6 @@ import           Control.Applicative
 import           Control.Arrow (first)
 import           Control.Concurrent.STM   (STM)
 import           Control.Exception
-import           Control.Exception.Lifted
 import           Control.Monad
 import           Data.ByteString          (ByteString)
 import           Data.ByteString.UTF8     (fromString)
@@ -58,6 +57,7 @@ import           Data.Monoid
 import qualified Data.Set                 as Set
 import           Data.Text                (Text)
 import           Text.PrettyPrint.ANSI.Leijen (text, (<+>), Doc)
+import           UnliftIO.Exception
 
 import           Prelude
 
@@ -148,8 +148,8 @@ createFunction typeMap nf = do
     let withDeferred | async nf    = appT [t|STM|]
                      | otherwise   = id
 
-        withException | canFail nf = appT [t|Either NeovimException|]
-                      | otherwise  = id
+        withException' | canFail nf = appT [t|Either NeovimException|]
+                       | otherwise  = id
 
         callFns | async nf && canFail nf = [ [|acall|] ]
                 | async nf               = [ [|acall'|] ]
@@ -160,13 +160,13 @@ createFunction typeMap nf = do
         toObjVar v = [|toObject $(varE v)|]
 
 
-    retTypes <- let (r,st) = (mkName "r", mkName "st")
+    retTypes <- let env = (mkName "env")
                     createSig retTypeFun =
-                        forallT [PlainTV r, PlainTV st] (return [])
-                        . appT ([t|Neovim $(varT r) $(varT st) |])
+                        forallT [PlainTV env] (return [])
+                        . appT ([t|Neovim $(varT env) |])
                         . withDeferred . retTypeFun
                         . apiTypeToHaskellType typeMap $ returnType nf
-                in mapM createSig [ withException, id ]
+                in mapM createSig [ withException', id ]
 
     vars <- mapM (\(t,n) -> (,) <$> apiTypeToHaskellType typeMap t
                                 <*> newName n)

@@ -36,9 +36,7 @@ import           Neovim.Exceptions                 (NeovimException(..))
 import           Control.Applicative
 import           Control.Arrow
 import           Control.DeepSeq
-import           Control.Exception.Lifted     (throwIO)
 import           Control.Monad.Except
-import           Control.Monad.Base           (MonadBase(..))
 import           Data.ByteString              (ByteString)
 import           Data.Int                     (Int16, Int32, Int64, Int8)
 import qualified Data.Map.Strict              as SMap
@@ -55,6 +53,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import qualified Data.ByteString.UTF8         as UTF8 (fromString, toString)
 import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
+import           UnliftIO.Exception           (throwIO)
 
 import           Prelude
 
@@ -101,7 +100,7 @@ class NFData o => NvimObject o where
     fromObject :: Object -> Either Doc o
     fromObject = return . fromObjectUnsafe
 
-    fromObject' :: (MonadBase IO io) => Object -> io o
+    fromObject' :: (MonadIO io) => Object -> io o
     fromObject' = either (throwIO . ErrorMessage) return . fromObject
 
 

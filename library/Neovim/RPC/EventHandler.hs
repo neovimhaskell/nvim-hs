@@ -26,7 +26,6 @@ import           Neovim.RPC.FunctionCall
 import           Control.Applicative
 import           Control.Concurrent.STM       hiding (writeTQueue)
 import           Control.Monad.Reader
-import           Control.Monad.State.Strict
 import           Control.Monad.Trans.Resource
 import           Data.ByteString              (ByteString)
 import           Data.Conduit                 as C
@@ -46,35 +45,33 @@ import           Prelude
 -- | This function will establish a connection to the given socket and write
 -- msgpack-rpc requests to it.
 runEventHandler :: Handle
-                -> Internal.Config RPCConfig Int64
+                -> Internal.Config RPCConfig
                 -> IO ()
 runEventHandler writeableHandle env =
-    runEventHandlerContext env $ do
+    runEventHandlerContext env . runConduit $ do
         eventHandlerSource
-            $= eventHandler
-            $$ addCleanup
-                (cleanUpHandle writeableHandle)
+            .| eventHandler
 #if MIN_VERSION_conduit_extra(1,2,2)
-                (sinkHandleFlush writeableHandle)
+            .| (sinkHandleFlush writeableHandle)
 #else
-                (sinkHandle writeableHandle)
+            .| (sinkHandle writeableHandle)
 #endif
 
 
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a =
-    EventHandler (ResourceT (ReaderT (Internal.Config RPCConfig Int64) (StateT Int64 IO)) a)
-    deriving ( Functor, Applicative, Monad, MonadState Int64, MonadIO
-             , MonadReader (Internal.Config RPCConfig Int64))
+    EventHandler (ResourceT (ReaderT (Internal.Config RPCConfig) IO) a)
+    deriving ( Functor, Applicative, Monad, MonadIO
+             , MonadReader (Internal.Config RPCConfig))
 
 
 runEventHandlerContext
-    :: Internal.Config RPCConfig Int64 -> EventHandler a -> IO a
+    :: Internal.Config RPCConfig -> EventHandler a -> IO a
 runEventHandlerContext env (EventHandler a) =
-    evalStateT (runReaderT (runResourceT a) env) 1
+    runReaderT (runResourceT a) env
 
 
-eventHandlerSource :: Source EventHandler SomeMessage
+eventHandlerSource :: ConduitT () SomeMessage EventHandler ()
 eventHandlerSource = asks Internal.eventQueue >>= \q ->
     forever $ yield =<< atomically' (readTQueue q)
 
@@ -109,17 +106,19 @@ handleMessage :: (Maybe FunctionCall, Maybe MsgpackRPC.Message)
               -> ConduitM i EncodedResponse EventHandler ()
 handleMessage = \case
     (Just (FunctionCall fn params reply time), _) -> do
-        i <- get
-        modify succ
-        rs <- asks (recipients . Internal.customConfig)
-        atomically' . modifyTVar rs $ Map.insert i (time, reply)
-        yield' $ MsgpackRPC.Request (Request fn i params)
+        cfg <- asks (Internal.customConfig)
+        messageId <- atomically' $ do
+            i <- readTVar (nextMessageId cfg)
+            modifyTVar' (nextMessageId cfg) succ
+            modifyTVar' (recipients cfg) $ Map.insert i (time, reply)
+            return i
+        yield' $ MsgpackRPC.Request (Request fn messageId params)
 
     (_, Just r@MsgpackRPC.Response{}) ->
-        yield' $ r
+        yield' r
 
     (_, Just n@MsgpackRPC.Notification{}) ->
-        yield' $ n
+        yield' n
 
     _ ->
         return () -- i.e. skip to next message

@@ -46,7 +46,6 @@ import           Control.Applicative
 import           Control.Concurrent           (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad                (foldM, void)
-import           Control.Monad.Catch          (SomeException, try)
 import           Control.Monad.Trans.Resource hiding (register)
 import           Data.ByteString              (ByteString)
 import           Data.ByteString.UTF8         (toString)
@@ -58,6 +57,7 @@ import           Data.MessagePack
 import           Data.Traversable             (forM)
 import           System.Log.Logger
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
+import           UnliftIO.Exception           (SomeException, try)
 
 import           Prelude
 
@@ -69,16 +69,14 @@ logger = "Neovim.Plugin"
 type StartupConfig = Plugin.StartupConfig NeovimConfig
 
 
-startPluginThreads :: Internal.Config StartupConfig ()
-                   -> [Neovim StartupConfig () NeovimPlugin]
+startPluginThreads :: Internal.Config StartupConfig
+                   -> [Neovim StartupConfig NeovimPlugin]
                    -> IO (Either Doc ([FunctionMapEntry],[ThreadId]))
-startPluginThreads cfg = fmap (fmap fst)
-    . runNeovimInternal return cfg ()
-    . foldM go ([], [])
+startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [ThreadId])
-       -> Neovim StartupConfig () NeovimPlugin
-       -> Neovim StartupConfig () ([FunctionMapEntry], [ThreadId])
+       -> Neovim StartupConfig NeovimPlugin
+       -> Neovim StartupConfig ([FunctionMapEntry], [ThreadId])
     go acc iop = do
         NeovimPlugin p <- iop
 
@@ -98,7 +96,7 @@ startPluginThreads cfg = fmap (fmap fst)
 -- neovim side. Returns 'True' if registration was successful.
 --
 -- Note that this does not have any effect on the side of /nvim-hs/.
-registerWithNeovim :: FunctionalityDescription -> Neovim anyConfig anyState Bool
+registerWithNeovim :: FunctionalityDescription -> Neovim anyEnv Bool
 registerWithNeovim = \case
     Function (F functionName) s -> do
         pName <- getProviderName
@@ -165,7 +163,7 @@ registerWithNeovim = \case
 
 -- | Return or retrive the provider name that the current instance is associated
 -- with on the neovim side.
-getProviderName :: Neovim r st (Either String Int)
+getProviderName :: Neovim env (Either String Int)
 getProviderName = do
     mp <- Internal.asks' Internal.providerName
     (liftIO . atomically . tryReadTMVar) mp >>= \case
@@ -188,8 +186,8 @@ getProviderName = do
 
 
 registerFunctionality :: FunctionalityDescription
-                      -> ([Object] -> Neovim r st Object)
-                      -> Neovim r st (Maybe (FunctionMapEntry, Either (Neovim anyR anySt ()) ReleaseKey))
+                      -> ([Object] -> Neovim env Object)
+                      -> Neovim env (Maybe (FunctionMapEntry, Either (Neovim anyEnv ()) ReleaseKey))
 registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
     Nothing -> do
         liftIO $ errorM logger "Cannot register functionality in this context."
@@ -206,7 +204,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
         reg d f q m >>= \case
             Just e -> do
                 -- Redefine fields so that it gains a new type
-                cfg <- Internal.retypeConfig () () <$> Internal.ask'
+                cfg <- Internal.retypeConfig () <$> Internal.ask'
                 rk <- fst <$> allocate (return ()) (free cfg (fst e))
                 return $ Just (e, Right rk)
 
@@ -228,15 +226,15 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
             liftIO $ warningM logger "Free not implemented for functions."
 
 
-    free cfg = const . void . liftIO . runNeovimInternal return cfg () . freeFun
+    free cfg = const . void . liftIO . runNeovimInternal return cfg . freeFun
 
 
 -- | Register a functoinality in a stateless context.
 registerInStatelessContext
-    :: (FunctionMapEntry -> Neovim r st ())
+    :: (FunctionMapEntry -> Neovim env ())
     -> FunctionalityDescription
     -> ([Object] -> Neovim' Object)
-    -> Neovim r st (Maybe FunctionMapEntry)
+    -> Neovim env (Maybe FunctionMapEntry)
 registerInStatelessContext reg d f = registerWithNeovim d >>= \case
     False ->
         return Nothing
@@ -247,7 +245,7 @@ registerInStatelessContext reg d f = registerWithNeovim d >>= \case
         return $ Just e
 
 
-registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim r st ()
+registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim env ()
 registerInGlobalFunctionMap e = do
     liftIO . debugM logger $ "Adding function to global function map." ++ show (fst e)
     funMap <- Internal.asks' Internal.globalFunctionMap
@@ -257,12 +255,12 @@ registerInGlobalFunctionMap e = do
     liftIO . debugM logger $ "Added function to global function map." ++ show (fst e)
 
 registerInStatefulContext
-    :: (FunctionMapEntry -> Neovim r st ())
+    :: (FunctionMapEntry -> Neovim env ())
     -> FunctionalityDescription
-    -> ([Object] -> Neovim r st Object)
+    -> ([Object] -> Neovim env Object)
     -> TQueue SomeMessage
-    -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-    -> Neovim r st (Maybe FunctionMapEntry)
+    -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+    -> Neovim env (Maybe FunctionMapEntry)
 registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
     True -> do
         let n = name d
@@ -292,9 +290,9 @@ registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
 addAutocmd :: ByteString
            -- ^ The event to register to (e.g. BufWritePost)
            -> AutocmdOptions
-           -> (Neovim r st ())
+           -> (Neovim env ())
            -- ^ Fully applied function to register
-           -> Neovim r st (Maybe (Either (Neovim anyR anySt ()) ReleaseKey))
+           -> Neovim env (Maybe (Either (Neovim anyEnv ()) ReleaseKey))
            -- ^ A 'ReleaseKey' if the registration worked
 addAutocmd event (opts@AutocmdOptions{..}) f = do
     n <- newUniqueFunctionName
@@ -306,8 +304,8 @@ addAutocmd event (opts@AutocmdOptions{..}) f = do
 -- See 'addAutocmd' for more details.
 addAutocmd' :: ByteString
             -> AutocmdOptions
-            -> Neovim' ()
-            -> Neovim r st (Maybe ReleaseKey)
+            -> Neovim'  ()
+            -> Neovim env (Maybe ReleaseKey)
 addAutocmd' event opts f = do
     n <- newUniqueFunctionName
     void $ registerInStatelessContext
@@ -320,32 +318,32 @@ addAutocmd' event opts f = do
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
-    :: StatefulFunctionality r st
-    -> Neovim anyconfig anyState ([FunctionMapEntry], ThreadId)
-registerStatefulFunctionality (StatefulFunctionality r st fs) = do
+    :: StatefulFunctionality env
+    -> Neovim anyEnv ([FunctionMapEntry], ThreadId)
+registerStatefulFunctionality (StatefulFunctionality env fs) = do
     q <- liftIO newTQueueIO
     route <- liftIO $ newTVarIO Map.empty
 
     cfg <- Internal.ask'
 
     let startupConfig = cfg
-            { Internal.customConfig = r
+            { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
                 (registerInStatefulContext (\_ -> return ())) q route
             }
-    res <- liftIO . runNeovimInternal return startupConfig st . forM fs $ \f ->
+    res <- liftIO . runNeovimInternal return startupConfig . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
         Left e -> err e
-        Right (a,_) -> return $ catMaybes a
+        Right a -> return $ catMaybes a
 
     let pluginThreadConfig = cfg
-            { Internal.customConfig = r
+            { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
                 (registerInStatefulContext registerInGlobalFunctionMap) q route
             }
 
-    tid <- liftIO . forkIO . void . runNeovimInternal return pluginThreadConfig st $ do
+    tid <- liftIO . forkIO . void . runNeovimInternal return pluginThreadConfig $ do
                 listeningThread q route
 
     return (map fst es, tid) -- NB: dropping release functions/keys here
@@ -353,16 +351,16 @@ registerStatefulFunctionality (StatefulFunctionality r st fs) = do
 
   where
     executeFunction
-        :: ([Object] -> Neovim r st Object)
+        :: ([Object] -> Neovim env Object)
         -> [Object]
-        -> Neovim r st (Either String Object)
+        -> Neovim env (Either String Object)
     executeFunction f args = try (f args) >>= \case
             Left e -> return . Left $ show (e :: SomeException)
             Right res -> return $ Right res
 
     listeningThread :: TQueue SomeMessage
-                    -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-                    -> Neovim r st ()
+                    -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+                    -> Neovim env ()
     listeningThread q route = do
         msg <- liftIO . atomically $ readTQueue q
 

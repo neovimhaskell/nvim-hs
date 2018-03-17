@@ -46,7 +46,7 @@ data CommandLineOptions =
     Opt { providerName :: Maybe String
         , hostPort     :: Maybe (String, Int)
         , unix         :: Maybe FilePath
-        , env          :: Bool
+        , envVar       :: Bool
         , logOpts      :: Maybe (FilePath, Priority)
         }
 
@@ -56,7 +56,7 @@ instance Default CommandLineOptions where
             { providerName = Nothing
             , hostPort     = Nothing
             , unix         = Nothing
-            , env          = False
+            , envVar       = False
             , logOpts      = Nothing
             }
 
@@ -133,7 +133,7 @@ neovim =
 -- 'Internal.Config' with the custom field set to 'RPCConfig'. These information
 -- can be used to properly clean up a session and then do something else.
 -- The transition handler is first called after the plugin provider has started.
-type TransitionHandler a = [ThreadId] -> Internal.Config RPCConfig () -> IO a
+type TransitionHandler a = [ThreadId] -> Internal.Config RPCConfig -> IO a
 
 
 -- | This main functions can be used to create a custom executable without
@@ -164,7 +164,7 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
     (_, Just fp) ->
         createHandle (UnixSocket fp) >>= \s -> run s s
 
-    _ | env os ->
+    _ | envVar os ->
         createHandle Environment >>= \s -> run s s
 
     _ ->
@@ -191,7 +191,6 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
             return (var, val)
         let startupConf = Internal.retypeConfig
                             (StartupConfig mDyreParams ghcEnv)
-                            ()
                             conf
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> do

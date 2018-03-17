@@ -65,13 +65,13 @@ import           Text.PrettyPrint.ANSI.Leijen (Pretty (..))
 
 
 -- | @'throw'@ specialized to a 'Pretty' value.
-err :: Pretty err => err ->  Neovim r st a
+err :: Pretty err => err ->  Neovim env a
 err = throw . ErrorMessage . pretty
 
 
 errOnInvalidResult :: (NvimObject o)
-                   => Neovim r st (Either NeovimException Object)
-                   -> Neovim r st o
+                   => Neovim env (Either NeovimException Object)
+                   -> Neovim env o
 errOnInvalidResult a = a >>= \case
     Left o ->
         (err . show) o
@@ -85,11 +85,11 @@ errOnInvalidResult a = a >>= \case
 
 
 -- | Initiate a restart of the plugin provider.
-restart :: Neovim r st ()
+restart :: Neovim env ()
 restart = liftIO . flip putMVar Internal.Restart =<< Internal.asks' Internal.transitionTo
 
 
 -- | Initiate the termination of the plugin provider.
-quit :: Neovim r st ()
+quit :: Neovim env ()
 quit = liftIO . flip putMVar Internal.Quit =<< Internal.asks' Internal.transitionTo
 

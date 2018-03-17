@@ -34,11 +34,11 @@ import           Neovim.Exceptions         (NeovimException(..))
 
 import           Control.Applicative
 import           Control.Concurrent.STM
-import           Control.Exception.Lifted  (throwIO)
 import           Control.Monad.Reader
 import           Data.MessagePack
 import           Data.Monoid
 import qualified Text.PrettyPrint.ANSI.Leijen as P
+import           UnliftIO.Exception        (throwIO)
 
 import           Prelude
 
@@ -66,7 +66,7 @@ withIgnoredException fn = fmap (either ((unexpectedException . show) fn) id)
 acall :: (NvimObject result)
      => FunctionName
      -> [Object]
-     -> Neovim r st (STM (Either NeovimException result))
+     -> Neovim env (STM (Either NeovimException result))
 acall fn parameters = do
     q <- Internal.asks' Internal.eventQueue
     mv <- liftIO newEmptyTMVarIO
@@ -87,7 +87,7 @@ acall fn parameters = do
 acall' :: (NvimObject result)
        => FunctionName
        -> [Object]
-       -> Neovim r st (STM result)
+       -> Neovim env (STM result)
 acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 
 
@@ -96,7 +96,7 @@ acall' fn parameters = withIgnoredException fn <$> acall fn parameters
 scall :: (NvimObject result)
       => FunctionName
       -> [Object]      -- ^ Parameters in an 'Object' array
-      -> Neovim r st (Either NeovimException result)
+      -> Neovim env (Either NeovimException result)
       -- ^ result value of the call or the thrown exception
 scall fn parameters = acall fn parameters >>= atomically'
 
@@ -104,13 +104,13 @@ scall fn parameters = acall fn parameters >>= atomically'
 scallThrow :: (NvimObject result)
            => FunctionName
            -> [Object]
-           -> Neovim r st result
+           -> Neovim env result
 scallThrow fn parameters = scall fn parameters >>= either throwIO return
 
 
 -- | Helper function similar to 'scall' that throws a runtime exception if the
 -- result is an error object.
-scall' :: NvimObject result => FunctionName -> [Object] -> Neovim r st result
+scall' :: NvimObject result => FunctionName -> [Object] -> Neovim env result
 scall' fn = withIgnoredException fn . scall fn
 
 
@@ -123,12 +123,12 @@ atomically' = liftIO . atomically
 --
 -- This action possibly blocks as it is an alias for
 -- @ \ioSTM -> ioSTM >>= liftIO . atomically@.
-wait :: Neovim r st (STM result) -> Neovim r st result
+wait :: Neovim env (STM result) -> Neovim env result
 wait = (=<<) atomically'
 
 
 -- | Variant of 'wait' that discards the result.
-wait' :: Neovim r st (STM result) -> Neovim r st ()
+wait' :: Neovim env (STM result) -> Neovim env ()
 wait' = void . wait
 
 
@@ -136,21 +136,21 @@ wait' = void . wait
 -- if the action returned an error.
 waitErr :: (P.Pretty e)
         => String                              -- ^ Prefix error message with this.
-        -> Neovim r st (STM (Either e result)) -- ^ Function call to neovim
-        -> Neovim r st result
+        -> Neovim env (STM (Either e result)) -- ^ Function call to neovim
+        -> Neovim env result
 waitErr loc act = wait act >>= either (err . (P.<>) (P.text loc) . P.pretty) return
 
 
 -- | 'waitErr' that discards the result.
 waitErr' :: (P.Pretty e)
          => String
-         -> Neovim r st (STM (Either e result))
-         -> Neovim r st ()
+         -> Neovim env (STM (Either e result))
+         -> Neovim env ()
 waitErr' loc = void . waitErr loc
 
 
 -- | Send the result back to the neovim instance.
-respond :: (NvimObject result) => Request -> Either String result -> Neovim r st ()
+respond :: (NvimObject result) => Request -> Either String result -> Neovim env ()
 respond Request{..} result = do
     q <- Internal.asks' Internal.eventQueue
     atomically' . writeTQueue q . SomeMessage . MsgpackRPC.Response reqId $

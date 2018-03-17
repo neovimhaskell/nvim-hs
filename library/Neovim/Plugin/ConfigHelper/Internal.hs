@@ -26,11 +26,12 @@ import           Neovim.Compat.Megaparsec as P hiding (count)
 import           Config.Dyre             (Params)
 import           Config.Dyre.Compile
 import           Config.Dyre.Paths       (getPaths)
-import           Control.Applicative     hiding (many, (<|>))
+import           Control.Applicative     hiding ((<|>))
 import           Control.Monad           (void, forM_)
 import           Data.Char
 import           System.SetEnv
 import           System.Directory        (removeDirectoryRecursive)
+import           UnliftIO.STM
 
 import           Prelude
 
@@ -40,15 +41,23 @@ import           Prelude
 pingNvimhs :: Neovim' String
 pingNvimhs = return "Pong"
 
+data ConfigHelperEnv = ConfigHelperEnv
+    { dyreParameters       :: Params NeovimConfig
+    , environmentVariables :: [(String, Maybe String)]
+    , quickfixList         :: TVar [QuickfixListItem String]
+    }
 
 -- | Recompile the plugin provider and put comile errors in the quickfix list.
-recompileNvimhs :: Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
-recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
-    mErrString <- liftIO (customCompile cfg >> getErrorString cfg)
-    let qs = maybe [] parseQuickfixItems mErrString
-    put qs
-    setqflist qs Replace
-    void $ vim_command "cwindow"
+recompileNvimhs :: Neovim ConfigHelperEnv ()
+recompileNvimhs = ask >>= \ConfigHelperEnv{..} ->
+    withCustomEnvironment environmentVariables $ do
+        mErrString <- liftIO $ do
+            customCompile dyreParameters
+            getErrorString dyreParameters
+        let qs = maybe [] parseQuickfixItems mErrString
+        atomically $ modifyTVar' quickfixList (const qs)
+        setqflist qs Replace
+        void $ vim_command "cwindow"
 
 
 -- | Note that restarting the plugin provider implies compilation because Dyre
@@ -59,11 +68,11 @@ recompileNvimhs = ask >>= \(cfg,env) -> withCustomEnvironment env $ do
 -- If you provide a bang to the command, the cache directory of /nvim-hs/ is
 -- forcibly removed.
 restartNvimhs :: CommandArguments
-              -> Neovim (Params NeovimConfig, [(String, Maybe String)]) [QuickfixListItem String] ()
+              -> Neovim ConfigHelperEnv ()
 restartNvimhs CommandArguments{..} = do
     case bang of
         Just True -> do
-            (_,_,_, cacheDir,_) <- liftIO . getPaths =<< asks fst
+            (_,_,_, cacheDir,_) <- liftIO . getPaths =<< asks dyreParameters
             liftIO $ removeDirectoryRecursive cacheDir
 
         _ ->
@@ -71,9 +80,8 @@ restartNvimhs CommandArguments{..} = do
 
     recompileNvimhs
 
-    (_, env) <- ask
-    forM_ env $ \(var, val) -> liftIO $ do
-        maybe (unsetEnv var) (setEnv var) val
+    envVars <- asks environmentVariables
+    forM_ envVars $ \(var, val) -> liftIO $ maybe (unsetEnv var) (setEnv var) val
     restart
 
 -- Parsing {{{1

@@ -54,9 +54,9 @@ import           Prelude
 --
 -- Tip: If you run a terminal inside a neovim instance, then this variable is
 -- automatically set.
-debug :: r -> st -> Internal.Neovim r st a -> IO (Either Doc (a, st))
-debug r st a = disableLogger $ do
-    runPluginProvider def { env = True } Nothing transitionHandler Nothing
+debug :: env -> Internal.Neovim env a -> IO (Either Doc a)
+debug env a = disableLogger $ do
+    runPluginProvider def { envVar = True } Nothing transitionHandler Nothing
   where
     transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Internal.Failure e ->
@@ -65,8 +65,7 @@ debug r st a = disableLogger $ do
         Internal.InitSuccess -> do
             res <- Internal.runNeovimInternal
                 return
-                (cfg { Internal.customConfig = r, Internal.pluginSettings = Nothing })
-                st
+                (cfg { Internal.customConfig = env, Internal.pluginSettings = Nothing })
                 a
 
             mapM_ killThread tids
@@ -84,7 +83,7 @@ debug r st a = disableLogger $ do
 --
 -- See documentation for 'debug'.
 debug' :: Internal.Neovim' a -> IO (Either Doc a)
-debug' a = fmap fst <$> debug () () a
+debug' a = debug () a
 
 
 -- | This function is intended to be run _once_ in a ghci session that to
@@ -111,11 +110,11 @@ debug' a = fmap fst <$> debug () () a
 --
 develMain
     :: Maybe NeovimConfig
-    -> IO (Either Doc ([ThreadId], Internal.Config RPCConfig ()))
+    -> IO (Either Doc [ThreadId])
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
-                runPluginProvider def { env = True } mcfg transitionHandler Nothing
+                runPluginProvider def { envVar = True } mcfg transitionHandler Nothing
         void $ newStore x
         return x
 
@@ -130,7 +129,7 @@ develMain mcfg = lookupStore 0 >>= \case
             transitionHandlerThread <- forkIO $ do
                 myTid <- myThreadId
                 void $ transitionHandler (myTid:tids) cfg
-            return $ Right (transitionHandlerThread:tids, cfg)
+            return $ Right (transitionHandlerThread:tids)
 
         Internal.Quit -> do
             lookupStore 0 >>= \case
@@ -148,15 +147,15 @@ develMain mcfg = lookupStore 0 >>= \case
 
 
 -- | Quit a previously started plugin provider.
-quitDevelMain :: Internal.Config r st -> IO ()
+quitDevelMain :: Internal.Config env -> IO ()
 quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
 
 
 -- | Restart the development plugin provider.
 restartDevelMain
-    :: Internal.Config RPCConfig ()
+    :: Internal.Config RPCConfig
     -> Maybe NeovimConfig
-    -> IO (Either Doc ([ThreadId], Internal.Config RPCConfig ()))
+    -> IO (Either Doc [ThreadId])
 restartDevelMain cfg mcfg = do
     quitDevelMain cfg
     develMain mcfg
@@ -164,13 +163,13 @@ restartDevelMain cfg mcfg = do
 
 -- | Convenience function to run a stateless 'Neovim' function.
 runNeovim' :: NFData a
-           => Internal.Config r st -> Neovim' a -> IO (Either Doc a)
+           => Internal.Config env -> Neovim' a -> IO (Either Doc a)
 runNeovim' cfg =
-    fmap (fmap fst) . runNeovim (Internal.retypeConfig () () cfg) ()
+    runNeovim (Internal.retypeConfig () cfg)
 
 
 -- | Print the global function map to the console.
-printGlobalFunctionMap :: Internal.Config r st -> IO ()
+printGlobalFunctionMap :: Internal.Config env -> IO ()
 printGlobalFunctionMap cfg = do
     es <- fmap Map.toList . atomically $ readTMVar (Internal.globalFunctionMap cfg)
     let header = text "Printing global function map:"

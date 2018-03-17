@@ -13,7 +13,7 @@ testFunction2 _ _ _ = return 2
 testFunctionMap :: Map.Map String Int -> String -> Neovim' (Maybe Int)
 testFunctionMap m k = return $ Map.lookup k m
 
-testSucc :: Int -> Neovim r st Int
+testSucc :: Int -> Neovim env Int
 testSucc = return . succ
 
 testCommandOptArgument :: CommandArguments -> Maybe String -> Neovim' String

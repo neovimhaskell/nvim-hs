@@ -25,9 +25,10 @@ import           Neovim.Plugin.Startup
 
 import           Config.Dyre.Paths                   (getPaths)
 import           Data.Default
+import           UnliftIO.STM
 
 
-plugin :: Neovim (StartupConfig NeovimConfig) () NeovimPlugin
+plugin :: Neovim (StartupConfig NeovimConfig) NeovimPlugin
 plugin = asks dyreParams >>= \case
     Nothing ->
         wrapPlugin Plugin { exports = [], statefulExports = [] }
@@ -35,14 +36,14 @@ plugin = asks dyreParams >>= \case
     Just params -> do
         ghcEnv <- asks ghcEnvironmentVariables
         (_, _, cfgFile, _, libsDir) <- liftIO $ getPaths params
+        emptyQuickfixList <- newTVarIO []
         wrapPlugin Plugin
             { exports =
                 [ $(function' 'pingNvimhs) Sync
                 ]
             , statefulExports =
                 [ StatefulFunctionality
-                    { readOnly = (params, ghcEnv)
-                    , writable = []
+                    { environment = ConfigHelperEnv params ghcEnv emptyQuickfixList
                     , functionalities =
                         [ $(autocmd 'recompileNvimhs) "BufWritePost" def
                                 { acmdPattern = cfgFile

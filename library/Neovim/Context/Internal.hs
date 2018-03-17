@@ -26,16 +26,11 @@ import           Neovim.Plugin.Classes
 import           Neovim.Plugin.IPC            (SomeMessage)
 
 import           Control.Applicative
-import           Control.Concurrent           (ThreadId, forkIO)
-import           Control.Concurrent           (MVar, newEmptyMVar)
-import           Control.Concurrent.STM
+import           Control.Concurrent           (MVar, ThreadId, forkIO)
 import           Control.Exception            (ArithException, ArrayException,
                                                ErrorCall, PatternMatchFail)
-import           Control.Monad.Base
-import           Control.Monad.Catch
 import           Control.Monad.Except
 import           Control.Monad.Reader
-import           Control.Monad.State
 import           Control.Monad.Trans.Resource
 import qualified Data.ByteString.UTF8         as U (fromString)
 import           Data.Map                     (Map)
@@ -43,6 +38,7 @@ import qualified Data.Map                     as Map
 import           Data.MessagePack             (Object)
 import           System.Log.Logger
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           UnliftIO
 
 import           Prelude
 
@@ -56,38 +52,40 @@ import           Prelude
 -- good practice to factor them out. This allows you to write tests and spot
 -- errors easier. Essentially, you should treat this similar to 'IO' in general
 -- haskell programs.
-newtype Neovim r st a = Neovim
-    { unNeovim :: ResourceT (StateT st (ReaderT (Config r st) IO)) a }
+newtype Neovim env a = Neovim
+    { unNeovim :: ResourceT (ReaderT (Config env) IO) a }
 
-  deriving (Functor, Applicative, Monad, MonadIO, MonadState st
-           , MonadThrow, MonadCatch, MonadMask, MonadResource)
-
-
-instance MonadBase IO (Neovim r st) where
-    liftBase = liftIO
+  deriving (Functor, Applicative, Monad, MonadIO
+           , MonadThrow, MonadResource)
 
 
 -- | User facing instance declaration for the reader state.
-instance MonadReader r (Neovim r st) where
+instance MonadReader env (Neovim env) where
     ask = Neovim $ asks customConfig
     local f (Neovim a) = do
-        r <- Neovim $ ask
-        s <- get
-        fmap fst . liftIO $ runReaderT (runStateT (runResourceT a) s)
+        r <- Neovim ask
+        liftIO $ runReaderT (runResourceT a)
                     (r { customConfig = f (customConfig r)})
 
 
+
+-- newtype UnliftIO m = UnliftIO { unliftIO :: forall a. m a -> IO a	}
+
+instance MonadUnliftIO (Neovim env) where
+    askUnliftIO = Neovim . withUnliftIO $ \x ->
+        return (UnliftIO (unliftIO x . unNeovim))
+
 -- | Same as 'ask' for the 'InternalConfig'.
-ask' :: Neovim r st (Config r st)
-ask' = Neovim $ ask
+ask' :: Neovim env (Config env)
+ask' = Neovim ask
 
 
 -- | Same as 'asks' for the 'InternalConfig'.
-asks' :: (Config r st -> a) -> Neovim r st a
+asks' :: (Config env -> a) -> Neovim env a
 asks' = Neovim . asks
 
 -- | Convenience alias for @'Neovim' () ()@.
-type Neovim' = Neovim () ()
+type Neovim' = Neovim ()
 
 exceptionHandlers :: [Handler IO (Either Doc a)]
 exceptionHandlers =
@@ -102,19 +100,17 @@ exceptionHandlers =
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: NFData a
-          => Config r st
-          -> st
-          -> Neovim r st a
-          -> IO (Either Doc (a, st))
-runNeovim = runNeovimInternal (\(a,st) -> a `deepseq` return (a, st))
+          => Config env
+          -> Neovim env a
+          -> IO (Either Doc a)
+runNeovim = runNeovimInternal (\a -> a `deepseq` return a)
 
-runNeovimInternal :: ((a, st) -> IO (a, st))
-                  -> Config r st
-                  -> st
-                  -> Neovim r st a
-                  -> IO (Either Doc (a, st))
-runNeovimInternal f r st (Neovim a) =
-    (try . runReaderT (runStateT (runResourceT a) st)) r >>= \case
+runNeovimInternal :: (a -> IO a)
+                  -> Config env
+                  -> Neovim env a
+                  -> IO (Either Doc a)
+runNeovimInternal f r (Neovim a) =
+    (try . runReaderT (runResourceT a)) r >>= \case
         Left e -> case fromException e of
             Just e' ->
                 return . Left . pretty $ (e' :: NeovimException)
@@ -131,19 +127,19 @@ runNeovimInternal f r st (Neovim a) =
 -- returend immediately.
 -- FIXME This function is pretty much unused and mayhave undesired effects,
 --       namely that you cannot register autocmds in the forked thread.
-forkNeovim :: NFData a => ir -> ist -> Neovim ir ist a -> Neovim r st ThreadId
-forkNeovim r st a = do
+forkNeovim :: NFData a => iEnv -> Neovim iEnv a -> Neovim env ThreadId
+forkNeovim r a = do
     cfg <- ask'
     let threadConfig = cfg
             { pluginSettings = Nothing -- <- slightly problematic
             , customConfig = r
             }
-    liftIO . forkIO . void $ runNeovim threadConfig st a
+    liftIO . forkIO . void $ runNeovim threadConfig a
 
 
 -- | Create a new unique function name. To prevent possible name clashes, digits
 -- are stripped from the given suffix.
-newUniqueFunctionName :: Neovim r st FunctionName
+newUniqueFunctionName :: Neovim env FunctionName
 newUniqueFunctionName = do
     tu <- asks' uniqueCounter
     -- reverseing the integer string should distribute the first character more
@@ -200,7 +196,7 @@ mkFunctionMap = Map.fromList . map (\e -> (name (fst e), e))
 --
 -- Note that you most probably do not want to change the fields prefixed with an
 -- underscore.
-data Config r st = Config
+data Config env = Config
     -- Global settings; initialized once
     { eventQueue        :: TQueue SomeMessage
     -- ^ A queue of messages that the event handler will propagate to
@@ -229,11 +225,11 @@ data Config r st = Config
     -- it's appropriate targets.
 
     -- Local settings; intialized for each stateful component
-    , pluginSettings    :: Maybe (PluginSettings r st)
+    , pluginSettings    :: Maybe (PluginSettings env)
     -- ^ In a registered functionality this field contains a function (and
     -- possibly some context dependent values) to register new functionality.
 
-    , customConfig      :: r
+    , customConfig      :: env
     -- ^ Plugin author supplyable custom configuration. Queried on the
     -- user-facing side with 'ask' or 'asks'.
     }
@@ -243,30 +239,30 @@ data Config r st = Config
 -- config.
 --
 -- Sets the 'pluginSettings' field to 'Nothing'.
-retypeConfig :: r -> st -> Config anotherR anotherSt -> Config r st
-retypeConfig r _ cfg = cfg { pluginSettings = Nothing, customConfig = r }
+retypeConfig :: env -> Config anotherEnv -> Config env
+retypeConfig r cfg = cfg { pluginSettings = Nothing, customConfig = r }
 
 
 -- | This GADT is used to share information between stateless and stateful
 -- plugin threads since they work fundamentally in the same way. They both
 -- contain a function to register some functionality in the plugin provider
 -- as well as some values which are specific to the one or the other context.
-data PluginSettings r st where
+data PluginSettings env where
     StatelessSettings
         :: (FunctionalityDescription
             -> ([Object] -> Neovim' Object)
             -> Neovim' (Maybe FunctionMapEntry))
-        -> PluginSettings () ()
+        -> PluginSettings ()
 
     StatefulSettings
         :: (FunctionalityDescription
-            -> ([Object] -> Neovim r st Object)
+            -> ([Object] -> Neovim env Object)
             -> TQueue SomeMessage
-            -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-            -> Neovim r st (Maybe FunctionMapEntry))
+            -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+            -> Neovim env (Maybe FunctionMapEntry))
         -> TQueue SomeMessage
-        -> TVar (Map FunctionName ([Object] -> Neovim r st Object))
-        -> PluginSettings r st
+        -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+        -> PluginSettings env
 
 
 -- | Create a new 'InternalConfig' object by providing the minimal amount of
@@ -274,7 +270,7 @@ data PluginSettings r st where
 --
 -- This function should only be called once per /nvim-hs/ session since the
 -- arguments are shared across processes.
-newConfig :: IO (Maybe String) -> IO r -> IO (Config r context)
+newConfig :: IO (Maybe String) -> IO env -> IO (Config env)
 newConfig ioProviderName r = Config
     <$> newTQueueIO
     <*> newEmptyMVar

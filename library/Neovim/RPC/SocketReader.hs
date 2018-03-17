@@ -55,16 +55,16 @@ logger :: String
 logger = "Socket Reader"
 
 
-type SocketHandler = Neovim RPCConfig ()
+type SocketHandler = Neovim RPCConfig
 
 
 -- | This function will establish a connection to the given socket and read
 -- msgpack-rpc events from it.
 runSocketReader :: Handle
-                -> Internal.Config RPCConfig st
+                -> Internal.Config RPCConfig
                 -> IO ()
 runSocketReader readableHandle cfg =
-    void . runNeovim (Internal.retypeConfig (Internal.customConfig cfg) () cfg) () $ do
+    void . runNeovim (Internal.retypeConfig (Internal.customConfig cfg) cfg) . runConduit $ do
         -- addCleanup (cleanUpHandle h) (sourceHandle h)
         -- TODO test whether/how this should be handled
         -- this has been commented out because I think that restarting the
@@ -72,13 +72,13 @@ runSocketReader readableHandle cfg =
         -- closed since that would cause neovim to stop the plugin provider (I
         -- think).
         sourceHandle readableHandle
-            $= conduitGet2 Data.Serialize.get
-            $$ messageHandlerSink
+            .| conduitGet2 Data.Serialize.get
+            .| messageHandlerSink
 
 
 -- | Sink that delegates the messages depending on their type.
 -- <https://github.com/msgpack-rpc/msgpack-rpc/blob/master/spec.md>
-messageHandlerSink :: Sink Object SocketHandler ()
+messageHandlerSink :: ConduitT Object Void SocketHandler ()
 messageHandlerSink = awaitForever $ \rpc -> do
     liftIO . debugM logger $ "Received: " <> show rpc
     case fromObject rpc of
@@ -95,7 +95,8 @@ messageHandlerSink = awaitForever $ \rpc -> do
             "Unhandled rpc message: " <> show e
 
 
-handleResponse :: Int64 -> Either Object Object -> Sink a SocketHandler ()
+handleResponse :: Int64 -> Either Object Object
+               -> ConduitT a Void SocketHandler ()
 handleResponse i result = do
     answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
@@ -110,7 +111,8 @@ handleResponse i result = do
 -- the two is that a notification does not generate a reply. The distinction
 -- between those two cases is done via the first paramater which is 'Maybe' the
 -- function call identifier.
-handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object] -> Sink a SocketHandler ()
+handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object]
+                            -> ConduitT a Void SocketHandler ()
 handleRequestOrNotification mi m params = do
     cfg <- lift Internal.ask'
     void . liftIO . forkIO $ handle cfg
@@ -121,7 +123,7 @@ handleRequestOrNotification mi m params = do
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
     lookupFunction funMap = Map.lookup m <$> readTMVar funMap
 
-    handle :: Internal.Config RPCConfig () -> IO ()
+    handle :: Internal.Config RPCConfig -> IO ()
     handle rpc = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
 
         Nothing -> do
@@ -139,7 +141,7 @@ handleRequestOrNotification mi m params = do
                     , Internal.pluginSettings = Just . Internal.StatelessSettings $
                         registerInStatelessContext (\_ -> return ())
                     }
-            res <- fmap fst <$> runNeovim rpc' () (f $ parseParams copts params)
+            res <- runNeovim rpc' (f $ parseParams copts params)
             -- Send the result to the event handler
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage . MsgpackRPC.Response i $ either (Left . toObject . flip displayS "" . renderCompact) Right res

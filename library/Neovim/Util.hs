@@ -18,17 +18,21 @@ module Neovim.Util (
     ) where
 
 import           Control.Monad       (forM, forM_, when, unless)
-import           Control.Monad.Catch (MonadMask, bracket)
 import           Neovim.Context
 import           System.SetEnv
 import           System.Environment
 import qualified Text.PrettyPrint.ANSI.Leijen as P
+import           UnliftIO (MonadUnliftIO)
+import           UnliftIO.Exception  (bracket)
 
 
 -- | Execute the given action with a changed set of environment variables and
 -- restore the original state of the environment afterwards.
-withCustomEnvironment :: (MonadMask io, MonadIO io)
-                      => [(String, Maybe String)] -> io a -> io a
+withCustomEnvironment
+    :: (Traversable t, MonadUnliftIO m)
+    => t (String, Maybe String)
+    -> m c
+    -> m c
 withCustomEnvironment modifiedEnvironment action =
     bracket saveAndSet unset (const action)
 

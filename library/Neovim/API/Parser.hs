@@ -19,7 +19,6 @@ module Neovim.API.Parser
 import           Neovim.Classes
 
 import           Control.Applicative
-import           Control.Exception.Lifted
 import           Control.Monad.Except
 import qualified Data.ByteString              as B
 import           Data.Map                     (Map)
@@ -32,6 +31,8 @@ import           System.Process
 import           Neovim.Compat.Megaparsec     as P
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.PrettyPrint.ANSI.Leijen as P
+import           UnliftIO.Exception           (SomeException,
+                                               bracket, catch)
 
 import           Prelude
 

@@ -20,14 +20,14 @@ import           Test.QuickCheck
 
 import           Control.Applicative
 
-call :: ([Object] -> Neovim () () Object) -> [Object]
+call :: ([Object] -> Neovim () Object) -> [Object]
      -> IO Object
 call f args = do
     cfg <- Internal.newConfig (pure Nothing) (pure ())
-    res <- fmap fst <$> runNeovim cfg () (f args)
+    res <- runNeovim cfg (f args)
     case res of
         Right x -> return x
-        Left e -> (throw . ErrorMessage) e
+        Left e -> (throwIO . ErrorMessage) e
 
 
 isNeovimException :: NeovimException -> Bool
