@@ -14,7 +14,6 @@ module Neovim.Context (
     newUniqueFunctionName,
 
     Neovim,
-    Neovim',
     NeovimException(..),
     FunctionMap,
     FunctionMapEntry,
@@ -43,7 +42,7 @@ module Neovim.Context (
 
 import           Neovim.Classes
 import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
-                                               Neovim, Neovim', forkNeovim,
+                                               Neovim, forkNeovim,
                                                mkFunctionMap,
                                                newUniqueFunctionName, runNeovim)
 import           Neovim.Exceptions            (NeovimException (..))

@@ -98,7 +98,7 @@ library
                       , ansi-wl-pprint
                       , bytestring
                       , cereal
-                      , cereal-conduit >= 0.7.3
+                      , cereal-conduit >= 0.8.0
                       , conduit >= 1.3.0
                       , containers
                       , data-default

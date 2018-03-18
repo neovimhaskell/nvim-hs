@@ -44,8 +44,6 @@ import           Prelude
 
 
 -- | This is the environment in which all plugins are initially started.
--- Stateless functions use '()' for the static configuration and the mutable
--- state and there is another type alias for that case: 'Neovim''.
 --
 -- Functions have to run in this transformer stack to communicate with neovim.
 -- If parts of your own functions dont need to communicate with neovim, it is
@@ -85,8 +83,6 @@ ask' = Neovim ask
 asks' :: (Config env -> a) -> Neovim env a
 asks' = Neovim . asks
 
--- | Convenience alias for @'Neovim' () ()@.
-type Neovim' = Neovim ()
 
 exceptionHandlers :: [Handler IO (Either Doc a)]
 exceptionHandlers =
@@ -153,19 +149,14 @@ newUniqueFunctionName = do
 
 -- | This data type is used to dispatch a remote function call to the appopriate
 -- recipient.
-data FunctionType
-    = Stateless ([Object] -> Neovim' Object)
-    -- ^ 'Stateless' functions are simply executed with the sent arguments.
-
-    | Stateful (TQueue SomeMessage)
+newtype FunctionType = Stateful (TQueue SomeMessage)
     -- ^ 'Stateful' functions are handled within a special thread, the 'TQueue'
     -- is the communication endpoint for the arguments we have to pass.
 
 
 instance Pretty FunctionType where
     pretty = \case
-        Stateless _ -> blue $ text "\\os -> Neovim' o"
-        Stateful  _ -> green $ text "\\os -> Neovim r st o"
+        Stateful  _ -> green $ text "\\os -> Neovim env o"
 
 
 -- | Type of the values stored in the function map.
@@ -249,12 +240,6 @@ retypeConfig r cfg = cfg { pluginSettings = Nothing, customConfig = r }
 -- contain a function to register some functionality in the plugin provider
 -- as well as some values which are specific to the one or the other context.
 data PluginSettings env where
-    StatelessSettings
-        :: (FunctionalityDescription
-            -> ([Object] -> Neovim' Object)
-            -> Neovim' (Maybe FunctionMapEntry))
-        -> PluginSettings ()
-
     StatefulSettings
         :: (FunctionalityDescription
             -> ([Object] -> Neovim env Object)

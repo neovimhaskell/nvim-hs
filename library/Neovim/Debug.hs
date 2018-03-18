@@ -82,7 +82,7 @@ debug env a = disableLogger $ do
 -- @
 --
 -- See documentation for 'debug'.
-debug' :: Internal.Neovim' a -> IO (Either Doc a)
+debug' :: Internal.Neovim () a -> IO (Either Doc a)
 debug' a = debug () a
 
 
@@ -163,7 +163,7 @@ restartDevelMain cfg mcfg = do
 
 -- | Convenience function to run a stateless 'Neovim' function.
 runNeovim' :: NFData a
-           => Internal.Config env -> Neovim' a -> IO (Either Doc a)
+           => Internal.Config env -> Neovim () a -> IO (Either Doc a)
 runNeovim' cfg =
     runNeovim (Internal.retypeConfig () cfg)
 

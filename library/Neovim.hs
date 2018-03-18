@@ -22,7 +22,6 @@ module Neovim (
     -- ** tl;dr
     -- $tldrgettingstarted
     Neovim,
-    Neovim',
     neovim,
     NeovimConfig(..),
     defaultConfig,
@@ -35,7 +34,6 @@ module Neovim (
     -- ** Creating a plugin
     -- $creatingplugins
     NeovimPlugin(..),
-    StatefulFunctionality(..),
     Plugin(..),
     NvimObject(..),
     (+:),
@@ -53,7 +51,6 @@ module Neovim (
     CommandArguments(..),
     AutocmdOptions(..),
     addAutocmd,
-    addAutocmd',
 
     ask,
     asks,
@@ -112,13 +109,13 @@ import           Neovim.API.TH                (autocmd, command, command',
 import           Neovim.Classes               (Dictionary, NvimObject (..),
                                                docFromObject, docToObject, (+:))
 import           Neovim.Config                (NeovimConfig (..))
-import           Neovim.Context               (Neovim, Neovim',
+import           Neovim.Context               (Neovim,
                                                NeovimException (ErrorMessage),
                                                ask, asks, err,
                                                errOnInvalidResult, get, gets,
                                                modify, put)
 import           Neovim.Main                  (neovim)
-import           Neovim.Plugin                (addAutocmd, addAutocmd')
+import           Neovim.Plugin                (addAutocmd)
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                CommandArguments (..),
                                                CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
@@ -126,7 +123,7 @@ import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                Synchronous (..))
 import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
-                                               StatefulFunctionality(..), wrapPlugin)
+                                               wrapPlugin)
 import           Neovim.Plugin.Startup        (StartupConfig (..))
 import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,

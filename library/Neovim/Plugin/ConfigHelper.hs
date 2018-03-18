@@ -31,28 +31,22 @@ import           UnliftIO.STM
 plugin :: Neovim (StartupConfig NeovimConfig) NeovimPlugin
 plugin = asks dyreParams >>= \case
     Nothing ->
-        wrapPlugin Plugin { exports = [], statefulExports = [] }
+        wrapPlugin Plugin { environment = (), exports = [] }
 
     Just params -> do
         ghcEnv <- asks ghcEnvironmentVariables
         (_, _, cfgFile, _, libsDir) <- liftIO $ getPaths params
         emptyQuickfixList <- newTVarIO []
         wrapPlugin Plugin
-            { exports =
+            { environment = ConfigHelperEnv params ghcEnv emptyQuickfixList
+            , exports =
                 [ $(function' 'pingNvimhs) Sync
-                ]
-            , statefulExports =
-                [ StatefulFunctionality
-                    { environment = ConfigHelperEnv params ghcEnv emptyQuickfixList
-                    , functionalities =
-                        [ $(autocmd 'recompileNvimhs) "BufWritePost" def
-                                { acmdPattern = cfgFile
-                                }
-                        , $(autocmd 'recompileNvimhs) "BufWritePost" def
-                                { acmdPattern = libsDir++"/*"
-                                }
-                        , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
-                        ]
+                , $(autocmd 'recompileNvimhs) "BufWritePost" def
+                    { acmdPattern = cfgFile
                     }
+                , $(autocmd 'recompileNvimhs) "BufWritePost" def
+                    { acmdPattern = libsDir++"/*"
+                    }
+                , $(command' 'restartNvimhs) [CmdSync Async, CmdBang, CmdRegister]
                 ]
             }

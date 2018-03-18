@@ -12,7 +12,6 @@ Portability :  GHC
 -}
 module Neovim.Plugin.Internal (
     ExportedFunctionality(..),
-    StatefulFunctionality(..),
     getFunction,
     getDescription,
     NeovimPlugin(..),
@@ -46,19 +45,11 @@ instance HasFunctionName (ExportedFunctionality env) where
     name = name . getDescription
 
 
--- | This datatype contains the initial state (mutable and immutable) for the
--- functionalities defined here.
-data StatefulFunctionality env = StatefulFunctionality
-    { environment        :: env
-    , functionalities :: [ExportedFunctionality env]
-    }
-
-
 -- | This data type contains meta information for the plugin manager.
 --
 data Plugin env = Plugin
-    { exports         :: [ExportedFunctionality ()]
-    , statefulExports :: [StatefulFunctionality env]
+    { environment :: env
+    , exports     :: [ExportedFunctionality env]
     }
 
 

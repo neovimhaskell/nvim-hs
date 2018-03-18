@@ -26,7 +26,6 @@ import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
 import           Neovim.Plugin.IPC.Classes
-import           Neovim.Plugin              (registerInStatelessContext)
 import qualified Neovim.RPC.Classes         as MsgpackRPC
 import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
@@ -46,7 +45,6 @@ import           Data.Monoid
 import qualified Data.Serialize             (get)
 import           System.IO                  (Handle)
 import           System.Log.Logger
-import           Text.PrettyPrint.ANSI.Leijen (renderCompact, displayS)
 
 import           Prelude
 
@@ -124,20 +122,7 @@ handleRequestOrNotification mi m params = do
             debugM logger errM
             forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage $ MsgpackRPC.Response i (Left (toObject errM))
-        Just (copts, Internal.Stateless f) -> do
-            liftIO . debugM logger $ "Executing stateless function with ID: " <> show mi
-            -- Stateless function: Create a boring state object for the
-            -- Neovim context.
-            -- drop the state of the result with (fmap fst <$>)
-            let rpc' = rpc
-                    { Internal.customConfig = ()
-                    , Internal.pluginSettings = Just . Internal.StatelessSettings $
-                        registerInStatelessContext (\_ -> return ())
-                    }
-            res <- runNeovim rpc' (f $ parseParams copts params)
-            -- Send the result to the event handler
-            forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage . MsgpackRPC.Response i $ either (Left . toObject . flip displayS "" . renderCompact) Right res
+
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO

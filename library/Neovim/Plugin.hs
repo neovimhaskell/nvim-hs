@@ -24,10 +24,8 @@ module Neovim.Plugin (
     CommandOption(..),
 
     addAutocmd,
-    addAutocmd',
 
-    registerInStatelessContext,
-    registerInStatefulContext,
+    registerPlugin,
     ) where
 
 import           Neovim.API.String
@@ -77,19 +75,11 @@ startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
     go :: ([FunctionMapEntry], [ThreadId])
        -> Neovim StartupConfig NeovimPlugin
        -> Neovim StartupConfig ([FunctionMapEntry], [ThreadId])
-    go acc iop = do
+    go (es, tids) iop = do
         NeovimPlugin p <- iop
+        (es', tid) <- registerStatefulFunctionality p
 
-        (es, tids) <- foldl (\(es, tids) (es', tid) -> (es'++es, tid:tids)) acc
-            <$> mapM registerStatefulFunctionality (statefulExports p)
-
-        es' <- forM (exports p) $ \e -> do
-            registerInStatelessContext
-                (\_ -> return ())
-                (getDescription e)
-                (getFunction e)
-
-        return $ (catMaybes es' ++ es, tids)
+        return $ (es ++ es', tid:tids)
 
 
 -- | Callthe vimL functions to define a function, command or autocmd on the
@@ -193,13 +183,6 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
         liftIO $ errorM logger "Cannot register functionality in this context."
         return Nothing
 
-    Just (Internal.StatelessSettings reg) ->
-        reg d f >>= \case
-            Just e -> do
-                return $ Just (e, Left (freeFun (fst e)))
-            _ ->
-                return Nothing
-
     Just (Internal.StatefulSettings reg q m) ->
         reg d f q m >>= \case
             Just e -> do
@@ -229,22 +212,6 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
     free cfg = const . void . liftIO . runNeovimInternal return cfg . freeFun
 
 
--- | Register a functoinality in a stateless context.
-registerInStatelessContext
-    :: (FunctionMapEntry -> Neovim env ())
-    -> FunctionalityDescription
-    -> ([Object] -> Neovim' Object)
-    -> Neovim env (Maybe FunctionMapEntry)
-registerInStatelessContext reg d f = registerWithNeovim d >>= \case
-    False ->
-        return Nothing
-
-    True -> do
-        let e = (d, Stateless f)
-        reg e
-        return $ Just e
-
-
 registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim env ()
 registerInGlobalFunctionMap e = do
     liftIO . debugM logger $ "Adding function to global function map." ++ show (fst e)
@@ -254,14 +221,14 @@ registerInGlobalFunctionMap e = do
         putTMVar funMap $ Map.insert ((name . fst) e) e m
     liftIO . debugM logger $ "Added function to global function map." ++ show (fst e)
 
-registerInStatefulContext
+registerPlugin
     :: (FunctionMapEntry -> Neovim env ())
     -> FunctionalityDescription
     -> ([Object] -> Neovim env Object)
     -> TQueue SomeMessage
     -> TVar (Map FunctionName ([Object] -> Neovim env Object))
     -> Neovim env (Maybe FunctionMapEntry)
-registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
+registerPlugin reg d f q tm = registerWithNeovim d >>= \case
     True -> do
         let n = name d
             e = (d, Stateful q)
@@ -275,18 +242,10 @@ registerInStatefulContext reg d f q tm = registerWithNeovim d >>= \case
 
 -- | Register an autocmd in the current context. This means that, if you are
 -- currently in a stateful plugin, the function will be called in the current
--- thread and has access to the configuration and state of this thread. If you
--- need that information, but do not want to block the other functions in this
--- thread, you have to manually fork a thread and make the state you need
--- available there. If you don't care abou the state (or your function has been
--- appield to all the necessary state (e.g. a 'TVar' to share the rusult), then
--- you can also call 'addAutocmd'' which will register a stateless function that
--- only interacts with other threads by means of concurrency abstractions.
+-- thread and has access to the configuration and state of this thread. .
 --
 -- Note that the function you pass must be fully applied.
 --
--- Note beside: This function is equivalent to 'addAutocmd'' if called from a
--- stateless plugin thread.
 addAutocmd :: ByteString
            -- ^ The event to register to (e.g. BufWritePost)
            -> AutocmdOptions
@@ -299,28 +258,12 @@ addAutocmd event (opts@AutocmdOptions{..}) f = do
     fmap snd <$> registerFunctionality (Autocmd event n opts) (\_ -> toObject <$> f)
 
 
--- | Add a stateless autocmd.
---
--- See 'addAutocmd' for more details.
-addAutocmd' :: ByteString
-            -> AutocmdOptions
-            -> Neovim'  ()
-            -> Neovim env (Maybe ReleaseKey)
-addAutocmd' event opts f = do
-    n <- newUniqueFunctionName
-    void $ registerInStatelessContext
-                registerInGlobalFunctionMap
-                (Autocmd event n opts)
-                (\_ -> toObject <$> f)
-    return Nothing
-
-
 -- | Create a listening thread for events and add update the 'FunctionMap' with
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
-    :: StatefulFunctionality env
+    :: Plugin env
     -> Neovim anyEnv ([FunctionMapEntry], ThreadId)
-registerStatefulFunctionality (StatefulFunctionality env fs) = do
+registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
     q <- liftIO newTQueueIO
     route <- liftIO $ newTVarIO Map.empty
 
@@ -329,7 +272,7 @@ registerStatefulFunctionality (StatefulFunctionality env fs) = do
     let startupConfig = cfg
             { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
-                (registerInStatefulContext (\_ -> return ())) q route
+                (registerPlugin (\_ -> return ())) q route
             }
     res <- liftIO . runNeovimInternal return startupConfig . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
@@ -340,7 +283,7 @@ registerStatefulFunctionality (StatefulFunctionality env fs) = do
     let pluginThreadConfig = cfg
             { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
-                (registerInStatefulContext registerInGlobalFunctionMap) q route
+                (registerPlugin registerInGlobalFunctionMap) q route
             }
 
     tid <- liftIO . forkIO . void . runNeovimInternal return pluginThreadConfig $ do

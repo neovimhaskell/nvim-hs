@@ -38,7 +38,7 @@ import           Prelude
 
 -- | Simple function that will return @"Pong"@ if the plugin provider is
 -- running.
-pingNvimhs :: Neovim' String
+pingNvimhs :: Neovim env String
 pingNvimhs = return "Pong"
 
 data ConfigHelperEnv = ConfigHelperEnv
