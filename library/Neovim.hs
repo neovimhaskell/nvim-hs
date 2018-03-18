@@ -146,7 +146,7 @@ of this package. It is also on the repositories front page.
 If you are proficient with Haskell, it may be sufficient to point you at some of the
 important data structures and functions. So, I will do it here. If you need more
 assistance, please skip to the next section and follow the links for functions or data
-types you do no understand how to use. If you think that the documentation is lacking,
+types you do not understand how to use. If you think that the documentation is lacking,
 please create an issue on github (or even better, a pull request with a fix @;-)@).
 The code sections that describe new functionality are followed by the source code
 documentation of the used functions (and possibly a few more).
@@ -249,7 +249,7 @@ module Fibonacci.Plugin (fibonacci) where
 import "Neovim"
 
 \-\- \| Neovim is not really good with big numbers, so we return a 'String' here.
-fibonacci :: 'Int' -> 'Neovim'' 'String'
+fibonacci :: 'Int' -> 'Neovim' env 'String'
 fibonacci n = 'return' . 'show' \$ fibs !! n
   where
     fibs :: [Integer]
@@ -267,8 +267,8 @@ import Fibonacci.Plugin (fibonacci)
 
 plugin :: 'Neovim' ('StartupConfig' 'NeovimConfig') () 'NeovimPlugin'
 plugin = 'wrapPlugin' Plugin
-    { 'exports'         = [ $('function'' 'fibonacci) 'Sync' ]
-    , 'statefulExports' = []
+    { 'environment' = ()
+    , 'exports'     = [ $('function'' 'fibonacci) 'Sync' ]
     }
 @
 
@@ -289,35 +289,27 @@ Let's analyze how it works. The module @Fibonacci.Plugin@ simply defines a funct
 that takes the @n@th element of the infinite list of Fibonacci numbers. Even though
 the definition is very concise and asthetically pleasing, the important part is the
 type signature for @fibonacci@. Similarly how @main :: IO ()@ works in normal Haskell
-programs, 'Neovim'' is the environment we need for plugins. Internally, it stores a
+programs, 'Neovim' is the environment we need for plugins. Internally, it stores a
 few things that are needed to communicate with neovim, but that shouldn't bother you
 too much. Simply remember that every plugin function must have a function signature
-whose last element is of type @'Neovim' r st something@. The result of @fibonacci@
+whose last element is of type @'Neovim' env something@. The result of @fibonacci@
 is 'String' because neovim cannot handle big numbers so well. :-)
 You can use any argument or result type as long as it is an instance of 'NvimObject'.
 
 The second part of of the puzzle, which is the definition of @plugin@
-in @~\/.config\/nvim\/lib\/Fibonacci.hs@, shows what a plugin is. It is essentially two
-lists of stateless and stateful functionality. A functionality can currently be one
-of three things: a function, a command and an autocmd in the context of vim
-terminology. In the end, all of those functionalities map to a function at the side
+in @~\/.config\/nvim\/lib\/Fibonacci.hs@, shows what a plugin is. It is essentially
+an environment that and a list of functions, commands or autocommands in the context of vim
+terminology. In the end, all of those things map to a function at the side
 of /nvim-hs/. If you really want to know what the distinction between those is, you
 have to consult the @:help@ pages of neovim (e.g. @:help :function@, @:help :command@
-and @:help :autocmd@). What's relevant from the side of /nvim-hs/ is the distinction
-between __stateful__ and __stateless__. A stateless function can be called at any
-time and it does not share any of its internals with other functions. A stateful
-function on the other hand can share a well-defined amount of state with other
-functions and in the next section I will show you a simple example for that.
-Anyhow, if you take a look at the type alias for 'Neovim', you notice the two
-type variables @r@ and @st@. These can be accessed with different semantics
-each. A value of type @r@ can only be read. It is more or less a static value
-you can query with 'ask' or 'asks' if you
-are inside a 'Neovim' environment. The value @st@ can be changed and those
-changes will be available to other functions which run in the same environment.
-You can get the current value with 'get', you can replace an existing value with
-'put' and you can also apply a function to the current state with 'modify'.
-Notice how 'Neovim'' is just a specialization of 'Neovim' with its @r@ and
-@st@ set to @()@.
+and @:help :autocmd@). What's relevant from the side of /nvim-hs/ is the environment.
+The environment is a data type that is avaiable to all exported functions of your
+plugin. This example does not make use of anything of that environment, so
+we used '()', also known as unit, as our environment. The definition of
+@fibonacci@ uses a type variable @env@ as it does not access the environment and
+can handly any environment. If you want to access the environment, you can call
+'ask' or 'asks' if you are inside a 'Neovim' environment. An example that shows
+you how to use it can be found in a later chapter.
 
 Now to the magical part: @\$('function'' 'fibonacci)@. This is a so called
 Template Haskell splice and this is why you need
@@ -364,15 +356,47 @@ module Random.Plugin (nextRandom, setNextRandom) where
 
 import "Neovim"
 
-\-\- | Neovim isn't so good with big numbers here either.
-nextRandom :: 'Neovim' r ['Int16'] 'Int16'
-nextRandom = do
-    r <- 'gets' 'head' -- get the head of the infinite random number list
-    'modify' 'tail'    -- set the list to its tail
-    'return' r
+import System.Random (newStdGen, randoms)
+import UnliftIO.STM  (TVar, atomically, readTVar, modifyTVar, newTVarIO)
 
-setNextRandom :: 'Int16' -> 'Neovim' r ['Int16'] ()
-setNextRandom n = 'modify' (n:) -- cons to the front of the infinite list
+-- You may want to define a type alias for your plugin, so that if you change
+-- your environment, you don't have to change all type signatures.
+--
+-- If I were to write a real plugin, I would probably also create a data type
+-- instead of directly using a TVar here.
+--
+type MyNeovim a = Neovim ('TVar' ['Int16']) a
+
+-- This function will create an initial environment for our random number
+-- generator. Note that the return type is the type of our environment.
+randomNumbers :: Neovim startupEnv (TVar [Int16])
+randomNumbers = do
+    g <- liftIO newStdGen -- Create a new seed for a pseudo random number generator
+    newTVarIO (randoms g) -- Put an infinite list of random numbers into a TVar
+
+-- | Get the next random number and update the state of the list.
+nextRandom :: MyNeovim 'Int16'
+nextRandom = do
+    tVarWithRandomNumbers <- 'ask'
+    atomically $ do
+        -- pick the head of our list of random numbers
+        r <- 'head' <$> 'readTVar' tVarWithRandomNumbers
+
+        -- Since we do not want to return the same number all over the place
+        -- remove the head of our list of random numbers
+        modifyTVar tVarWithRandomNumbers 'tail'
+
+        'return' r
+
+
+-- | You probably don't want this in a random number generator, but this shows
+-- hoy you can edit the state of a stateful plugin.
+setNextRandom :: 'Int16' -> MyNeovim ()
+setNextRandom n = do
+    tVarWithRandomNumbers <- 'ask'
+
+    -- cons n to the front of the infinite list
+    atomically $ modifyTVar tVarWithRandomNumbers (n:)
 @
 
 File @~\/.config\/nvim\/lib\/Random.hs@:
@@ -387,18 +411,13 @@ import "System.Random" ('newStdGen', 'randoms')
 
 plugin :: 'Neovim' ('StartupConfig' 'NeovimConfig') () 'NeovimPlugin'
 plugin = do
-    g <- 'liftIO' 'newStdGen'         -- initialize with a random seed
-    let randomNumbers = 'randoms' g -- an infinite list of random numbers
+    env <- randomNumbers
     'wrapPlugin' 'Plugin'
-        { 'exports'         = []
-        , 'statefulExports' =  [ 'StatefulFunctionality'
-            { readOnly = ()
-            , writable = randomNumbers
-            , functionalities =
-                [ $('function'' 'nextRandom) 'Sync'
-                , $('function' \"SetNextRandom\" 'setNextRandom) 'Async'
-                ]
-            }]
+        { environment = env
+        , 'exports'         =
+          [ $('function'' 'nextRandom) 'Sync'
+          , $('function' \"SetNextRandom\" 'setNextRandom) 'Async'
+          ]
         }
 @
 
@@ -452,7 +471,7 @@ getting some abstract 'Buffer' object, test whether it is valid and then try
 to rename it.
 
 @
-inspectBuffer :: 'Neovim' r st ()
+inspectBuffer :: 'Neovim' env ()
 inspectBuffer = do
     cb <- 'vim_get_current_buffer'
     isValid <- 'buffer_is_valid' cb
