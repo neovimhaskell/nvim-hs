@@ -106,7 +106,7 @@ handleResponse i result = do
 -- function call identifier.
 handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object]
                             -> ConduitT a Void SocketHandler ()
-handleRequestOrNotification mi m params = do
+handleRequestOrNotification requestId functionToCall params = do
     cfg <- lift Internal.ask'
     void . liftIO . async $ race logTimeout (handle cfg)
     return ()
@@ -115,7 +115,7 @@ handleRequestOrNotification mi m params = do
     lookupFunction
         :: TMVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
-    lookupFunction funMap = Map.lookup m <$> readTMVar funMap
+    lookupFunction funMap = Map.lookup functionToCall <$> readTMVar funMap
 
     logTimeout :: IO ()
     logTimeout = do
@@ -127,25 +127,25 @@ handleRequestOrNotification mi m params = do
     handle rpc = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
 
         Nothing -> do
-            let errM = "No provider for: " <> show m
+            let errM = "No provider for: " <> show functionToCall
             debugM logger errM
-            forM_ mi $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
+            forM_ requestId $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
                 . SomeMessage $ MsgpackRPC.Response i (Left (toObject errM))
 
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
             reply <- liftIO newEmptyTMVarIO
             let q = (recipients . Internal.customConfig) rpc
-            liftIO . debugM logger $ "Executing stateful function with ID: " <> show mi
-            case mi of
+            liftIO . debugM logger $ "Executing stateful function with ID: " <> show requestId
+            case requestId of
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
                     atomically' . writeTQueue c . SomeMessage $
-                        Request m i (parseParams copts params)
+                        Request functionToCall i (parseParams copts params)
 
                 Nothing ->
                     atomically' . writeTQueue c . SomeMessage $
-                        Notification m (parseParams copts params)
+                        Notification functionToCall (parseParams copts params)
 
 
 parseParams :: FunctionalityDescription -> [Object] -> [Object]

@@ -52,10 +52,11 @@ import           Data.Maybe                   (catMaybes)
 import           Data.MessagePack
 import           Data.Traversable             (forM)
 import           System.Log.Logger
-import           Text.PrettyPrint.ANSI.Leijen (Doc)
+import           Text.PrettyPrint.ANSI.Leijen (Doc, (<+>), Pretty(..), text)
 import           UnliftIO.Exception           (SomeException, try)
-import           UnliftIO.Async               (Async, async)
+import           UnliftIO.Async               (Async, async, race)
 import           UnliftIO.STM
+import           UnliftIO.Concurrent          (threadDelay)
 
 import           Prelude
 
@@ -301,6 +302,14 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
             Left e -> return . Left $ show (e :: SomeException)
             Right res -> return $ Right res
 
+    timeoutAndLog :: Word ->  FunctionName -> Neovim anyEnv String
+    timeoutAndLog seconds functionName = do
+        threadDelay (fromIntegral seconds * 1000 * 1000)
+        return . show $
+            pretty functionName <+> text "has been aborted after"
+            <+> text (show seconds) <+> text "seconds"
+
+
     listeningThread :: TQueue SomeMessage
                     -> TVar (Map FunctionName ([Object] -> Neovim env Object))
                     -> Neovim env ()
@@ -309,13 +318,24 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
 
         forM_ (fromMessage msg) $ \req@Request{..} -> do
             route' <- liftIO $ readTVarIO route
-            forM_ (Map.lookup reqMethod route') $ \f ->
-                respond req =<< executeFunction f reqArgs
+            forM_ (Map.lookup reqMethod route') $ \f -> do
+                respond req . either Left id =<< race
+                    (timeoutAndLog 10 reqMethod)
+                    (executeFunction f reqArgs)
 
         forM_ (fromMessage msg) $ \Notification{..} -> do
             route' <- liftIO $ readTVarIO route
             forM_ (Map.lookup notMethod route') $ \f ->
-                void $ executeFunction f notArgs
+                void . async $ do
+                    result <- either Left id <$> race
+                        (timeoutAndLog 600 notMethod)
+                        (executeFunction f notArgs)
+                    case result of
+                      Left message ->
+                          nvim_err_writeln' message
+                      Right _ ->
+                          return ()
+
 
         listeningThread q route
 
