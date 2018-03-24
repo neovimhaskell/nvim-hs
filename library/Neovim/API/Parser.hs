@@ -20,19 +20,20 @@ import           Neovim.Classes
 
 import           Control.Applicative
 import           Control.Monad.Except
-import qualified Data.ByteString              as B
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
+import qualified Data.ByteString                           as B
+import           Data.Map                                  (Map)
+import qualified Data.Map                                  as Map
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Serialize
-import           System.IO                    (hClose)
+import           Neovim.Compat.Megaparsec                  as P
+import           System.IO                                 (hClose)
 import           System.Process
-import           Neovim.Compat.Megaparsec     as P
-import           Text.PrettyPrint.ANSI.Leijen (Doc)
-import qualified Text.PrettyPrint.ANSI.Leijen as P
-import           UnliftIO.Exception           (SomeException,
-                                               bracket, catch)
+import           UnliftIO.Exception                        (SomeException,
+                                                            bracket, catch)
+
+import           Data.Text.Prettyprint.Doc                 (Doc, Pretty(..), (<+>))
+import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 
 import           Prelude
 
@@ -80,10 +81,10 @@ data NeovimAPI
     deriving (Show)
 
 -- | Run @nvim --api-info@ and parse its output.
-parseAPI :: IO (Either Doc NeovimAPI)
-parseAPI = either (Left . P.text) extractAPI <$> (decodeAPI `catch` readFromAPIFile)
+parseAPI :: IO (Either (Doc AnsiStyle) NeovimAPI)
+parseAPI = either (Left . pretty) extractAPI <$> (decodeAPI `catch` readFromAPIFile)
 
-extractAPI :: Object -> Either Doc NeovimAPI
+extractAPI :: Object -> Either (Doc AnsiStyle) NeovimAPI
 extractAPI apiObj = fromObject apiObj >>= \apiMap -> NeovimAPI
     <$> extractErrorTypes apiMap
     <*> extractCustomTypes apiMap
@@ -112,21 +113,21 @@ decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
         terminateProcess ph
 
 
-oLookup :: (NvimObject o) => String -> Map String Object -> Either Doc o
+oLookup :: (NvimObject o) => String -> Map String Object -> Either (Doc AnsiStyle) o
 oLookup qry = maybe throwErrorMessage fromObject . Map.lookup qry
   where
-    throwErrorMessage = throwError . P.text $ "No entry for: " <> show qry
+      throwErrorMessage = throwError $ "No entry for:" <+> pretty qry
 
 
-oLookupDefault :: (NvimObject o) => o -> String -> Map String Object -> Either Doc o
+oLookupDefault :: (NvimObject o) => o -> String -> Map String Object -> Either (Doc AnsiStyle) o
 oLookupDefault d qry m = maybe (return d) fromObject $ Map.lookup qry m
 
 
-extractErrorTypes :: Map String Object -> Either Doc [(String, Int64)]
+extractErrorTypes :: Map String Object -> Either (Doc AnsiStyle) [(String, Int64)]
 extractErrorTypes objAPI = extractTypeNameAndID =<< oLookup "error_types" objAPI
 
 
-extractTypeNameAndID :: Object -> Either Doc [(String, Int64)]
+extractTypeNameAndID :: Object -> Either (Doc AnsiStyle) [(String, Int64)]
 extractTypeNameAndID m = do
     types <- Map.toList <$> fromObject m
     forM types $ \(errName, idMap) -> do
@@ -134,21 +135,21 @@ extractTypeNameAndID m = do
         return (errName,i)
 
 
-extractCustomTypes :: Map String Object -> Either Doc [(String, Int64)]
+extractCustomTypes :: Map String Object -> Either (Doc AnsiStyle) [(String, Int64)]
 extractCustomTypes objAPI = extractTypeNameAndID =<< oLookup "types" objAPI
 
 
-extractFunctions :: Map String Object -> Either Doc [NeovimFunction]
+extractFunctions :: Map String Object -> Either (Doc AnsiStyle) [NeovimFunction]
 extractFunctions objAPI = mapM extractFunction =<< oLookup "functions" objAPI
 
 
-toParameterlist :: [(String, String)] -> Either Doc [(NeovimType, String)]
+toParameterlist :: [(String, String)] -> Either (Doc AnsiStyle) [(NeovimType, String)]
 toParameterlist ps = forM ps $ \(t,n) -> do
     t' <- parseType t
     return (t', n)
 
 
-extractFunction :: Map String Object -> Either Doc NeovimFunction
+extractFunction :: Map String Object -> Either (Doc AnsiStyle) NeovimFunction
 extractFunction funDefMap = NeovimFunction
     <$> (oLookup "name" funDefMap)
     <*> (oLookup "parameters" funDefMap >>= toParameterlist)
@@ -157,8 +158,8 @@ extractFunction funDefMap = NeovimFunction
     <*> (oLookup "return_type" funDefMap >>= parseType)
 
 
-parseType :: String -> Either Doc NeovimType
-parseType s = either (throwError . P.text . show) return $ parse (pType <* eof) s s
+parseType :: String -> Either (Doc AnsiStyle) NeovimType
+parseType s = either (throwError . pretty . show) return $ parse (pType <* eof) s s
 
 
 pType :: P.Parser NeovimType

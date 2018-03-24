@@ -41,7 +41,10 @@ import           Data.Maybe
 import           Data.MessagePack
 import           Data.String
 import           Data.Traversable             (sequence)
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           Data.Text.Encoding           (decodeUtf8)
+
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal
 
 import           Prelude                      hiding (sequence)
 
@@ -55,7 +58,7 @@ instance NFData FunctionName
 
 
 instance Pretty FunctionName where
-    pretty (F n) = blue . text $ toString n
+    pretty (F n) = pretty $ decodeUtf8 n
 
 
 -- | Functionality specific functional description entries.
@@ -97,13 +100,13 @@ instance NFData FunctionalityDescription
 instance Pretty FunctionalityDescription where
     pretty = \case
         Function fname s ->
-            text "Function" <+> pretty s <+> pretty fname
+            "Function" <+> pretty s <+> pretty fname
 
         Command fname copts ->
-            text "Command" <+> pretty copts <+> pretty fname
+            "Command" <+> pretty copts <+> pretty fname
 
         Autocmd t fname aopts ->
-            text "Autocmd" <+> (text . toString) t
+            "Autocmd" <+> pretty (decodeUtf8 t)
                 <+> pretty aopts
                 <+> pretty fname
 
@@ -128,8 +131,8 @@ instance NFData Synchronous
 
 instance Pretty Synchronous where
     pretty = \case
-        Async -> red  $ text "async"
-        Sync  -> blue $ text "sync"
+        Async -> "async"
+        Sync  -> "sync"
 
 
 instance IsString Synchronous where
@@ -200,19 +203,19 @@ instance Pretty CommandOption where
             pretty s
 
         CmdRegister ->
-            text "\""
+            "\""
 
         CmdNargs n ->
-            text n
+            pretty n
 
         CmdRange rs ->
             pretty rs
 
         CmdCount c ->
-            text (show c)
+            pretty c
 
         CmdBang ->
-            text "!"
+            "!"
 
 
 instance IsString CommandOption where
@@ -273,8 +276,8 @@ instance NvimObject CommandOptions where
             CmdNargs n    -> Just ("nargs"   , toObject n)
             _             -> Nothing
 
-    fromObject o = throwError . text $
-        "Did not expect to receive a CommandOptions object: " ++ show o
+    fromObject o = throwError $
+        "Did not expect to receive a CommandOptions object:" <+> pretty (show o)
 
 
 -- | Specification of a range that acommand can operate on.
@@ -295,13 +298,13 @@ instance NFData RangeSpecification
 instance Pretty RangeSpecification where
     pretty = \case
         CurrentLine ->
-            empty
+            mempty
 
         WholeFile ->
-            text "%"
+            "%"
 
         RangeCount c ->
-            text $ show c
+            pretty c
 
 
 instance NvimObject RangeSpecification where
@@ -344,12 +347,12 @@ instance NFData CommandArguments
 instance Pretty CommandArguments where
     pretty CommandArguments{..} =
         cat $ catMaybes
-            [ (\b -> if b then (text "!") else empty) <$> bang
-            , (\(s,e) -> lparen <> (text . show) s <> comma
-                         <+> (text . show) e <> rparen)
+            [ (\b -> if b then "!" else mempty) <$> bang
+            , (\(s,e) -> lparen <> pretty s <> comma
+                         <+> pretty e <> rparen)
                 <$> range
-            , (text . show) <$> count
-            , (text . show) <$> register
+            , pretty <$> count
+            , pretty <$> register
             ]
 
 instance Default CommandArguments where
@@ -382,7 +385,8 @@ instance NvimObject CommandArguments where
 
     fromObject ObjectNil = return def
     fromObject o =
-        throwError . text $ "Expected a map for CommandArguments object, but got: " ++ show o
+        throwError $ "Expected a map for CommandArguments object, but got: "
+                      <+> pretty (show o)
 
 
 -- | Options that can be used to register an autocmd. See @:h :autocmd@ or any
@@ -407,9 +411,9 @@ instance NFData AutocmdOptions
 
 instance Pretty AutocmdOptions where
     pretty AutocmdOptions{..} =
-        text acmdPattern
-            <+> text (if acmdNested then "nested" else "unnested")
-            <> maybe empty (\g -> empty <+> text g) acmdGroup
+        pretty acmdPattern
+            <+> if acmdNested then "nested" else "unnested"
+            <> maybe mempty (\g -> mempty <+> pretty g) acmdGroup
 
 
 instance Default AutocmdOptions where
@@ -428,8 +432,8 @@ instance NvimObject AutocmdOptions where
             ] ++ catMaybes
             [ acmdGroup >>= \g -> return ("group", toObject g)
             ]
-    fromObject o = throwError . text $
-        "Did not expect to receive an AutocmdOptions object: " ++ show o
+    fromObject o = throwError  $
+        "Did not expect to receive an AutocmdOptions object: " <+> pretty (show o)
 
 -- | Conveniennce class to extract a name from some value.
 class HasFunctionName a where

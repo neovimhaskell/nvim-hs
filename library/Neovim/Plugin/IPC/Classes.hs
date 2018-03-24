@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RecordWildCards           #-}
 {- |
 Module      :  Neovim.Plugin.IPC.Classes
@@ -27,16 +28,16 @@ module Neovim.Plugin.IPC.Classes (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Plugin.Classes        (FunctionName)
+import           Neovim.Plugin.Classes     (FunctionName)
 
 import           Control.Concurrent.STM
-import           Data.Data                    (Typeable, cast)
-import           Data.Int                     (Int64)
+import           Data.Data                 (Typeable, cast)
+import           Data.Int                  (Int64)
 import           Data.MessagePack
-import           Data.Time                    (UTCTime, formatTime,
-                                               getCurrentTime)
-import           Data.Time.Locale.Compat      (defaultTimeLocale)
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           Data.Time                 (UTCTime, formatTime, getCurrentTime)
+import           Data.Time.Locale.Compat   (defaultTimeLocale)
+
+import           Data.Text.Prettyprint.Doc (Doc, Pretty (..), nest, hardline, (<+>), (<>), viaShow)
 
 import           Prelude
 
@@ -73,10 +74,10 @@ instance Message FunctionCall
 
 instance Pretty FunctionCall where
     pretty (FunctionCall fname args _ t) =
-        nest 2 $ text "Function call for:" <+> pretty fname
-            <$$> text "Arguments:" <+> text (show args)
-            <$$> text "Timestamp:"
-                <+> (yellow . text . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
+        nest 2 $ "Function call for:" <+> pretty fname
+            <> hardline <> "Arguments:" <+> pretty (show args)
+            <> hardline <> "Timestamp:"
+                <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
 
 
 -- | A request is a data type containing the method to call, its arguments and
@@ -99,9 +100,9 @@ instance Message Request
 
 instance Pretty Request where
     pretty Request{..} =
-        nest 2 $ text "Request" <+> (yellow . text . ('#':) . show) reqId
-            <$$> (text "Method:" <+> pretty reqMethod)
-            <$$> (text "Arguments:" <+> text (show reqArgs))
+        nest 2 $ "Request" <+> "#" <> pretty reqId
+            <> hardline <> "Method:" <+> pretty reqMethod
+            <> hardline <> "Arguments:" <+> viaShow reqArgs
 
 
 -- | A notification is similar to a 'Request'. It essentially does the same
@@ -124,7 +125,7 @@ instance Message Notification
 
 instance Pretty Notification where
     pretty Notification{..} =
-        nest 2 $ text "Notification"
-            <$$> (text "Method:" <+> pretty notMethod)
-            <$$> (text "Arguments:" <+> text (show notArgs))
+        nest 2 $ "Notification"
+            <> hardline <> "Method:" <+> pretty notMethod
+            <> hardline <> "Arguments:" <+> viaShow notArgs
 

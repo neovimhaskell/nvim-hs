@@ -56,7 +56,7 @@ import           Data.MessagePack
 import           Data.Monoid
 import qualified Data.Set                 as Set
 import           Data.Text                (Text)
-import           Text.PrettyPrint.ANSI.Leijen (text, (<+>), Doc)
+import           Data.Text.Prettyprint.Doc ((<+>), Doc, viaShow, Pretty(..))
 import           UnliftIO.Exception
 
 import           Prelude
@@ -252,9 +252,9 @@ customTypeInstance typeName nis =
             clause
                 [ varP o ]
                 (normalB [|throwError $
-                            text "Object is not convertible to:"
-                            <+> text n
-                            <+> text "Received:" <+> (text . show) $(varE o)|])
+                            pretty "Object is not convertible to:"
+                            <+> viaShow n
+                            <+> pretty "Received:" <+> viaShow $(varE o)|])
                 []
 
         toObjectClause :: Name -> Int64 -> Q Clause
@@ -481,7 +481,7 @@ functionImplementation functionName = do
     -- _ -> err "Wrong number of arguments"
     errorCase :: Q Match
     errorCase = match wildP
-        (normalB [|throw . ErrorMessage . text $ "Wrong number of arguments for function: "
+        (normalB [|throw . ErrorMessage . pretty $ "Wrong number of arguments for function: "
                         ++ $(litE (StringL (nameBase functionName))) |]) []
 
     -- [x,y] -> case pure add <*> fromObject x <*> fromObject y of ...
@@ -512,6 +512,6 @@ functionImplementation functionName = do
     failedEvaluation :: Q Match
     failedEvaluation = newName "e" >>= \e ->
         match (conP (mkName "Left") [varP e])
-              (normalB [|err ($(varE e) :: Doc)|])
+              (normalB [|err ($(varE e) :: Doc AnsiStyle)|])
               []
 

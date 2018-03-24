@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE RecordWildCards    #-}
 {-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE RecordWildCards    #-}
 {- |
 Module      :  Neovim.RPC.Classes
 Description :  Data types and classes for the RPC components
@@ -19,15 +20,17 @@ module Neovim.RPC.Classes
     ) where
 
 import           Neovim.Classes
-import           Neovim.Plugin.Classes        (FunctionName (..))
-import qualified Neovim.Plugin.IPC.Classes    as IPC
+import           Neovim.Plugin.Classes     (FunctionName (..))
+import qualified Neovim.Plugin.IPC.Classes as IPC
 
 import           Control.Applicative
 import           Control.Monad.Error.Class
-import           Data.Data                    (Typeable)
-import           Data.Int                     (Int64)
-import           Data.MessagePack             (Object (..))
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import           Data.Data                 (Typeable)
+import           Data.Int                  (Int64)
+import           Data.MessagePack          (Object (..))
+
+import           Data.Text.Prettyprint.Doc (Pretty (..), hardline, nest,
+                                            viaShow, (<+>), (<>))
 
 import           Prelude
 
@@ -97,7 +100,7 @@ instance NvimObject Message where
             return $ Notification n
 
         o ->
-            throwError . text $ "Not a known/valid msgpack-rpc message" ++ show o
+            throwError $ "Not a known/valid msgpack-rpc message:" <+> viaShow o
 
 
 instance Pretty Message where
@@ -106,8 +109,8 @@ instance Pretty Message where
             pretty request
 
         Response i ret ->
-            nest 2 $ text "Response" <+> (yellow . text . ('#':) . show) i
-                <$$> either (red . text . show) (green . text. show) ret
+            nest 2 $ "Response" <+> "#" <> pretty i
+                <> hardline <> either viaShow viaShow ret
 
         Notification notification ->
             pretty notification

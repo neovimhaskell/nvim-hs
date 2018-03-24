@@ -31,6 +31,10 @@ module Neovim.Context (
     put,
     modify,
 
+    Doc,
+    AnsiStyle,
+    docToText,
+
     throwError,
     module Control.Monad.IO.Class,
 #if __GLASGOW_HASKELL__ <= 710
@@ -43,7 +47,7 @@ import           Neovim.Classes
 import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
                                                Neovim, mkFunctionMap,
                                                newUniqueFunctionName, runNeovim)
-import           Neovim.Exceptions            (NeovimException (..))
+import           Neovim.Exceptions            (NeovimException (..), exceptionToDoc)
 
 import qualified Neovim.Context.Internal      as Internal
 
@@ -58,12 +62,14 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.MessagePack             (Object)
-import           Text.PrettyPrint.ANSI.Leijen (Pretty (..))
+
+import           Data.Text.Prettyprint.Doc    (Pretty(..), defaultLayoutOptions, layoutPretty)
+import           Data.Text.Prettyprint.Doc.Render.Text (renderStrict)
 
 
 -- | @'throw'@ specialized to a 'Pretty' value.
-err :: Pretty err => err ->  Neovim env a
-err = throw . ErrorMessage . pretty
+err :: Doc AnsiStyle -> Neovim env a
+err = throw . ErrorMessage
 
 
 errOnInvalidResult :: (NvimObject o)
@@ -71,7 +77,7 @@ errOnInvalidResult :: (NvimObject o)
                    -> Neovim env o
 errOnInvalidResult a = a >>= \case
     Left o ->
-        (err . show) o
+        (err . exceptionToDoc) o
 
     Right o -> case fromObject o of
         Left e ->
@@ -79,6 +85,9 @@ errOnInvalidResult a = a >>= \case
 
         Right x ->
             return x
+    Left o ->
+        (err . exceptionToDoc) o
+
 
 
 -- | Initiate a restart of the plugin provider.

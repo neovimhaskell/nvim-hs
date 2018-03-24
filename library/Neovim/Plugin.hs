@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {- |
@@ -32,7 +33,8 @@ import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Config
 import           Neovim.Context
-import           Neovim.Context.Internal      (FunctionType (..), runNeovimInternal)
+import           Neovim.Context.Internal      (FunctionType (..),
+                                               runNeovimInternal)
 import qualified Neovim.Context.Internal      as Internal
 import           Neovim.Plugin.Classes        hiding (register)
 import           Neovim.Plugin.Internal
@@ -50,13 +52,13 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes)
 import           Data.MessagePack
+import           Data.Text.Prettyprint.Doc    (Doc, Pretty (..), viaShow, (<+>))
 import           Data.Traversable             (forM)
 import           System.Log.Logger
-import           Text.PrettyPrint.ANSI.Leijen (Doc, (<+>), Pretty(..), text)
-import           UnliftIO.Exception           (SomeException, try)
 import           UnliftIO.Async               (Async, async, race)
-import           UnliftIO.STM
 import           UnliftIO.Concurrent          (threadDelay)
+import           UnliftIO.Exception           (SomeException, try)
+import           UnliftIO.STM
 
 import           Prelude
 
@@ -70,7 +72,7 @@ type StartupConfig = Plugin.StartupConfig NeovimConfig
 
 startPluginThreads :: Internal.Config StartupConfig
                    -> [Neovim StartupConfig NeovimPlugin]
-                   -> IO (Either Doc ([FunctionMapEntry],[Async ()]))
+                   -> IO (Either (Doc AnsiStyle) ([FunctionMapEntry],[Async ()]))
 startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
   where
     go :: ([FunctionMapEntry], [Async ()])
@@ -165,9 +167,10 @@ getProviderName = do
             api <- nvim_get_api_info
             case api of
                 Right (i:_) -> do
-                    case fromObject i :: Either Doc Int of
+                    case fromObject i :: Either (Doc AnsiStyle) Int of
                       Left _ ->
-                          err "Expected an integral value as the first argument of nvim_get_api_info"
+                          err $ "Expected an integral value as the first"
+                               <+> "argument of nvim_get_api_info"
                       Right channelId -> do
                           liftIO . atomically . putTMVar mp . Right $ fromIntegral channelId
                           return . Right $ fromIntegral channelId
@@ -278,7 +281,7 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
     res <- liftIO . runNeovimInternal return startupConfig . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
-        Left e -> err e
+        Left e  -> err e
         Right a -> return $ catMaybes a
 
     let pluginThreadConfig = cfg
@@ -306,8 +309,8 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
     timeoutAndLog seconds functionName = do
         threadDelay (fromIntegral seconds * 1000 * 1000)
         return . show $
-            pretty functionName <+> text "has been aborted after"
-            <+> text (show seconds) <+> text "seconds"
+            pretty functionName <+> "has been aborted after"
+            <+> pretty seconds <+> "seconds"
 
 
     listeningThread :: TQueue SomeMessage

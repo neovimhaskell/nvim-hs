@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {- |
 Module      :  Neovim.Context.Internal
@@ -21,23 +22,29 @@ module Neovim.Context.Internal
     where
 
 import           Neovim.Classes
-import           Neovim.Exceptions            (NeovimException (..))
+import           Neovim.Exceptions                         (NeovimException (..),
+                                                            exceptionToDoc)
 import           Neovim.Plugin.Classes
-import           Neovim.Plugin.IPC            (SomeMessage)
+import           Neovim.Plugin.IPC                         (SomeMessage)
 
 import           Control.Applicative
-import           Control.Exception            (ArithException, ArrayException,
-                                               ErrorCall, PatternMatchFail)
+import           Control.Exception                         (ArithException,
+                                                            ArrayException,
+                                                            ErrorCall,
+                                                            PatternMatchFail)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
-import qualified Data.ByteString.UTF8         as U (fromString)
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.MessagePack             (Object)
+import qualified Data.ByteString.UTF8                      as U (fromString)
+import           Data.Map                                  (Map)
+import qualified Data.Map                                  as Map
+import           Data.MessagePack                          (Object)
 import           System.Log.Logger
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import           UnliftIO
+
+import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
+                                                            viaShow)
+import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 
 import           Prelude
 
@@ -83,7 +90,7 @@ asks' :: (Config env -> a) -> Neovim env a
 asks' = Neovim . asks
 
 
-exceptionHandlers :: [Handler IO (Either Doc a)]
+exceptionHandlers :: [Handler IO (Either (Doc ann) a)]
 exceptionHandlers =
     [ Handler $ \(_ :: ArithException)   -> ret "ArithException (e.g. division by 0)"
     , Handler $ \(_ :: ArrayException)   -> ret "ArrayException"
@@ -92,28 +99,28 @@ exceptionHandlers =
     , Handler $ \(_ :: SomeException)    -> ret "Unhandled exception"
     ]
   where
-    ret = return . Left . pretty
+    ret = return . Left
 
 -- | Initialize a 'Neovim' context by supplying an 'InternalEnvironment'.
 runNeovim :: NFData a
           => Config env
           -> Neovim env a
-          -> IO (Either Doc a)
+          -> IO (Either (Doc AnsiStyle) a)
 runNeovim = runNeovimInternal (\a -> a `deepseq` return a)
 
 runNeovimInternal :: (a -> IO a)
                   -> Config env
                   -> Neovim env a
-                  -> IO (Either Doc a)
+                  -> IO (Either (Doc AnsiStyle) a)
 runNeovimInternal f r (Neovim a) =
     (try . runReaderT (runResourceT a)) r >>= \case
         Left e -> case fromException e of
             Just e' ->
-                return . Left . pretty $ (e' :: NeovimException)
+                return . Left . exceptionToDoc $ (e' :: NeovimException)
 
             Nothing -> do
                 liftIO . errorM "Context" $ "Converting Exception to Error message: " ++ show e
-                (return . Left . text . show) e
+                (return . Left . viaShow) e
         Right res ->
             (Right <$> f res) `catches` exceptionHandlers
 
@@ -140,7 +147,7 @@ newtype FunctionType = Stateful (TQueue SomeMessage)
 
 instance Pretty FunctionType where
     pretty = \case
-        Stateful  _ -> green $ text "\\os -> Neovim env o"
+        Stateful  _ -> "\\os -> Neovim env o"
 
 
 -- | Type of the values stored in the function map.
@@ -259,7 +266,7 @@ data StateTransition
     | Restart
     -- ^ Restart the plugin provider.
 
-    | Failure Doc
+    | Failure (Doc AnsiStyle)
     -- ^ The plugin provider failed to start or some other error occured.
 
     | InitSuccess

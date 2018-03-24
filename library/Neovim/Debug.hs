@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 {- |
 Module      :  Neovim.Debug
 Description :  Utilities to debug Neovim and nvim-hs functionality
@@ -26,22 +27,25 @@ module Neovim.Debug (
 
 import           Neovim
 import           Neovim.Classes
-import           Neovim.Context               (runNeovim)
-import qualified Neovim.Context.Internal      as Internal
-import           Neovim.Log                   (disableLogger)
-import           Neovim.Main                  (CommandLineOptions (..),
-                                               runPluginProvider)
-import           Neovim.RPC.Common            (RPCConfig)
+import           Neovim.Context                            (runNeovim)
+import qualified Neovim.Context.Internal                   as Internal
+import           Neovim.Log                                (disableLogger)
+import           Neovim.Main                               (CommandLineOptions (..),
+                                                            runPluginProvider)
+import           Neovim.RPC.Common                         (RPCConfig)
 
 import           Control.Monad
-import qualified Data.Map                     as Map
+import qualified Data.Map                                  as Map
 import           Foreign.Store
-import           System.IO                    (stdout)
-import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
-import qualified Text.PrettyPrint.ANSI.Leijen as Pretty
-import           UnliftIO.Async               (Async, async, cancel)
+
+import           UnliftIO.Async                            (Async, async,
+                                                            cancel)
+import           UnliftIO.Concurrent                       (putMVar, takeMVar)
 import           UnliftIO.STM
-import           UnliftIO.Concurrent          (putMVar, takeMVar)
+
+import           Data.Text.Prettyprint.Doc                 (nest, softline,
+                                                            vcat, vsep)
+import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)
 
 import           Prelude
 
@@ -55,7 +59,7 @@ import           Prelude
 --
 -- Tip: If you run a terminal inside a neovim instance, then this variable is
 -- automatically set.
-debug :: env -> Internal.Neovim env a -> IO (Either Doc a)
+debug :: env -> Internal.Neovim env a -> IO (Either (Doc AnsiStyle) a)
 debug env a = disableLogger $ do
     runPluginProvider def { envVar = True } Nothing transitionHandler Nothing
   where
@@ -73,7 +77,7 @@ debug env a = disableLogger $ do
             return res
 
         _ ->
-            return . Left $ text "Unexpected transition state."
+            return . Left $ "Unexpected transition state."
 
 
 -- | Run a 'Neovim'' function.
@@ -83,7 +87,7 @@ debug env a = disableLogger $ do
 -- @
 --
 -- See documentation for 'debug'.
-debug' :: Internal.Neovim () a -> IO (Either Doc a)
+debug' :: Internal.Neovim () a -> IO (Either (Doc AnsiStyle) a)
 debug' a = debug () a
 
 
@@ -111,7 +115,7 @@ debug' a = debug () a
 --
 develMain
     :: Maybe NeovimConfig
-    -> IO (Either Doc [Async ()])
+    -> IO (Either (Doc AnsiStyle) [Async ()])
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
@@ -140,10 +144,10 @@ develMain mcfg = lookupStore 0 >>= \case
                     deleteStore x
 
             mapM_ cancel tids
-            return . Left $ text "Quit develMain"
+            return . Left $ "Quit develMain"
 
         _ ->
-            return . Left $ text "Unexpected transition state for develMain."
+            return . Left $ "Unexpected transition state for develMain."
 
 
 -- | Quit a previously started plugin provider.
@@ -155,7 +159,7 @@ quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
 restartDevelMain
     :: Internal.Config RPCConfig
     -> Maybe NeovimConfig
-    -> IO (Either Doc [Async ()])
+    -> IO (Either (Doc AnsiStyle) [Async ()])
 restartDevelMain cfg mcfg = do
     quitDevelMain cfg
     develMain mcfg
@@ -163,7 +167,7 @@ restartDevelMain cfg mcfg = do
 
 -- | Convenience function to run a stateless 'Neovim' function.
 runNeovim' :: NFData a
-           => Internal.Config env -> Neovim () a -> IO (Either Doc a)
+           => Internal.Config env -> Neovim () a -> IO (Either (Doc AnsiStyle) a)
 runNeovim' cfg =
     runNeovim (Internal.retypeConfig () cfg)
 
@@ -172,14 +176,13 @@ runNeovim' cfg =
 printGlobalFunctionMap :: Internal.Config env -> IO ()
 printGlobalFunctionMap cfg = do
     es <- fmap Map.toList . atomically $ readTMVar (Internal.globalFunctionMap cfg)
-    let header = text "Printing global function map:"
+    let header = "Printing global function map:"
         funs   = map (\(fname, (d, f)) ->
                     nest 3 (pretty fname
-                    </> text "->"
-                    </> pretty d <+> text ":"
+                    <> softline <> "->"
+                    <> softline <> pretty d <+> ":"
                     <+> pretty f)) es
-    displayIO stdout . renderPretty 0.4 80 $
-        nest 2 (header <$$> vcat funs)
-            <$$> Pretty.empty
+    putDoc $
+        nest 2 $ vsep [header, vcat funs, mempty]
 
 

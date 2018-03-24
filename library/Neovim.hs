@@ -72,7 +72,6 @@ module Neovim (
     Doc,
     Pretty(..),
     errOnInvalidResult,
-    text,
     NeovimException(..),
     -- ** Generated functions for neovim interaction
     module Neovim.API.String,
@@ -129,7 +128,7 @@ import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,
                                                withCustomEnvironment)
 import           System.Log.Logger            (Priority (..))
-import           Text.PrettyPrint.ANSI.Leijen (Doc, Pretty (..), text)
+import           Data.Text.Prettyprint.Doc    (Doc, Pretty (..))
 
 -- Installation {{{1
 {- $installation

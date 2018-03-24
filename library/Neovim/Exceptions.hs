@@ -1,5 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE OverloadedStrings  #-}
 {- |
 Module      :  Neovim.Exceptions
 Description :  General Exceptions
@@ -13,17 +14,21 @@ Portability :  GHC
 -}
 module Neovim.Exceptions
     ( NeovimException(..)
+    , exceptionToDoc
     ) where
 
-import           Control.Exception            (Exception)
-import           Data.MessagePack             (Object (..))
-import           Data.String                  (IsString (..))
-import           Data.Typeable                (Typeable)
-import           Text.PrettyPrint.ANSI.Leijen (Doc, Pretty (..))
+import           Control.Exception                         (Exception)
+import           Data.MessagePack                          (Object (..))
+import           Data.String                               (IsString (..))
+import           Data.Text                                 (Text)
+import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
+                                                            (<+>), viaShow)
+import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
+import           Data.Typeable                             (Typeable)
 
 -- | Exceptions specific to /nvim-hs/.
 data NeovimException
-    = ErrorMessage Doc
+    = ErrorMessage (Doc AnsiStyle)
     -- ^ Simply error message that is passed to neovim. It should currently only
     -- contain one line of text.
     | ErrorResult Object
@@ -39,7 +44,11 @@ instance IsString NeovimException where
     fromString = ErrorMessage . fromString
 
 
-instance Pretty NeovimException where
-    pretty = \case
-        ErrorMessage s -> s
-        ErrorResult e -> pretty $ show e
+exceptionToDoc :: NeovimException -> Doc AnsiStyle
+exceptionToDoc = \case
+    ErrorMessage e ->
+        "Error message:" <+> e
+
+    ErrorResult o ->
+        "Result representing an error:" <+> viaShow o
+

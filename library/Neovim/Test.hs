@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 {- |
 Module      :  Neovim.Test
 Description :  Testing functions
@@ -16,23 +17,28 @@ module Neovim.Test (
     ) where
 
 import           Neovim
-import qualified Neovim.Context.Internal      as Internal
-import           Neovim.RPC.Common            (newRPCConfig, RPCConfig)
-import           Neovim.RPC.EventHandler      (runEventHandler)
-import           Neovim.RPC.SocketReader      (runSocketReader)
+import qualified Neovim.Context.Internal                   as Internal
+import           Neovim.RPC.Common                         (RPCConfig,
+                                                            newRPCConfig)
+import           Neovim.RPC.EventHandler                   (runEventHandler)
+import           Neovim.RPC.SocketReader                   (runSocketReader)
 
-import           Control.Monad.Reader         (runReaderT)
-import           Control.Monad.Trans.Resource (runResourceT)
-import           GHC.IO.Exception             (ioe_filename)
+import           Control.Monad.Reader                      (runReaderT)
+import           Control.Monad.Trans.Resource              (runResourceT)
+import           Data.Text.Prettyprint.Doc                 (annotate, vsep,
+                                                            (<+>))
+import           Data.Text.Prettyprint.Doc.Render.Terminal (Color (..), color,
+                                                            putDoc)
+import           GHC.IO.Exception                          (ioe_filename)
 import           System.Directory
-import           System.Exit                  (ExitCode (..))
-import           System.IO                    (Handle)
+import           System.Exit                               (ExitCode (..))
+import           System.IO                                 (Handle)
 import           System.Process
-import           Text.PrettyPrint.ANSI.Leijen (red, text, putDoc, (<$$>))
+import           UnliftIO.Async                            (async, cancel)
+import           UnliftIO.Concurrent                       (threadDelay)
 import           UnliftIO.Exception
-import           UnliftIO.STM                 (atomically, putTMVar)
-import           UnliftIO.Async               (async, cancel)
-import           UnliftIO.Concurrent          (threadDelay)
+import           UnliftIO.STM                              (atomically,
+                                                            putTMVar)
 
 
 -- | Type synonym for 'Word'.
@@ -81,8 +87,10 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
 catchIfNvimIsNotOnPath :: IOException -> IO ()
 catchIfNvimIsNotOnPath e = case ioe_filename e of
     Just "nvim" ->
-        putDoc . red $ text "The neovim executable 'nvim' is not on the PATH."
-                    <$$> text "You may not be testing fully!"
+        putDoc . annotate (color Red) $ vsep
+            [ "The neovim executable 'nvim' is not on the PATH."
+            , "You may not be testing fully!"
+            ]
 
     _           ->
         throwIO e

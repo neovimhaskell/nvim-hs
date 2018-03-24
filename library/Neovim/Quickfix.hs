@@ -26,8 +26,9 @@ import           Data.Monoid
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
-import           Text.PrettyPrint.ANSI.Leijen (Doc)
-import qualified Text.PrettyPrint.ANSI.Leijen as P
+import           Data.Text.Prettyprint.Doc (Doc, viaShow, (<+>))
+import qualified Data.Text.Prettyprint.Doc as P
+import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 
 import           Prelude
 
@@ -87,7 +88,7 @@ instance NvimObject QuickfixErrorType where
         Warning -> ObjectBinary "W"
         Error   -> ObjectBinary "E"
 
-    fromObject o = case fromObject o :: Either Doc String of
+    fromObject o = case fromObject o :: Either (Doc AnsiStyle) String of
         Right "W" -> return Warning
         Right "E" -> return Error
         _         -> return Error
@@ -129,19 +130,19 @@ instance (Monoid strType, NvimObject strType)
 
     fromObject objectMap@(ObjectMap _) = do
         m <- fromObject objectMap
-        let l :: NvimObject o => ByteString -> Either Doc o
+        let l :: NvimObject o => ByteString -> Either (Doc AnsiStyle) o
             l key = case Map.lookup key m of
                 Just o -> fromObject o
-                Nothing -> throwError . P.text $ "Key not found."
+                Nothing -> throwError $ "Key not found."
         bufOrFile <- case (l "bufnr", l "filename") of
             (Right b, _) -> return $ Left b
             (_, Right f) -> return $ Right f
-            _           -> throwError . P.text $ "No buffer number or file name inside quickfix list item."
+            _           -> throwError $ "No buffer number or file name inside quickfix list item."
         lnumOrPattern <- case (l "lnum", l "pattern") of
             (Right lnum, _) -> return $ Left lnum
             (_, Right pat)  -> return $ Right pat
-            _              -> throwError . P.text $ "No line number or search pattern inside quickfix list item."
-        let l' :: NvimObject o => ByteString -> Either Doc (Maybe o)
+            _              -> throwError $ "No line number or search pattern inside quickfix list item."
+        let l' :: NvimObject o => ByteString -> Either (Doc AnsiStyle) (Maybe o)
             l' key = case Map.lookup key m of
                 Just o -> Just <$> fromObject o
                 Nothing -> return Nothing
@@ -160,7 +161,9 @@ instance (Monoid strType, NvimObject strType)
         errorType <- fromMaybe Error <$> l' "type"
         return QFItem{..}
 
-    fromObject o = throwError . P.text $ "Could not deserialize QuickfixListItem, expected a map but received: " ++ show o
+    fromObject o = throwError $ "Could not deserialize QuickfixListItem,"
+                                 <+> "expected a map but received:"
+                                 <+> viaShow o
 
 
 data QuickfixAction

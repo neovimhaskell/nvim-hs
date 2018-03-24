@@ -195,7 +195,7 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
                             conf
         startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
-                errorM logger $ "Error initializing plugins: " <> oneLineErrorMessage e
+                errorM logger $ "Error initializing plugins: " <> show (oneLineErrorMessage e)
                 putMVar (Internal.transitionTo conf) $ Internal.Failure e
                 transitionHandler [ehTid, srTid] conf
 
@@ -221,7 +221,7 @@ finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Dyre.relaunchMaster Nothing
 
     Internal.Failure e ->
-        errorM logger $ oneLineErrorMessage e
+        errorM logger . show $ oneLineErrorMessage e
 
     Internal.Quit ->
         return ()
