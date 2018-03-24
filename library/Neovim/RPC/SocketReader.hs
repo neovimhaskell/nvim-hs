@@ -31,7 +31,6 @@ import           Neovim.RPC.Common
 import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative
-import           Control.Concurrent         (forkIO)
 import           Control.Concurrent.STM
 import           Control.Monad              (void)
 import           Control.Monad.Trans.Class  (lift)
@@ -45,6 +44,8 @@ import           Data.Monoid
 import qualified Data.Serialize             (get)
 import           System.IO                  (Handle)
 import           System.Log.Logger
+import           UnliftIO.Async             (async, race)
+import           UnliftIO.Concurrent        (threadDelay)
 
 import           Prelude
 
@@ -98,6 +99,7 @@ handleResponse i result = do
             atomically' . modifyTVar' answerMap $ Map.delete i
             atomically' $ putTMVar reply result
 
+
 -- | Act upon the received request or notification. The main difference between
 -- the two is that a notification does not generate a reply. The distinction
 -- between those two cases is done via the first paramater which is 'Maybe' the
@@ -106,13 +108,20 @@ handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object]
                             -> ConduitT a Void SocketHandler ()
 handleRequestOrNotification mi m params = do
     cfg <- lift Internal.ask'
-    void . liftIO . forkIO $ handle cfg
+    void . liftIO . async $ race logTimeout (handle cfg)
+    return ()
 
   where
     lookupFunction
         :: TMVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
     lookupFunction funMap = Map.lookup m <$> readTMVar funMap
+
+    logTimeout :: IO ()
+    logTimeout = do
+        let seconds = 1000 * 1000
+        threadDelay (10 * seconds)
+        debugM logger $ "Cancelled another action before it was finished"
 
     handle :: Internal.Config RPCConfig -> IO ()
     handle rpc = atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case

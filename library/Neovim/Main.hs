@@ -33,6 +33,7 @@ import           Data.Monoid
 import           Options.Applicative
 import           System.IO               (stdin, stdout)
 import           System.SetEnv
+import           UnliftIO.Async          (Async, async, cancel)
 
 import           Prelude
 import           System.Environment
@@ -133,7 +134,7 @@ neovim =
 -- 'Internal.Config' with the custom field set to 'RPCConfig'. These information
 -- can be used to properly clean up a session and then do something else.
 -- The transition handler is first called after the plugin provider has started.
-type TransitionHandler a = [ThreadId] -> Internal.Config RPCConfig -> IO a
+type TransitionHandler a = [Async ()] -> Internal.Config RPCConfig -> IO a
 
 
 -- | This main functions can be used to create a custom executable without
@@ -179,11 +180,11 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
 
         conf <- Internal.newConfig (pure (providerName os)) newRPCConfig
 
-        ehTid <- forkIO $ runEventHandler
+        ehTid <- async $ runEventHandler
                             evHandlerHandle
                             conf { Internal.pluginSettings = Nothing }
 
-        srTid <- forkIO $ runSocketReader sockreaderHandle conf
+        srTid <- async $ runSocketReader sockreaderHandle conf
 
         ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
             val <- lookupEnv var
@@ -216,7 +217,7 @@ finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
 
     Internal.Restart -> do
         debugM logger "Trying to restart nvim-hs"
-        mapM_ killThread threads
+        mapM_ cancel threads
         Dyre.relaunchMaster Nothing
 
     Internal.Failure e ->

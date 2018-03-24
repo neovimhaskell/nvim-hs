@@ -33,14 +33,15 @@ import           Neovim.Main                  (CommandLineOptions (..),
                                                runPluginProvider)
 import           Neovim.RPC.Common            (RPCConfig)
 
-import           Control.Concurrent
-import           Control.Concurrent.STM
 import           Control.Monad
 import qualified Data.Map                     as Map
 import           Foreign.Store
 import           System.IO                    (stdout)
 import           Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.ANSI.Leijen as Pretty
+import           UnliftIO.Async               (Async, async, cancel)
+import           UnliftIO.STM
+import           UnliftIO.Concurrent          (putMVar, takeMVar)
 
 import           Prelude
 
@@ -68,7 +69,7 @@ debug env a = disableLogger $ do
                 (cfg { Internal.customConfig = env, Internal.pluginSettings = Nothing })
                 a
 
-            mapM_ killThread tids
+            mapM_ cancel tids
             return res
 
         _ ->
@@ -110,7 +111,7 @@ debug' a = debug () a
 --
 develMain
     :: Maybe NeovimConfig
-    -> IO (Either Doc [ThreadId])
+    -> IO (Either Doc [Async ()])
 develMain mcfg = lookupStore 0 >>= \case
     Nothing -> do
         x <- disableLogger $
@@ -126,9 +127,8 @@ develMain mcfg = lookupStore 0 >>= \case
             return $ Left e
 
         Internal.InitSuccess -> do
-            transitionHandlerThread <- forkIO $ do
-                myTid <- myThreadId
-                void $ transitionHandler (myTid:tids) cfg
+            transitionHandlerThread <- async $ do
+                void $ transitionHandler (tids) cfg
             return $ Right (transitionHandlerThread:tids)
 
         Internal.Quit -> do
@@ -139,7 +139,7 @@ develMain mcfg = lookupStore 0 >>= \case
                 Just x ->
                     deleteStore x
 
-            mapM_ killThread tids
+            mapM_ cancel tids
             return . Left $ text "Quit develMain"
 
         _ ->
@@ -155,7 +155,7 @@ quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
 restartDevelMain
     :: Internal.Config RPCConfig
     -> Maybe NeovimConfig
-    -> IO (Either Doc [ThreadId])
+    -> IO (Either Doc [Async ()])
 restartDevelMain cfg mcfg = do
     quitDevelMain cfg
     develMain mcfg

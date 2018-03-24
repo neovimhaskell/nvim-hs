@@ -26,7 +26,6 @@ import           Neovim.Plugin.Classes
 import           Neovim.Plugin.IPC            (SomeMessage)
 
 import           Control.Applicative
-import           Control.Concurrent           (MVar, ThreadId, forkIO)
 import           Control.Exception            (ArithException, ArrayException,
                                                ErrorCall, PatternMatchFail)
 import           Control.Monad.Except
@@ -117,21 +116,6 @@ runNeovimInternal f r (Neovim a) =
                 (return . Left . text . show) e
         Right res ->
             (Right <$> f res) `catches` exceptionHandlers
-
-
--- | Fork a neovim thread with the given custom config value and a custom
--- state. The result of the thread is discarded and only the 'ThreadId' is
--- returend immediately.
--- FIXME This function is pretty much unused and mayhave undesired effects,
---       namely that you cannot register autocmds in the forked thread.
-forkNeovim :: NFData a => iEnv -> Neovim iEnv a -> Neovim env ThreadId
-forkNeovim r a = do
-    cfg <- ask'
-    let threadConfig = cfg
-            { pluginSettings = Nothing -- <- slightly problematic
-            , customConfig = r
-            }
-    liftIO . forkIO . void $ runNeovim threadConfig a
 
 
 -- | Create a new unique function name. To prevent possible name clashes, digits

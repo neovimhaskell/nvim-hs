@@ -21,8 +21,6 @@ import           Neovim.RPC.Common            (newRPCConfig, RPCConfig)
 import           Neovim.RPC.EventHandler      (runEventHandler)
 import           Neovim.RPC.SocketReader      (runSocketReader)
 
-import           Control.Concurrent
-import           Control.Concurrent.STM       (atomically, putTMVar)
 import           Control.Monad.Reader         (runReaderT)
 import           Control.Monad.Trans.Resource (runResourceT)
 import           GHC.IO.Exception             (ioe_filename)
@@ -32,6 +30,9 @@ import           System.IO                    (Handle)
 import           System.Process
 import           Text.PrettyPrint.ANSI.Leijen (red, text, putDoc, (<$$>))
 import           UnliftIO.Exception
+import           UnliftIO.STM                 (atomically, putTMVar)
+import           UnliftIO.Async               (async, cancel)
+import           UnliftIO.Concurrent          (threadDelay)
 
 
 -- | Type synonym for 'Word'.
@@ -55,7 +56,7 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
     runTest `catch` catchIfNvimIsNotOnPath
   where
     runTest = do
-        (_, _, ph, cfg) <- startEmbeddedNvim file timeout
+        (_, _, ph, cfg, cleanUp) <- startEmbeddedNvim file timeout
 
         let testCfg = Internal.retypeConfig r cfg
 
@@ -65,7 +66,7 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
         -- result of the operation since neovim cannot send a result if it
         -- has quit.
         let Internal.Neovim q = vim_command "qa!"
-        void . forkIO . void $ runReaderT (runResourceT q) testCfg
+        testRunner <- async . void $ runReaderT (runResourceT q) testCfg
 
         waitForProcess ph >>= \case
             ExitFailure i ->
@@ -73,6 +74,8 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
 
             ExitSuccess ->
                 return ()
+        cancel testRunner
+        cleanUp
 
 
 catchIfNvimIsNotOnPath :: IOException -> IO ()
@@ -87,7 +90,7 @@ catchIfNvimIsNotOnPath e = case ioe_filename e of
 startEmbeddedNvim
     :: Maybe FilePath
     -> Seconds
-    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig)
+    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig, IO ())
 startEmbeddedNvim file (Seconds timeout) = do
     args <- case file of
                 Nothing ->
@@ -107,11 +110,11 @@ startEmbeddedNvim file (Seconds timeout) = do
 
     cfg <- Internal.newConfig (pure Nothing) newRPCConfig
 
-    void . forkIO $ runSocketReader
+    socketReader <- async . void $ runSocketReader
                     hout
                     (cfg { Internal.pluginSettings = Nothing })
 
-    void . forkIO $ runEventHandler
+    eventHandler <- async . void $ runEventHandler
                     hin
                     (cfg { Internal.pluginSettings = Nothing })
 
@@ -119,9 +122,11 @@ startEmbeddedNvim file (Seconds timeout) = do
                     (Internal.globalFunctionMap cfg)
                     (Internal.mkFunctionMap [])
 
-    void . forkIO $ do
+    timeoutAsync <- async . void $ do
         threadDelay $ (fromIntegral timeout) * 1000 * 1000
         getProcessExitCode ph >>= maybe (terminateProcess ph) (\_ -> return ())
 
-    return (hin, hout, ph, cfg)
+    let cleanUp = mapM_ cancel [socketReader, eventHandler, timeoutAsync]
+
+    return (hin, hout, ph, cfg, cleanUp)
 

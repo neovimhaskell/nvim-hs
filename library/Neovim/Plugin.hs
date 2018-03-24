@@ -41,8 +41,6 @@ import qualified Neovim.Plugin.Startup        as Plugin
 import           Neovim.RPC.FunctionCall
 
 import           Control.Applicative
-import           Control.Concurrent           (ThreadId, forkIO)
-import           Control.Concurrent.STM
 import           Control.Monad                (foldM, void)
 import           Control.Monad.Trans.Resource hiding (register)
 import           Data.ByteString              (ByteString)
@@ -56,6 +54,8 @@ import           Data.Traversable             (forM)
 import           System.Log.Logger
 import           Text.PrettyPrint.ANSI.Leijen (Doc)
 import           UnliftIO.Exception           (SomeException, try)
+import           UnliftIO.Async               (Async, async)
+import           UnliftIO.STM
 
 import           Prelude
 
@@ -69,12 +69,12 @@ type StartupConfig = Plugin.StartupConfig NeovimConfig
 
 startPluginThreads :: Internal.Config StartupConfig
                    -> [Neovim StartupConfig NeovimPlugin]
-                   -> IO (Either Doc ([FunctionMapEntry],[ThreadId]))
+                   -> IO (Either Doc ([FunctionMapEntry],[Async ()]))
 startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
   where
-    go :: ([FunctionMapEntry], [ThreadId])
+    go :: ([FunctionMapEntry], [Async ()])
        -> Neovim StartupConfig NeovimPlugin
-       -> Neovim StartupConfig ([FunctionMapEntry], [ThreadId])
+       -> Neovim StartupConfig ([FunctionMapEntry], [Async ()])
     go (es, tids) iop = do
         NeovimPlugin p <- iop
         (es', tid) <- registerStatefulFunctionality p
@@ -262,9 +262,9 @@ addAutocmd event (opts@AutocmdOptions{..}) f = do
 -- the corresponding 'TQueue's (i.e. communication channels).
 registerStatefulFunctionality
     :: Plugin env
-    -> Neovim anyEnv ([FunctionMapEntry], ThreadId)
+    -> Neovim anyEnv ([FunctionMapEntry], Async ())
 registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
-    q <- liftIO newTQueueIO
+    messageQueue <- liftIO newTQueueIO
     route <- liftIO $ newTVarIO Map.empty
 
     cfg <- Internal.ask'
@@ -272,7 +272,7 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
     let startupConfig = cfg
             { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
-                (registerPlugin (\_ -> return ())) q route
+                (registerPlugin (\_ -> return ())) messageQueue route
             }
     res <- liftIO . runNeovimInternal return startupConfig . forM fs $ \f ->
             registerFunctionality (getDescription f) (getFunction f)
@@ -283,11 +283,11 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
     let pluginThreadConfig = cfg
             { Internal.customConfig = env
             , Internal.pluginSettings = Just $ Internal.StatefulSettings
-                (registerPlugin registerInGlobalFunctionMap) q route
+                (registerPlugin registerInGlobalFunctionMap) messageQueue route
             }
 
-    tid <- liftIO . forkIO . void . runNeovimInternal return pluginThreadConfig $ do
-                listeningThread q route
+    tid <- liftIO . async . void . runNeovim pluginThreadConfig $ do
+                listeningThread messageQueue route
 
     return (map fst es, tid) -- NB: dropping release functions/keys here
 
