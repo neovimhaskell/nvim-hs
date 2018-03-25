@@ -1,3 +1,30 @@
+# 1.0.0.0
+
+* Each plugin (type) now defines an environment which is similar to how
+  stateful plugins have been declared in previous versions. If you need
+  multiple different environments for different functions, you can make them
+  fields of a bigger environment or define multiple plugin values.
+
+  The type `Neovim r st a` has become `Neovim env a` where `env` is
+  technically equivalent to the previous `r`.
+  I was mainly motivated by this blog post:
+
+  https://www.fpcomplete.com/blog/2017/06/readert-design-pattern
+
+* Only works with ghc >= 8. I removed some backwards compatibility. If you
+  need older ghc versions, just use the previous version (0.2.5) as the
+  feature set hasn't really changed.
+
+* A different pretty printer library is now used and may surface at some
+  places.
+
+* Functions do now time out after some time, 10 seconds for those that block
+  neovim and 10 minutes for background functions.
+
+* A few types have been adjusted.
+
+* Some improvement in error reporting.
+
 # 0.2.5
 
 * Older versions of `nvim-hs` may not function if some versions of a
