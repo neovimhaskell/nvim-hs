@@ -20,9 +20,7 @@ module Neovim.Exceptions
 import           Control.Exception                         (Exception)
 import           Data.MessagePack                          (Object (..))
 import           Data.String                               (IsString (..))
-import           Data.Text                                 (Text)
-import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
-                                                            (<+>), viaShow)
+import           Data.Text.Prettyprint.Doc                 (Doc, (<+>), viaShow)
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 import           Data.Typeable                             (Typeable)
 

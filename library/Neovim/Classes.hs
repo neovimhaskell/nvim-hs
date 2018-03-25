@@ -48,12 +48,10 @@ import           Data.Int                                  (Int16, Int32, Int64,
 import qualified Data.Map.Strict                           as SMap
 import           Data.MessagePack
 import           Data.Monoid
-import           Data.String                               (IsString (..))
 import           Data.Text                                 as Text (Text)
 import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
                                                             defaultLayoutOptions,
-                                                            layoutPretty,
-                                                            lparen, rparen,
+                                                            layoutPretty, viaShow,
                                                             (<+>))
 import qualified Data.Text.Prettyprint.Doc                 as P
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle,
@@ -76,6 +74,9 @@ import           Prelude
 infixr 5 +:
 
 -- | Convenient operator to create a list of 'Object' from normal values.
+-- @
+-- values +: of :+ different :+ types :+ can +: be +: combined +: this +: way +: []
+-- @
 (+:) :: (NvimObject o) => o -> [Object] -> [Object]
 o +: os = toObject o : os
 
@@ -157,7 +158,7 @@ instance NvimObject Double where
     fromObject (ObjectInt o)    = return $ fromIntegral o
     fromObject (ObjectUInt o)   = return $ fromIntegral o
     fromObject o                = throwError $ "Expected ObjectDouble, but got"
-                                                <+> pretty (show o)
+                                                <+> viaShow o
 
 
 instance NvimObject Integer where
@@ -167,7 +168,7 @@ instance NvimObject Integer where
     fromObject (ObjectUInt o)   = return $ toInteger o
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected ObjectInt, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected ObjectInt, but got" <+> viaShow o
 
 
 instance NvimObject Int64 where
@@ -177,7 +178,7 @@ instance NvimObject Int64 where
     fromObject (ObjectUInt o)   = return $ fromIntegral o
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Int32 where
@@ -187,7 +188,7 @@ instance NvimObject Int32 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Int16 where
@@ -197,7 +198,7 @@ instance NvimObject Int16 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Int8 where
@@ -207,7 +208,7 @@ instance NvimObject Int8 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Word where
@@ -217,7 +218,7 @@ instance NvimObject Word where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Word64 where
@@ -227,7 +228,7 @@ instance NvimObject Word64 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Word32 where
@@ -237,7 +238,7 @@ instance NvimObject Word32 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Word16 where
@@ -247,7 +248,7 @@ instance NvimObject Word16 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Word8 where
@@ -257,7 +258,7 @@ instance NvimObject Word8 where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance NvimObject Int where
@@ -267,7 +268,7 @@ instance NvimObject Int where
     fromObject (ObjectUInt i)   = return $ fromIntegral i
     fromObject (ObjectDouble o) = return $ round o
     fromObject (ObjectFloat o)  = return $ round o
-    fromObject o                = throwError $ "Expected any Integer value, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected any Integer value, but got" <+> viaShow o
 
 
 instance {-# OVERLAPPING #-} NvimObject [Char] where
@@ -275,14 +276,14 @@ instance {-# OVERLAPPING #-} NvimObject [Char] where
 
     fromObject (ObjectBinary o) = return $ UTF8.toString o
     fromObject (ObjectString o) = return $ UTF8.toString o
-    fromObject o                = throwError $ "Expected ObjectString, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected ObjectString, but got" <+> viaShow o
 
 
 instance {-# OVERLAPPABLE #-} NvimObject o => NvimObject [o] where
     toObject                    = ObjectArray . map toObject
 
     fromObject (ObjectArray os) = mapM fromObject os
-    fromObject o                = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance NvimObject o => NvimObject (Maybe o) where
@@ -320,7 +321,7 @@ instance (Ord key, NvimObject key, NvimObject val)
                     . (fromObject *** fromObject))
                 . SMap.toList) om
 
-    fromObject o = throwError $ "Expected ObjectMap, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectMap, but got" <+> viaShow o
 
 
 instance NvimObject Text where
@@ -328,7 +329,7 @@ instance NvimObject Text where
 
     fromObject (ObjectBinary o) = return $ decodeUtf8 o
     fromObject (ObjectString o) = return $ decodeUtf8 o
-    fromObject o                = throwError $ "Expected ObjectBinary, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected ObjectBinary, but got" <+> viaShow o
 
 
 instance NvimObject ByteString where
@@ -336,7 +337,7 @@ instance NvimObject ByteString where
 
     fromObject (ObjectBinary o) = return o
     fromObject (ObjectString o) = return o
-    fromObject o                = throwError $ "Expected ObjectBinary, but got" <+> pretty (show o)
+    fromObject o                = throwError $ "Expected ObjectBinary, but got" <+> viaShow o
 
 
 instance NvimObject Object where
@@ -353,7 +354,7 @@ instance (NvimObject o1, NvimObject o2) => NvimObject (o1, o2) where
     fromObject (ObjectArray [o1, o2]) = (,)
         <$> fromObject o1
         <*> fromObject o2
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3) => NvimObject (o1, o2, o3) where
     toObject (o1, o2, o3) = ObjectArray $ [toObject o1, toObject o2, toObject o3]
@@ -362,7 +363,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3) => NvimObject (o1, o2, o3
         <$> fromObject o1
         <*> fromObject o2
         <*> fromObject o3
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4) => NvimObject (o1, o2, o3, o4) where
@@ -373,7 +374,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4) => NvimObj
         <*> fromObject o2
         <*> fromObject o3
         <*> fromObject o4
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5) => NvimObject (o1, o2, o3, o4, o5) where
@@ -385,7 +386,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
         <*> fromObject o3
         <*> fromObject o4
         <*> fromObject o5
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6) => NvimObject (o1, o2, o3, o4, o5, o6) where
@@ -398,7 +399,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
         <*> fromObject o4
         <*> fromObject o5
         <*> fromObject o6
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7) => NvimObject (o1, o2, o3, o4, o5, o6, o7) where
@@ -412,7 +413,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
         <*> fromObject o5
         <*> fromObject o6
         <*> fromObject o7
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8) where
@@ -427,7 +428,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
         <*> fromObject o6
         <*> fromObject o7
         <*> fromObject o8
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8, NvimObject o9) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) where
@@ -443,7 +444,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
         <*> fromObject o7
         <*> fromObject o8
         <*> fromObject o9
-    fromObject o = throwError $ "Expected ObjectArray, but got" <+> pretty (show o)
+    fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 -- 1}}}

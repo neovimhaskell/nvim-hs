@@ -36,11 +36,8 @@ import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad.Reader
 import           Data.MessagePack
-import           Data.Monoid
 import           UnliftIO.Exception        (throwIO)
 
-import Data.Text.Prettyprint.Doc (Pretty(..), (<+>), layoutPretty, defaultLayoutOptions)
-import Data.Text.Prettyprint.Doc.Render.Terminal (renderStrict)
 import           Prelude
 
 -- | Simply fail and call 'error' in case an unexpected exception is thrown.
@@ -140,7 +137,7 @@ waitErr :: String                             -- ^ Prefix error message with thi
         -> Neovim env result
 waitErr loc act = wait act >>= \case
     Left e ->
-        err $ exceptionToDoc e
+        err $ pretty loc <+> exceptionToDoc e
     Right result ->
         return result
 

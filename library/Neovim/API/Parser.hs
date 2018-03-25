@@ -24,7 +24,6 @@ import qualified Data.ByteString                           as B
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
 import           Data.MessagePack
-import           Data.Monoid
 import           Data.Serialize
 import           Neovim.Compat.Megaparsec                  as P
 import           System.IO                                 (hClose)

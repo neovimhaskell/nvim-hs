@@ -103,7 +103,7 @@ pQuickfixListItem = do
     e <- pSeverity
     desc <- try pShortDesrciption <|> pLongDescription
     return $ (quickfixListItem (Right f) (Left l))
-        { col = Just (c, True)
+        { col = VisualColumn c
         , text = desc
         , errorType = e
         }

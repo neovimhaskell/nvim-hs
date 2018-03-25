@@ -37,7 +37,7 @@ import           Data.MessagePack
 import           Data.Time                 (UTCTime, formatTime, getCurrentTime)
 import           Data.Time.Locale.Compat   (defaultTimeLocale)
 
-import           Data.Text.Prettyprint.Doc (Doc, Pretty (..), nest, hardline, (<+>), (<>), viaShow)
+import           Data.Text.Prettyprint.Doc (Pretty (..), nest, hardline, (<+>), (<>), viaShow)
 
 import           Prelude
 
@@ -75,7 +75,7 @@ instance Message FunctionCall
 instance Pretty FunctionCall where
     pretty (FunctionCall fname args _ t) =
         nest 2 $ "Function call for:" <+> pretty fname
-            <> hardline <> "Arguments:" <+> pretty (show args)
+            <> hardline <> "Arguments:" <+> viaShow args
             <> hardline <> "Timestamp:"
                 <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
 

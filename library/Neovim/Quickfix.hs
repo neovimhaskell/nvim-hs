@@ -27,7 +27,6 @@ import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
 import           Data.Text.Prettyprint.Doc (Doc, viaShow, (<+>))
-import qualified Data.Text.Prettyprint.Doc as P
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 
 import           Prelude
@@ -41,6 +40,24 @@ setqflist :: (Monoid strType, NvimObject strType)
           -> Neovim env ()
 setqflist qs a =
     void $ vim_call_function "setqflist" $ qs +: a +: []
+
+data ColumnNumber
+    = VisualColumn Int
+    | ByteIndexColumn Int
+    | NoColumn
+  deriving (Eq, Ord, Show, Generic)
+
+
+instance NFData ColumnNumber
+
+data SignLocation strType
+    = LineNumber Int
+    | SearchPattern strType
+  deriving (Eq, Ord, Show, Generic)
+
+
+instance (NFData strType) => NFData (SignLocation strType)
+
 
 -- | Quickfix list item. The parameter names should mostly conform to those in
 -- @:h setqflist()@. Some fields are merged to explicitly state mutually
@@ -56,7 +73,7 @@ data QuickfixListItem strType = QFItem
     , lnumOrPattern :: Either Int strType
     -- ^ Line number or search pattern to locate the error.
 
-    , col           :: Maybe (Int, Bool)
+    , col           :: ColumnNumber
     -- ^ A tuple of a column number and a boolean indicating which kind of
     -- indexing should be used. 'True' means that the visual column should be
     -- used. 'False' means to use the byte index.
@@ -103,7 +120,7 @@ quickfixListItem :: (Monoid strType)
 quickfixListItem bufferOrFile lineOrPattern = QFItem
     { bufOrFile = bufferOrFile
     , lnumOrPattern = lineOrPattern
-    , col = Nothing
+    , col = NoColumn
     , nr = Nothing
     , text = mempty
     , errorType = Error
@@ -122,10 +139,11 @@ instance (Monoid strType, NvimObject strType)
                      lnumOrPattern
             , ("type", toObject errorType)
             , ("text", toObject text)
-            ] ++ catMaybes
-            [ (\n -> ("nr", toObject n)) <$> nr
-            , (\(c,_) -> ("col", toObject c)) <$> col
-            , (\(_,t) -> ("vcol", toObject t)) <$> col
+            ] ++ concat
+            [ case col of
+                NoColumn -> []
+                ByteIndexColumn i -> [ ("col", toObject i), ("vcol", toObject False) ]
+                VisualColumn i -> [ ("col", toObject i), ("vcol", toObject True) ]
             ]
 
     fromObject objectMap@(ObjectMap _) = do
@@ -151,12 +169,13 @@ instance (Monoid strType, NvimObject strType)
                 nr' -> return nr'
         c <- l' "col"
         v <- l' "vcol"
-        let col = do
+        let col = maybe NoColumn id $ do
                 c' <- c
                 v' <- v
-                case c' of
-                    0 -> Nothing
-                    _ -> Just (c',v')
+                case (c',v') of
+                    (0, _) -> return $ NoColumn
+                    (_, True) -> return $ VisualColumn c'
+                    (_, False) -> return $ ByteIndexColumn c'
         text <- fromMaybe mempty <$> l' "text"
         errorType <- fromMaybe Error <$> l' "type"
         return QFItem{..}

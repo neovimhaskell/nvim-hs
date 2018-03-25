@@ -15,6 +15,7 @@ module Neovim.Context (
 
     Neovim,
     NeovimException(..),
+    exceptionToDoc,
     FunctionMap,
     FunctionMapEntry,
     mkFunctionMap,
@@ -63,9 +64,6 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.MessagePack             (Object)
 
-import           Data.Text.Prettyprint.Doc    (Pretty(..), defaultLayoutOptions, layoutPretty)
-import           Data.Text.Prettyprint.Doc.Render.Text (renderStrict)
-
 
 -- | @'throw'@ specialized to a 'Pretty' value.
 err :: Doc AnsiStyle -> Neovim env a
@@ -85,8 +83,6 @@ errOnInvalidResult a = a >>= \case
 
         Right x ->
             return x
-    Left o ->
-        (err . exceptionToDoc) o
 
 
 

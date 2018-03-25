@@ -25,8 +25,7 @@ import           Neovim.RPC.SocketReader                   (runSocketReader)
 
 import           Control.Monad.Reader                      (runReaderT)
 import           Control.Monad.Trans.Resource              (runResourceT)
-import           Data.Text.Prettyprint.Doc                 (annotate, vsep,
-                                                            (<+>))
+import           Data.Text.Prettyprint.Doc                 (annotate, vsep)
 import           Data.Text.Prettyprint.Doc.Render.Terminal (Color (..), color,
                                                             putDoc)
 import           GHC.IO.Exception                          (ioe_filename)

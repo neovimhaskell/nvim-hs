@@ -52,7 +52,6 @@ import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (catMaybes)
 import           Data.MessagePack
-import           Data.Text.Prettyprint.Doc    (Doc, Pretty (..), viaShow, (<+>))
 import           Data.Traversable             (forM)
 import           System.Log.Logger
 import           UnliftIO.Async               (Async, async, race)

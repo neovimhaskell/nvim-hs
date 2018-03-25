@@ -54,10 +54,6 @@ module Neovim (
 
     ask,
     asks,
-    put,
-    get,
-    gets,
-    modify,
 
     -- ** Creating a stateful plugin
     -- $statefulplugin
@@ -69,8 +65,6 @@ module Neovim (
     waitErr,
     waitErr',
     err,
-    Doc,
-    Pretty(..),
     errOnInvalidResult,
     NeovimException(..),
     -- ** Generated functions for neovim interaction
@@ -85,6 +79,11 @@ module Neovim (
     unlessM,
     docToObject,
     docFromObject,
+    Doc,
+    AnsiStyle,
+    Pretty(..),
+    putDoc,
+    exceptionToDoc,
     Priority(..),
     module Control.Monad,
     module Control.Applicative,
@@ -106,10 +105,12 @@ import           Neovim.API.String
 import           Neovim.API.TH                (autocmd, command, command',
                                                function, function')
 import           Neovim.Classes               (Dictionary, NvimObject (..),
+                                               Doc, AnsiStyle, Pretty(..),
                                                docFromObject, docToObject, (+:))
 import           Neovim.Config                (NeovimConfig (..))
 import           Neovim.Context               (Neovim,
-                                               NeovimException (ErrorMessage),
+                                               NeovimException(..),
+                                               exceptionToDoc,
                                                ask, asks, err,
                                                errOnInvalidResult, get, gets,
                                                modify, put)
@@ -128,8 +129,7 @@ import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
 import           Neovim.Util                  (unlessM, whenM,
                                                withCustomEnvironment)
 import           System.Log.Logger            (Priority (..))
-import           Data.Text.Prettyprint.Doc    (Doc, Pretty (..))
-
+import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)
 -- Installation {{{1
 {- $installation
 

@@ -309,7 +309,7 @@ data ArgType = StringyType
 
 
 -- | Given a value of type 'Type', test whether it can be classified according
--- to the constructors of 'ArgType'.
+-- to the constructors of "ArgType".
 classifyArgType :: Type -> Q ArgType
 classifyArgType t = do
     set <- genStringTypesSet

@@ -32,7 +32,6 @@ import           Neovim.Classes
 import           Control.Applicative          hiding (empty)
 import           Control.Monad.Error.Class
 import           Data.ByteString              (ByteString)
-import           Data.ByteString.UTF8         (toString)
 import           Data.Char                    (isDigit)
 import           Data.Default
 import           Data.List                    (groupBy, sort)
@@ -44,7 +43,6 @@ import           Data.Traversable             (sequence)
 import           Data.Text.Encoding           (decodeUtf8)
 
 import Data.Text.Prettyprint.Doc
-import Data.Text.Prettyprint.Doc.Render.Terminal
 
 import           Prelude                      hiding (sequence)
 
@@ -277,7 +275,7 @@ instance NvimObject CommandOptions where
             _             -> Nothing
 
     fromObject o = throwError $
-        "Did not expect to receive a CommandOptions object:" <+> pretty (show o)
+        "Did not expect to receive a CommandOptions object:" <+> viaShow o
 
 
 -- | Specification of a range that acommand can operate on.
@@ -386,7 +384,7 @@ instance NvimObject CommandArguments where
     fromObject ObjectNil = return def
     fromObject o =
         throwError $ "Expected a map for CommandArguments object, but got: "
-                      <+> pretty (show o)
+                      <+> viaShow o
 
 
 -- | Options that can be used to register an autocmd. See @:h :autocmd@ or any
@@ -433,7 +431,7 @@ instance NvimObject AutocmdOptions where
             [ acmdGroup >>= \g -> return ("group", toObject g)
             ]
     fromObject o = throwError  $
-        "Did not expect to receive an AutocmdOptions object: " <+> pretty (show o)
+        "Did not expect to receive an AutocmdOptions object: " <+> viaShow o
 
 -- | Conveniennce class to extract a name from some value.
 class HasFunctionName a where
