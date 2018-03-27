@@ -112,8 +112,7 @@ import           Neovim.Context               (Neovim,
                                                NeovimException(..),
                                                exceptionToDoc,
                                                ask, asks, err,
-                                               errOnInvalidResult, get, gets,
-                                               modify, put)
+                                               errOnInvalidResult)
 import           Neovim.Main                  (neovim)
 import           Neovim.Plugin                (addAutocmd)
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),

@@ -31,7 +31,7 @@ spec = do
       let [qs] = parseQuickfixItems e
       bufOrFile qs `shouldBe` Right "/.config/nvim/nvim.hs"
       lnumOrPattern qs `shouldBe` Left 25
-      col qs `shouldBe` Just (30, True)
+      col qs `shouldBe` VisualColumn 30
       nr qs `shouldBe` Nothing
       errorType qs `shouldBe` Error
 
@@ -40,7 +40,7 @@ spec = do
       let [qs] = parseQuickfixItems e
       bufOrFile qs `shouldBe` Right "/.config/nvim/lib/TestPlugins.hs"
       lnumOrPattern qs `shouldBe` Left 11
-      col qs `shouldBe` Just (18, True)
+      col qs `shouldBe` VisualColumn 18
       nr qs `shouldBe` Nothing
       errorType qs `shouldBe` Error
 
@@ -49,7 +49,7 @@ spec = do
       let [qs] = parseQuickfixItems e
       bufOrFile qs `shouldBe` Right "/.config/nvim/nvim.hs"
       lnumOrPattern qs `shouldBe` Left 25
-      col qs `shouldBe` Just (30, True)
+      col qs `shouldBe` VisualColumn 30
       nr qs `shouldBe` Nothing
       errorType qs `shouldBe` Error
 
@@ -58,7 +58,7 @@ spec = do
       let [qs] = parseQuickfixItems e
       bufOrFile qs `shouldBe` Right "/.config/nvim/lib/TestPlugins.hs"
       lnumOrPattern qs `shouldBe` Left 23
-      col qs `shouldBe` Just (9, True)
+      col qs `shouldBe` VisualColumn 9
       nr qs `shouldBe` Nothing
       errorType qs `shouldBe` Error
 
@@ -69,8 +69,8 @@ spec = do
       bufOrFile q2 `shouldBe` Right "/.config/nvim/lib/TestPlugins.hs"
       lnumOrPattern q1 `shouldBe` Left 23
       lnumOrPattern q2 `shouldBe` Left 23
-      col q1 `shouldBe` Just (9, True)
-      col q2 `shouldBe` Just (32, True)
+      col q1 `shouldBe` VisualColumn 9
+      col q2 `shouldBe` VisualColumn 32
       nr q1 `shouldBe` Nothing
       nr q2 `shouldBe` Nothing
       errorType q1 `shouldBe` Warning
@@ -81,7 +81,7 @@ spec = do
       let [q1] = parseQuickfixItems e
       bufOrFile q1 `shouldBe` Right "/home/test/.config/nvim/nvim.hs"
       lnumOrPattern q1 `shouldBe` Left 8
-      col q1 `shouldBe` Just (7, True)
+      col q1 `shouldBe` VisualColumn 7
       nr q1 `shouldBe` Nothing
       errorType q1 `shouldBe` Error
 
