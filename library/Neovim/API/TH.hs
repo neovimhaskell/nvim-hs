@@ -168,9 +168,15 @@ createFunction typeMap nf = do
                         . apiTypeToHaskellType typeMap $ returnType nf
                 in mapM createSig [ withException', id ]
 
+    -- prefix with arg0_, arg1_ etc. to prevent generated code from crashing due
+    -- to keywords being used.
+    -- see https://github.com/neovimhaskell/nvim-hs/issues/65
+    let prefixWithNumber i n = "arg" ++ show i ++ "_" ++ n
+        applyPrefixWithNumber = zipWith (\i (t,n) -> (t, prefixWithNumber i n))
+                                  [0 :: Int ..] . parameters
     vars <- mapM (\(t,n) -> (,) <$> apiTypeToHaskellType typeMap t
                                 <*> newName n)
-            $ parameters nf
+            $ applyPrefixWithNumber nf
 
     let impl functionName callFn retType =
             [ sigD functionName . return
