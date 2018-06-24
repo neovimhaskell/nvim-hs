@@ -1,3 +1,9 @@
+# 1.0.0.2
+
+* With the api of neovim 0.3.0, a function was exposed that had a reserved
+  haskell keyword as a parameter name. The code generation did not sanitize
+  this. This bugfix releases resolves this.
+
 # 1.0.0.0
 
 * Each plugin (type) now defines an environment which is similar to how
