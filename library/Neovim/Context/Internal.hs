@@ -46,6 +46,7 @@ import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
                                                             viaShow)
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 
+import qualified Control.Monad.Fail as Fail
 import           Prelude
 
 
@@ -79,6 +80,11 @@ instance MonadResource (Neovim env) where
 instance MonadUnliftIO (Neovim env) where
     askUnliftIO = Neovim . withUnliftIO $ \x ->
         return (UnliftIO (unliftIO x . unNeovim))
+
+
+instance Fail.MonadFail (Neovim env) where
+  fail = throwIO . ErrorMessage . pretty
+
 
 -- | Same as 'ask' for the 'InternalConfig'.
 ask' :: Neovim env (Config env)
