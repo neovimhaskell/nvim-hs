@@ -2,6 +2,7 @@
 module Neovim.Compat.Megaparsec
     ( Parser
     , module X
+    , anyChar
     ) where
 
 
@@ -19,3 +20,9 @@ type Parser = Parsec Void String
 import           Text.Megaparsec.String as X
 
 #endif
+
+#if MIN_VERSION_megaparsec(7,0,0)
+anyChar :: Parser Char
+anyChar = anySingle
+#endif
+

@@ -112,7 +112,7 @@ library
                       , mtl >= 2.2.1 && < 2.3
                       , optparse-applicative
                       , time-locale-compat
-                      , megaparsec
+                      , megaparsec < 8
                       , prettyprinter >= 1.2 && < 2
                       , prettyprinter-ansi-terminal
                       , process
