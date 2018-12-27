@@ -121,6 +121,7 @@ import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                RangeSpecification (..),
                                                Synchronous (..))
 import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
+import qualified Neovim.Plugin.Standalone     as Standalone
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
                                                wrapPlugin)
 import           Neovim.Plugin.Startup        (StartupConfig (..))
@@ -176,13 +177,16 @@ which GHC should point you to.
 --
 -- @
 -- main = 'neovim' 'defaultConfig'
---          { plugins = myPlugins ++ plugins defaultConfig
+--          { plugins = plugins defaultConfig ++ myPlugins
 --          }
 -- @
 --
 defaultConfig :: NeovimConfig
 defaultConfig = Config
-    { plugins      = [ ConfigHelper.plugin ]
+    { plugins      =
+        [ ConfigHelper.plugin
+        , Standalone.plugin Nothing
+        ]
     , logOptions   = Nothing
     , errorMessage = Nothing
     }

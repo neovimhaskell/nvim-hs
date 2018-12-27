@@ -84,6 +84,11 @@ library
                       , Neovim.Plugin.Internal
                       , Neovim.Plugin.IPC
                       , Neovim.Plugin.IPC.Classes
+                      , Neovim.Plugin.Standalone
+                      , Neovim.Plugin.Standalone.Internal
+                      , Neovim.Plugin.Standalone.Common
+                      , Neovim.Plugin.Standalone.Stack
+                      , Neovim.Plugin.Standalone.Cabal
                       , Neovim.Log
                       , Neovim.Main
                       , Neovim.RPC.Classes
@@ -119,6 +124,7 @@ library
                       , TemplateHaskell
   build-depends:        base >=4.9 && < 5
                       , bytestring
+                      , Cabal
                       , cereal
                       , cereal-conduit >= 0.8.0
                       , conduit >= 1.3.0
