@@ -1,8 +1,5 @@
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {- |
 Module      :  Neovim.Plugin
 Description :  Plugin and functionality registration code

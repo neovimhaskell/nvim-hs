@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Main
 Description :  Wrapper for the actual main function

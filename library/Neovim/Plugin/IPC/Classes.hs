@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RecordWildCards           #-}
 {- |
 Module      :  Neovim.Plugin.IPC.Classes

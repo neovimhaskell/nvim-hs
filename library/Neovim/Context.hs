@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP        #-}
-{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Context
 Description :  The Neovim context

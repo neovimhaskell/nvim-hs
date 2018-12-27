@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.RPC.FunctionCall

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.Util
 Description :  Utility functions

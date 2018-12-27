@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 {- |
 Module      :  Neovim.Plugin.ConfigHelper.Internal
@@ -143,7 +142,7 @@ blankLine = void . try $ P.many tabOrSpace >> newline
 -- @\/some\/path\/to\/a\/file.hs:42:88:@
 pLocation :: P.Parser (String, Int, Int)
 pLocation = (,,)
-    <$> P.some (noneOf ":\n\t\r") <* char ':'
+    <$> P.some (noneOf (":\n\t\r" :: [Char])) <* char ':'
     <*> pInt <* char ':'
     <*> pInt <* char ':' <* P.many tabOrSpace
 

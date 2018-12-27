@@ -1,6 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE OverloadedStrings  #-}
 {- |
 Module      :  Neovim.Exceptions
 Description :  General Exceptions
