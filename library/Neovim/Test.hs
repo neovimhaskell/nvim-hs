@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 {- |
 Module      :  Neovim.Test
 Description :  Testing functions

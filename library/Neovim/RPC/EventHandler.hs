@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
 {- |
 Module      :  Neovim.RPC.EventHandler
 Description :  Event handling loop

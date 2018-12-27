@@ -1,7 +1,5 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {- |
 Module      :  Neovim.API.TH
 Description :  Template Haskell API generation module
