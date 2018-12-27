@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {- |
 Module      :  Neovim.Debug
 Description :  Utilities to debug Neovim and nvim-hs functionality
@@ -14,6 +15,8 @@ Portability :  GHC
 module Neovim.Debug (
     debug,
     debug',
+
+    NvimHSDebugInstance(..),
     develMain,
     quitDevelMain,
     restartDevelMain,
@@ -83,13 +86,21 @@ debug env a = disableLogger $ do
 -- | Run a 'Neovim'' function.
 --
 -- @
--- debug' a = fmap fst <$> debug () () a
+-- debug' = debug ()
 -- @
 --
 -- See documentation for 'debug'.
 debug' :: Internal.Neovim () a -> IO (Either (Doc AnsiStyle) a)
-debug' a = debug () a
+debug' = debug ()
 
+-- | Simple datatype storing neccessary information to start, stop and reload a
+-- set of plugins. This is passed to most of the functions in this module for
+-- storing state even when the ghci-session has been reloaded.
+data NvimHSDebugInstance = NvimHSDebugInstance
+  { threads        :: [Async ()]
+  , neovimConfig   :: NeovimConfig
+  , internalConfig :: Internal.Config RPCConfig
+  }
 
 -- | This function is intended to be run _once_ in a ghci session that to
 -- give a REPL based workflow when developing a plugin.
@@ -103,23 +114,31 @@ debug' a = debug () a
 -- Example:
 --
 -- @
--- λ 'Right' (tids, cfg) <- 'develMain' 'Nothing'
+-- λ di <- 'develMain' 'Nothing'
 --
--- λ 'runNeovim'' cfg \$ vim_call_function \"getqflist\" []
+-- λ 'runNeovim'' di \$ vim_call_function \"getqflist\" []
 -- 'Right' ('Right' ('ObjectArray' []))
 --
 -- λ :r
 --
--- λ 'Right' (tids, cfg) <- 'develMain' 'Nothing'
+-- λ di <- 'develMain' 'Nothing'
+-- @
+--
+-- You can also create a GHCI alias to get rid of most the busy-work:
+-- @
+-- :def! x \\_ -> return \":reload\\nJust di <- develMain 'defaultConfig'{ 'plugins' = [ myDebugPlugin ] }\"
 -- @
 --
 develMain
-    :: Maybe NeovimConfig
-    -> IO (Either (Doc AnsiStyle) [Async ()])
-develMain mcfg = lookupStore 0 >>= \case
+    :: NeovimConfig
+    -> IO (Maybe NvimHSDebugInstance)
+develMain neovimConfig = lookupStore 0 >>= \case
     Nothing -> do
-        x <- disableLogger $
-                runPluginProvider def { envVar = True } mcfg transitionHandler Nothing
+        x <- disableLogger $ runPluginProvider
+              def{ envVar = True }
+              (Just neovimConfig)
+              transitionHandler
+              Nothing
         void $ newStore x
         return x
 
@@ -127,13 +146,18 @@ develMain mcfg = lookupStore 0 >>= \case
         readStore x
   where
     transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
-        Internal.Failure e ->
-            return $ Left e
+        Internal.Failure e -> do
+            putDoc e
+            return Nothing
 
         Internal.InitSuccess -> do
             transitionHandlerThread <- async $ do
                 void $ transitionHandler (tids) cfg
-            return $ Right (transitionHandlerThread:tids)
+            return . Just $ NvimHSDebugInstance
+              { threads = (transitionHandlerThread:tids)
+              , neovimConfig = neovimConfig
+              , internalConfig = cfg
+              }
 
         Internal.Quit -> do
             lookupStore 0 >>= \case
@@ -144,38 +168,41 @@ develMain mcfg = lookupStore 0 >>= \case
                     deleteStore x
 
             mapM_ cancel tids
-            return . Left $ "Quit develMain"
+            putStrLn "Quit develMain"
+            return Nothing
 
-        _ ->
-            return . Left $ "Unexpected transition state for develMain."
+        _ -> do
+            putStrLn $ "Unexpected transition state for develMain."
+            return Nothing
 
 
 -- | Quit a previously started plugin provider.
-quitDevelMain :: Internal.Config env -> IO ()
-quitDevelMain cfg = putMVar (Internal.transitionTo cfg) Internal.Quit
+quitDevelMain :: NvimHSDebugInstance -> IO ()
+quitDevelMain NvimHSDebugInstance{internalConfig} =
+  putMVar (Internal.transitionTo internalConfig) Internal.Quit
 
 
 -- | Restart the development plugin provider.
 restartDevelMain
-    :: Internal.Config RPCConfig
-    -> Maybe NeovimConfig
-    -> IO (Either (Doc AnsiStyle) [Async ()])
-restartDevelMain cfg mcfg = do
-    quitDevelMain cfg
-    develMain mcfg
+    :: NvimHSDebugInstance
+    -> IO (Maybe NvimHSDebugInstance)
+restartDevelMain di = do
+    quitDevelMain di
+    develMain (neovimConfig di)
 
 
 -- | Convenience function to run a stateless 'Neovim' function.
 runNeovim' :: NFData a
-           => Internal.Config env -> Neovim () a -> IO (Either (Doc AnsiStyle) a)
-runNeovim' cfg =
-    runNeovim (Internal.retypeConfig () cfg)
+           => NvimHSDebugInstance -> Neovim () a -> IO (Either (Doc AnsiStyle) a)
+runNeovim' NvimHSDebugInstance{internalConfig} =
+    runNeovim (Internal.retypeConfig () (internalConfig))
 
 
 -- | Print the global function map to the console.
-printGlobalFunctionMap :: Internal.Config env -> IO ()
-printGlobalFunctionMap cfg = do
-    es <- fmap Map.toList . atomically $ readTMVar (Internal.globalFunctionMap cfg)
+printGlobalFunctionMap :: NvimHSDebugInstance -> IO ()
+printGlobalFunctionMap NvimHSDebugInstance{internalConfig} = do
+    es <- fmap Map.toList . atomically $
+            readTMVar (Internal.globalFunctionMap internalConfig)
     let header = "Printing global function map:"
         funs   = map (\(fname, (d, f)) ->
                     nest 3 (pretty fname

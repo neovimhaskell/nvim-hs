@@ -1,3 +1,7 @@
+# 1.0.1.0
+
+* The `Neovim.Debug` module is now more pleasant to use.
+
 # 1.0.0.2
 
 * With the api of neovim 0.3.0, a function was exposed that had a reserved
