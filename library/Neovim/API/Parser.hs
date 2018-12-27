@@ -20,13 +20,14 @@ import           Neovim.Classes
 import           Control.Applicative
 import           Control.Monad.Except
 import qualified Data.ByteString                           as B
+import qualified Data.ByteString.Lazy                      as LB
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
 import           Data.MessagePack
 import           Data.Serialize
 import           Neovim.Compat.Megaparsec                  as P
 import           System.IO                                 (hClose)
-import           System.Process
+import           System.Process.Typed
 import           UnliftIO.Exception                        (SomeException,
                                                             bracket, catch)
 
@@ -97,18 +98,8 @@ readFromAPIFile _ = (decode <$> B.readFile "api") `catch` returnPreviousExceptio
         \ 'api' in the working directory as a substitute."
 
 decodeAPI :: IO (Either String Object)
-decodeAPI = bracket queryNeovimAPI clean $ \(out, _) ->
-    decode <$> B.hGetContents out
-
-  where
-    queryNeovimAPI = do
-        (_, Just out, _, ph) <- createProcess $
-                (proc "nvim" ["--api-info"]) { std_out = CreatePipe }
-        return (out, ph)
-
-    clean (out, ph) = do
-        hClose out
-        terminateProcess ph
+decodeAPI =
+   decode . LB.toStrict <$> readProcessStdout_ (proc "nvim" ["--api-info"])
 
 
 oLookup :: (NvimObject o) => String -> Map String Object -> Either (Doc AnsiStyle) o

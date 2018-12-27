@@ -30,7 +30,7 @@ import           GHC.IO.Exception                          (ioe_filename)
 import           System.Directory
 import           System.Exit                               (ExitCode (..))
 import           System.IO                                 (Handle)
-import           System.Process
+import           System.Process.Typed
 import           UnliftIO.Async                            (async, cancel)
 import           UnliftIO.Concurrent                       (threadDelay)
 import           UnliftIO.Exception
@@ -59,7 +59,7 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
     runTest `catch` catchIfNvimIsNotOnPath
   where
     runTest = do
-        (_, _, ph, cfg, cleanUp) <- startEmbeddedNvim file timeout
+        (nvimProcess, cfg, cleanUp) <- startEmbeddedNvim file timeout
 
         let testCfg = Internal.retypeConfig r cfg
 
@@ -71,7 +71,7 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
         let Internal.Neovim q = vim_command "qa!"
         testRunner <- async . void $ runReaderT (runResourceT q) testCfg
 
-        waitForProcess ph >>= \case
+        waitExitCode nvimProcess >>= \case
             ExitFailure i ->
                 fail $ "Neovim returned with an exit status of: " ++ show i
 
@@ -95,7 +95,7 @@ catchIfNvimIsNotOnPath e = case ioe_filename e of
 startEmbeddedNvim
     :: Maybe FilePath
     -> Seconds
-    -> IO (Handle, Handle, ProcessHandle, Internal.Config RPCConfig, IO ())
+    -> IO (Process Handle Handle (), Internal.Config RPCConfig, IO ())
 startEmbeddedNvim file (Seconds timeout) = do
     args <- case file of
                 Nothing ->
@@ -107,20 +107,19 @@ startEmbeddedNvim file (Seconds timeout) = do
                     unlessM (doesFileExist f) . fail $ "File not found: " ++ f
                     return [f]
 
-    (Just hin, Just hout, _, ph) <-
-        createProcess (proc "nvim" (["-n","-u","NONE","--embed"] ++ args))
-            { std_in = CreatePipe
-            , std_out = CreatePipe
-            }
+    nvimProcess <- startProcess
+        $ setStdin createPipe
+        $ setStdout createPipe
+        $ proc "nvim" (["-n","-u","NONE","--embed"] ++ args)
 
     cfg <- Internal.newConfig (pure Nothing) newRPCConfig
 
     socketReader <- async . void $ runSocketReader
-                    hout
+                    (getStdout nvimProcess)
                     (cfg { Internal.pluginSettings = Nothing })
 
     eventHandler <- async . void $ runEventHandler
-                    hin
+                    (getStdin nvimProcess)
                     (cfg { Internal.pluginSettings = Nothing })
 
     atomically $ putTMVar
@@ -129,9 +128,9 @@ startEmbeddedNvim file (Seconds timeout) = do
 
     timeoutAsync <- async . void $ do
         threadDelay $ (fromIntegral timeout) * 1000 * 1000
-        getProcessExitCode ph >>= maybe (terminateProcess ph) (\_ -> return ())
+        getExitCode nvimProcess >>= maybe (stopProcess nvimProcess) (\_ -> return ())
 
     let cleanUp = mapM_ cancel [socketReader, eventHandler, timeoutAsync]
 
-    return (hin, hout, ph, cfg, cleanUp)
+    return (nvimProcess, cfg, cleanUp)
 
