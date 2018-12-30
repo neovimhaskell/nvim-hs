@@ -1,7 +1,5 @@
 #!/bin/bash
 
-HC=$1
-
 set -ev
 
 if [ -f configure.ac ]; then autoreconf -i; fi
@@ -21,11 +19,11 @@ for apiblob in ../../apiblobs/*.msgpack ; do
     echo "Testing with neovim api version ${apiblob}"
     ln -fs "${apiblob}" api
     rm -f cabal.project.freeze
-    cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
+    cabal new-build --disable-tests --disable-benchmarks all
     ls
-    cabal new-build -w ${HC} ${TEST} ${BENCH} all
+    cabal new-build ${TEST} ${BENCH} all
     if [ "x$TEST" = "x--enable-tests" ]; then
-        cabal new-test -w ${HC} ${TEST} all
+        cabal new-test ${TEST} all
     fi;
 done
 
