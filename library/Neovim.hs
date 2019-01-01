@@ -23,6 +23,7 @@ module Neovim (
     -- $tldrgettingstarted
     Neovim,
     neovim,
+    neovimStandalone,
     NeovimConfig(..),
     defaultConfig,
     StartupConfig(..),
@@ -113,7 +114,7 @@ import           Neovim.Context               (Neovim,
                                                exceptionToDoc,
                                                ask, asks, err,
                                                errOnInvalidResult)
-import           Neovim.Main                  (neovim)
+import           Neovim.Main                  (neovim, neovimStandalone)
 import           Neovim.Plugin                (addAutocmd)
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                CommandArguments (..),

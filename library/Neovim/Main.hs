@@ -14,28 +14,28 @@ module Neovim.Main
 import           Neovim.Config
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log
-import           Neovim.Plugin           as P
+import qualified Neovim.Plugin           as P
 import           Neovim.Plugin.Startup   (StartupConfig (..))
 import           Neovim.RPC.Common       as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 import           Neovim.Util             (oneLineErrorMessage)
 
-import qualified Config.Dyre             as Dyre
-import qualified Config.Dyre.Relaunch    as Dyre
+import qualified Config.Dyre            as Dyre
+import qualified Config.Dyre.Relaunch   as Dyre
 import           Control.Concurrent
-import           Control.Concurrent.STM  (atomically, putTMVar)
+import           Control.Concurrent.STM (atomically, putTMVar)
 import           Control.Monad
 import           Data.Default
 import           Data.Maybe
 import           Data.Monoid
 import           Options.Applicative
-import           System.IO               (stdin, stdout)
+import           System.IO              (stdin, stdout)
 import           System.SetEnv
-import           UnliftIO.Async          (Async, async, cancel)
+import           UnliftIO.Async         (Async, async, cancel)
 
-import           Prelude
-import           System.Environment
+import Prelude
+import System.Environment
 
 
 logger :: String
@@ -128,6 +128,17 @@ neovim =
     in Dyre.wrapMain params
 
 
+-- | Start the given plugins as a standalone plugin provider.
+neovimStandalone
+  :: [Internal.Neovim (StartupConfig NeovimConfig) P.NeovimPlugin]
+  -> IO ()
+neovimStandalone ps = realMain standalone Nothing Config
+  { plugins = ps
+  , logOptions = Nothing
+  , errorMessage = Nothing
+  }
+
+
 -- | A 'TransitionHandler' function receives the 'ThreadId's of all running
 -- threads which have been started by the plugin provider as well as the
 -- 'Internal.Config' with the custom field set to 'RPCConfig'. These information
@@ -192,7 +203,7 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
         let startupConf = Internal.retypeConfig
                             (StartupConfig mDyreParams ghcEnv)
                             conf
-        startPluginThreads startupConf allPlugins >>= \case
+        P.startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
                 errorM logger $ "Error initializing plugins: " <> show (oneLineErrorMessage e)
                 putMVar (Internal.transitionTo conf) $ Internal.Failure e
@@ -206,12 +217,29 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
                 transitionHandler (srTid:ehTid:pluginTids) conf
 
 
+standalone :: TransitionHandler ()
+standalone threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
+    Internal.InitSuccess -> do
+        debugM logger "Initialization Successful"
+        standalone threads cfg
+
+    Internal.Restart -> do
+        errorM logger "Cannot restart"
+        standalone threads cfg
+
+    Internal.Failure e ->
+        errorM logger . show $ oneLineErrorMessage e
+
+    Internal.Quit ->
+        return ()
+
+
 -- | If the plugin provider is started with dyre, this handler is used to
 -- handle a restart.
 finishDyre :: TransitionHandler ()
 finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
     Internal.InitSuccess -> do
-        debugM logger "Waiting for threads to finish."
+        debugM logger "Initialization Successful"
         finishDyre threads cfg
 
     Internal.Restart -> do
