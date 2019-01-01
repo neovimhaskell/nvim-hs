@@ -26,10 +26,9 @@ import qualified Data.Map                                  as Map
 import           Data.MessagePack
 import           Data.Serialize
 import           Neovim.Compat.Megaparsec                  as P
-import           System.IO                                 (hClose)
 import           System.Process.Typed
 import           UnliftIO.Exception                        (SomeException,
-                                                            bracket, catch)
+                                                            catch)
 
 import           Data.Text.Prettyprint.Doc                 (Doc, Pretty(..), (<+>))
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
