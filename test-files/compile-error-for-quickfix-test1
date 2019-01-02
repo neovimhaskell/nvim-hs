@@ -1,7 +1,0 @@
-
-/.config/nvim/nvim.hs:25:30:
-    Couldn't match expected type `Language.Haskell.TH.Syntax.Name'
-                with actual type `Double -> Neovim r0 st0 Double'
-    In the second argument of `function', namely `mySin'
-    In the expression: function "Sin" mySin
-    In the expression: $(function "Sin" mySin)

@@ -1,5 +1,0 @@
-
-/home/test/.config/nvim/nvim.hs:8:7: error:
-    • No instance for (Num String) arising from the literal ‘1’
-    • In the expression: 1
-      In an equation for ‘foo’: foo = 1
