@@ -23,10 +23,8 @@ module Neovim (
     -- $tldrgettingstarted
     Neovim,
     neovim,
-    neovimStandalone,
     NeovimConfig(..),
     defaultConfig,
-    StartupConfig(..),
     def,
 
     -- ** Using existing plugins
@@ -75,7 +73,6 @@ module Neovim (
     -- This section contains just a bunch of more or less useful functions which
     -- were not introduced in any of the previous sections.
     liftIO,
-    withCustomEnvironment,
     whenM,
     unlessM,
     docToObject,
@@ -114,20 +111,17 @@ import           Neovim.Context               (Neovim,
                                                exceptionToDoc,
                                                ask, asks, err,
                                                errOnInvalidResult)
-import           Neovim.Main                  (neovim, neovimStandalone)
+import           Neovim.Main                  (neovim)
 import           Neovim.Plugin                (addAutocmd)
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                CommandArguments (..),
                                                CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
                                                RangeSpecification (..),
                                                Synchronous (..))
-import qualified Neovim.Plugin.ConfigHelper   as ConfigHelper
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
                                                wrapPlugin)
-import           Neovim.Plugin.Startup        (StartupConfig (..))
 import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
-import           Neovim.Util                  (unlessM, whenM,
-                                               withCustomEnvironment)
+import           Neovim.Util                  (unlessM, whenM)
 import           System.Log.Logger            (Priority (..))
 import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)
 -- Installation {{{1
@@ -183,9 +177,8 @@ which GHC should point you to.
 --
 defaultConfig :: NeovimConfig
 defaultConfig = Config
-    { plugins      = [ ConfigHelper.plugin ]
+    { plugins      = []
     , logOptions   = Nothing
-    , errorMessage = Nothing
     }
 
 

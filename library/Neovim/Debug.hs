@@ -62,7 +62,7 @@ import           Prelude
 -- automatically set.
 debug :: env -> Internal.Neovim env a -> IO (Either (Doc AnsiStyle) a)
 debug env a = disableLogger $ do
-    runPluginProvider def { envVar = True } Nothing transitionHandler Nothing
+    runPluginProvider def { envVar = True } Nothing transitionHandler
   where
     transitionHandler tids cfg = takeMVar (Internal.transitionTo cfg) >>= \case
         Internal.Failure e ->
@@ -136,7 +136,6 @@ develMain neovimConfig = lookupStore 0 >>= \case
               def{ envVar = True }
               (Just neovimConfig)
               transitionHandler
-              Nothing
         void $ newStore x
         return x
 

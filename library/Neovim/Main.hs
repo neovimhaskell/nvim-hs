@@ -15,14 +15,11 @@ import           Neovim.Config
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Log
 import qualified Neovim.Plugin           as P
-import           Neovim.Plugin.Startup   (StartupConfig (..))
 import           Neovim.RPC.Common       as RPC
 import           Neovim.RPC.EventHandler
 import           Neovim.RPC.SocketReader
 import           Neovim.Util             (oneLineErrorMessage)
 
-import qualified Config.Dyre            as Dyre
-import qualified Config.Dyre.Relaunch   as Dyre
 import           Control.Concurrent
 import           Control.Concurrent.STM (atomically, putTMVar)
 import           Control.Monad
@@ -31,11 +28,9 @@ import           Data.Maybe
 import           Data.Monoid
 import           Options.Applicative
 import           System.IO              (stdin, stdout)
-import           System.SetEnv
-import           UnliftIO.Async         (Async, async, cancel)
+import           UnliftIO.Async         (Async, async)
 
 import Prelude
-import System.Environment
 
 
 logger :: String
@@ -117,26 +112,7 @@ opts = info (helper <*> optParser)
 -- | This is essentially the main function for /nvim-hs/, at least if you want
 -- to use "Config.Dyre" for the configuration.
 neovim :: NeovimConfig -> IO ()
-neovim =
-    let params = Dyre.defaultParams
-            { Dyre.showError   = \cfg errM -> cfg { errorMessage = Just errM }
-            , Dyre.projectName = "nvim"
-            , Dyre.realMain    = realMain finishDyre (Just params)
-            , Dyre.statusOut   = debugM "Dyre"
-            , Dyre.ghcOpts     = ["-threaded", "-rtsopts", "-with-rtsopts=-N"]
-            }
-    in Dyre.wrapMain params
-
-
--- | Start the given plugins as a standalone plugin provider.
-neovimStandalone
-  :: [Internal.Neovim (StartupConfig NeovimConfig) P.NeovimPlugin]
-  -> IO ()
-neovimStandalone ps = realMain standalone Nothing Config
-  { plugins = ps
-  , logOptions = Nothing
-  , errorMessage = Nothing
-  }
+neovim = realMain standalone
 
 
 -- | A 'TransitionHandler' function receives the 'ThreadId's of all running
@@ -151,14 +127,13 @@ type TransitionHandler a = [Async ()] -> Internal.Config RPCConfig -> IO a
 -- using the "Config.Dyre" library while still using the /nvim-hs/ specific
 -- configuration facilities.
 realMain :: TransitionHandler a
-         -> Maybe (Dyre.Params NeovimConfig)
          -> NeovimConfig
          -> IO ()
-realMain transitionHandler mParams cfg = do
+realMain transitionHandler cfg = do
     os <- execParser opts
     maybe disableLogger (uncurry withLogger) (logOpts os <|> logOptions cfg) $ do
         debugM logger "Starting up neovim haskell plguin provider"
-        void $ runPluginProvider os (Just cfg) transitionHandler mParams
+        void $ runPluginProvider os (Just cfg) transitionHandler
 
 
 -- | Generic main function. Most arguments are optional or have sane defaults.
@@ -166,9 +141,8 @@ runPluginProvider
     :: CommandLineOptions -- ^ See /nvim-hs/ executables --help function or 'optParser'
     -> Maybe NeovimConfig
     -> TransitionHandler a
-    -> Maybe (Dyre.Params NeovimConfig)
     -> IO a
-runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, unix os) of
+runPluginProvider os mcfg transitionHandler = case (hostPort os, unix os) of
     (Just (h,p), _) ->
         createHandle (TCP p h) >>= \s -> run s s
 
@@ -196,13 +170,7 @@ runPluginProvider os mcfg transitionHandler mDyreParams = case (hostPort os, uni
 
         srTid <- async $ runSocketReader sockreaderHandle conf
 
-        ghcEnv <- forM ["GHC_PACKAGE_PATH","CABAL_SANDBOX_CONFIG"] $ \var -> do
-            val <- lookupEnv var
-            unsetEnv var
-            return (var, val)
-        let startupConf = Internal.retypeConfig
-                            (StartupConfig mDyreParams ghcEnv)
-                            conf
+        let startupConf = Internal.retypeConfig () conf
         P.startPluginThreads startupConf allPlugins >>= \case
             Left e -> do
                 errorM logger $ "Error initializing plugins: " <> show (oneLineErrorMessage e)
@@ -226,26 +194,6 @@ standalone threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
     Internal.Restart -> do
         errorM logger "Cannot restart"
         standalone threads cfg
-
-    Internal.Failure e ->
-        errorM logger . show $ oneLineErrorMessage e
-
-    Internal.Quit ->
-        return ()
-
-
--- | If the plugin provider is started with dyre, this handler is used to
--- handle a restart.
-finishDyre :: TransitionHandler ()
-finishDyre threads cfg = takeMVar (Internal.transitionTo cfg) >>= \case
-    Internal.InitSuccess -> do
-        debugM logger "Initialization Successful"
-        finishDyre threads cfg
-
-    Internal.Restart -> do
-        debugM logger "Trying to restart nvim-hs"
-        mapM_ cancel threads
-        Dyre.relaunchMaster Nothing
 
     Internal.Failure e ->
         errorM logger . show $ oneLineErrorMessage e

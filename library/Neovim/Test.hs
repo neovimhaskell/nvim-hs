@@ -15,28 +15,25 @@ module Neovim.Test (
     ) where
 
 import           Neovim
-import qualified Neovim.Context.Internal                   as Internal
-import           Neovim.RPC.Common                         (RPCConfig,
-                                                            newRPCConfig)
-import           Neovim.RPC.EventHandler                   (runEventHandler)
-import           Neovim.RPC.SocketReader                   (runSocketReader)
+import qualified Neovim.Context.Internal as Internal
+import           Neovim.RPC.Common       (RPCConfig, newRPCConfig)
+import           Neovim.RPC.EventHandler (runEventHandler)
+import           Neovim.RPC.SocketReader (runSocketReader)
 
-import           Control.Monad.Reader                      (runReaderT)
-import           Control.Monad.Trans.Resource              (runResourceT)
-import           Data.Text.Prettyprint.Doc                 (annotate, vsep)
-import           Data.Text.Prettyprint.Doc.Render.Terminal (Color (..), color,
-                                                            putDoc)
-import           GHC.IO.Exception                          (ioe_filename)
-import           System.Directory
-import           System.Exit                               (ExitCode (..))
-import           System.IO                                 (Handle)
-import           System.Process.Typed
-import           UnliftIO.Async                            (async, cancel)
-import           UnliftIO.Concurrent                       (threadDelay)
-import           UnliftIO.Exception
-import           UnliftIO.STM                              (atomically,
-                                                            putTMVar)
-
+import Control.Monad.Reader                      (runReaderT)
+import Control.Monad.Trans.Resource              (runResourceT)
+import Data.Text.Prettyprint.Doc                 (annotate, vsep)
+import Data.Text.Prettyprint.Doc.Render.Terminal (Color (..), color, putDoc)
+import GHC.IO.Exception                          (ioe_filename)
+import Path
+import Path.IO
+import System.Exit                               (ExitCode (..))
+import System.IO                                 (Handle)
+import System.Process.Typed
+import UnliftIO.Async                            (async, cancel)
+import UnliftIO.Concurrent                       (threadDelay)
+import UnliftIO.Exception
+import UnliftIO.STM                              (atomically, putTMVar)
 
 -- | Type synonym for 'Word'.
 newtype Seconds = Seconds Word
@@ -50,10 +47,10 @@ newtype Seconds = Seconds Word
 -- the desired state of neovim with the help of the functions in
 -- "Neovim.API.String".
 testWithEmbeddedNeovim
-    :: Maybe FilePath -- ^ Optional path to a file that should be opened
-    -> Seconds        -- ^ Maximum time (in seconds) that a test is allowed to run
-    -> env            -- ^ Read-only configuration
-    -> Neovim env a   -- ^ Test case
+    :: Maybe (Path b File) -- ^ Optional path to a file that should be opened
+    -> Seconds             -- ^ Maximum time (in seconds) that a test is allowed to run
+    -> env                 -- ^ Read-only configuration
+    -> Neovim env a        -- ^ Test case
     -> IO ()
 testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
     runTest `catch` catchIfNvimIsNotOnPath
@@ -93,7 +90,7 @@ catchIfNvimIsNotOnPath e = case ioe_filename e of
         throwIO e
 
 startEmbeddedNvim
-    :: Maybe FilePath
+    :: Maybe (Path b File)
     -> Seconds
     -> IO (Process Handle Handle (), Internal.Config RPCConfig, IO ())
 startEmbeddedNvim file (Seconds timeout) = do
@@ -102,10 +99,9 @@ startEmbeddedNvim file (Seconds timeout) = do
                     return []
 
                 Just f -> do
-                    -- 'fail' should work with most testing frameworks. In case
-                    -- it doesn't, please file a bug report!
-                    unlessM (doesFileExist f) . fail $ "File not found: " ++ f
-                    return [f]
+                    -- 'fail' should work with most testing frameworks
+                    unlessM (doesFileExist f) . fail $ "File not found: " ++ show f
+                    return [toFilePath f]
 
     nvimProcess <- startProcess
         $ setStdin createPipe
