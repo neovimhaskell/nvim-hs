@@ -3,13 +3,13 @@ name:                {{name}}
 version:             0.1.0.0
 synopsis:            Haskell Neovim plugins
 description:         Personal project to manage plugin dependencies.
+author:              {{author-name}}{{^author-name}}Author name here{{/author-name}}
+maintainer:          {{author-email}}{{^author-email}}example@example.com{{/author-email}}
+copyright:           {{copyright}}{{^copyright}}{{year}}{{^year}}2019{{/year}} {{author-name}}{{^author-name}}Author name here{{/author-name}}{{/copyright}}
 -- Take a license that you like. Only relevant if you want to make your config
 -- used by other people.
 --license:             BSD3
 --license-file:        LICENSE
-author:              Author name here
---maintainer:          example@example.com
-copyright:           2017 Author name here
 category:            Neovim
 build-type:          Simple
 --extra-source-files:  README.md
@@ -17,18 +17,18 @@ cabal-version:       >=1.10
 
 executable my-nvim-hs
   main-is:             nvim.hs
-  hs-source-dirs:      ., lib
+  hs-source-dirs:      ., nvim-hs
   other-modules:       Neovim.Example.Plugin
                      , Neovim.Example.Plugin.Fibonacci
                      , Neovim.Example.Plugin.Random
   build-depends:       base >= 4.7 && < 5
-                     , nvim-hs >= 1 && < 2
+                     , nvim-hs >= 2 && < 3
                      -- The dependencies below are only needed for the example plugin
                      , random
                      , unliftio
   default-language:    Haskell2010
 
-{-# START_FILE lib/Neovim/Example/Plugin.hs #-}
+{-# START_FILE nvim-hs/Neovim/Example/Plugin.hs #-}
 {-# LANGUAGE TemplateHaskell #-}
 -- Template Haskell is used to remove a lot of manual boiler-plate from
 -- declaring the functions you want to export.
@@ -41,7 +41,7 @@ import Neovim
 import Neovim.Example.Plugin.Random (nextRandom, setNextRandom, randomNumbers)
 import Neovim.Example.Plugin.Fibonacci (fibonacci)
 
-plugin :: Neovim (StartupConfig NeovimConfig) NeovimPlugin
+plugin :: Neovim () NeovimPlugin
 plugin = do
     randomPluginState <- randomNumbers
     wrapPlugin Plugin
@@ -56,7 +56,7 @@ plugin = do
             ]
         }
 
-{-# START_FILE lib/Neovim/Example/Plugin/Random.hs #-}
+{-# START_FILE nvim-hs/Neovim/Example/Plugin/Random.hs #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Neovim.Example.Plugin.Random
@@ -112,7 +112,7 @@ setNextRandom n = do
     -- cons n to the front of the infinite list
     atomically $ modifyTVar tVarWithRandomNumbers (n:)
 
-{-# START_FILE lib/Neovim/Example/Plugin/Fibonacci.hs #-}
+{-# START_FILE nvim-hs/Neovim/Example/Plugin/Fibonacci.hs #-}
 module Neovim.Example.Plugin.Fibonacci
     ( fibonacci
     ) where
@@ -138,3 +138,7 @@ main = do
     neovim defaultConfig
         { plugins = plugins defaultConfig ++ [ Example.plugin ]
         }
+
+{-# START_FILE plugin/nvim-hs.vim #-}
+call nvimhs#start(expand('<sfile>:p:h:h'), '{{{name}}}', [])
+
