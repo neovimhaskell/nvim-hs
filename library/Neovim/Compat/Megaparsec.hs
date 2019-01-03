@@ -2,7 +2,9 @@
 module Neovim.Compat.Megaparsec
     ( Parser
     , module X
+#if MIN_VERSION_megaparsec(7,0,0)
     , anyChar
+#endif
     ) where
 
 

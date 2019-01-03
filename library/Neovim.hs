@@ -19,16 +19,16 @@ module Neovim (
     -- $installation
 
     -- * Tutorial
-    -- ** tl;dr
-    -- $tldrgettingstarted
+    -- ** Motivation
+    -- $overview
+    -- ** Combining existing plugins
+    -- $existingplugins
     Neovim,
     neovim,
     NeovimConfig(..),
     defaultConfig,
     def,
 
-    -- ** Using existing plugins
-    -- $existingplugins
 
     -- ** Creating a plugin
     -- $creatingplugins
@@ -134,44 +134,62 @@ of this package. It is also on the repositories front page.
 -- 1}}}
 
 -- Tutorial {{{1
--- tl;dr {{{2
-{- $tldrgettingstarted
-If you are proficient with Haskell, it may be sufficient to point you at some of the
-important data structures and functions. So, I will do it here. If you need more
-assistance, please skip to the next section and follow the links for functions or data
-types you do not understand how to use. If you think that the documentation is lacking,
-please create an issue on github (or even better, a pull request with a fix @;-)@).
-The code sections that describe new functionality are followed by the source code
-documentation of the used functions (and possibly a few more).
+-- Overview {{{2
+{- $overview
+An @nvim-hs@ plugin is just a collection of haskell functions that can be
+called from neovim.
 
-The config directory location adheres to the
-<http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html XDG-basedir specification>.
-Unless you have changed some \$XDG_\* environment variables, the configuration
-directory on unixoid systems (e.g. MacOS X, most GNU/Linux distribution, most
-BSD distributions) is @\$HOME\/.config\/nvim@.
+As a user of plugins, you basically have two choices. You can start every
+plugin in a separate process and use normal vim plugin management strategies
+such as <https://github.com/junegunn/vim-plug vim-plug>
+or <https://github.com/tpope/vim-pathogen pathogen>.
+Alternatively, you can create a haskell project and depend on the plugins
+you want to use and plumb them together. This plumbing is equivalent to
+writing a plugin.
 
-Create a file called @nvim.hs@ in @\$XDG_CONFIG_HOME\/nvim@ (usually
-@~\/.config\/nvim@) with the following content:
-
-@
-import Neovim
-
-main = 'neovim' 'defaultConfig'
-@
-
-Adjust the fields in 'defaultConfig' according to the parameters in 'NeovimConfig'.
-Depending on how you define the parameters, you may have to add some language extensions
-which GHC should point you to.
+Since you are reading haddock documentation, you probably want the latter, so
+just keep reading. @:-)@
 
 -}
 
+
+-- 2}}}
+-- Combining Existing Plugins {{{2
+{- $existingplugins
+The easiest way to start is to use the stack template as described in the
+@README.md@ of this package. If you initialize it in your neovim configuration
+directory (@~/.convig/nvim@ on linux-based systems), it should automatically be
+compiled and run with two simple example plugins
+
+You have to define a haskell project that depends on this package and
+contains an executable secion with a main file that looks like this:
+
+@
+import TestPlugin.ExamplePlugin (examplePlugin)
+
+main = 'neovim' 'def'
+        { 'plugins' = [ examplePlugin ] ++ 'plugins' 'defaultConfig'
+        }
+@
+
+
+/nvim-hs/ is all about importing and creating plugins. This is done following a
+concise API. Let's start by making a given plugin available inside
+our plugin provider. Assuming that we have installed a cabal package that exports
+an @examplePlugin@ from the module @TestPlugin.ExamplePlugin@. A minimal
+main file would then look like this:
+
+That's all you have to do! Multiple plugins are simply imported and put in a
+list.
+
+-}
 
 -- | Default configuration options for /nvim-hs/. If you want to keep the
 -- default plugins enabled, you can define your config like this:
 --
 -- @
 -- main = 'neovim' 'defaultConfig'
---          { plugins = myPlugins ++ plugins defaultConfig
+--          { plugins = plugins defaultConfig ++ myPlugins
 --          }
 -- @
 --
@@ -183,38 +201,6 @@ defaultConfig = Config
 
 
 -- 2}}}
-
--- Existing Plugins {{{2
-{- $existingplugins
-/nvim-hs/ is all about importing and creating plugins. This is done following a
-concise API. Let's start by making a given plugin available inside
-our plugin provider. Assuming that we have installed a cabal package that exports
-an @examplePlugin@ from the module @TestPlugin.ExamplePlugin@. A minimal
-configuration would then look like this:
-
-@
-import TestPlugin.ExamplePlugin (examplePlugin)
-
-main = 'neovim' 'def'
-        { 'plugins' = [ examplePlugin ] ++ 'plugins' 'defaultConfig'
-        }
-@
-
-That's all you have to do! Multiple plugins are simply imported and put in a
-list.
-
-If the plugin is not packaged, you can also put the source files of the plugin
-inside @\$XDG_CONFIG_HOME\/nvim\/lib@ (usually @~\/.config\/nvim\/lib@).
-Assuming the same module name and plugin name, you can use the same configuration
-file. The source for the plugin must be located at
-@\$XDG_CONFIG_HOME\/nvim\/lib\/TestPlugin\/ExamplePlugin.hs@ and all source
-files it depends on must follow the same structure. This is the standard way
-how Haskell modules are defined in cabal projects. Having all plugins as source
-files can increase the compilation times, so plugins should be put in a cabal
-project once they are mature enough. This also makes them easy to share!
-
--}
--- 2}}}
 -- Creating a plugin {{{2
 {- $creatingplugins
 Creating plugins isn't difficult either. You just have to follow and survive the
@@ -224,8 +210,11 @@ isn't a solution for your error, you can always ask any friendly Haskeller in
 \#haskell on @irc.freenode.net@!
 
 Enough scary stuff said for now, let's write a plugin!
-Due to a stage restriction in GHC when using Template Haskell, we must define
+Due to a stage restriction in GHC when using Template Haskell
+(i.e. code generation), we must define
 our functions in a different module than @\$XDG_CONFIG_HOME\/nvim\/nvim.hs@.
+(I'm assuming here, that you use @\$XDG_CONFIG_HOME\/nvim\/@ as the base
+directory for historical reasons and because it might be an appropriate place.)
 This is a bit unfortunate, but it will save you a lot of boring boilerplate and
 it will present you with helpful error messages if your plugin's functions do
 not work together with neovim.
@@ -257,7 +246,7 @@ module Fibonacci (plugin) where
 import "Neovim"
 import Fibonacci.Plugin (fibonacci)
 
-plugin :: 'Neovim' ('StartupConfig' 'NeovimConfig') () 'NeovimPlugin'
+plugin :: 'Neovim' () 'NeovimPlugin'
 plugin = 'wrapPlugin' Plugin
     { 'environment' = ()
     , 'exports'     = [ $('function'' 'fibonacci) 'Sync' ]
@@ -290,8 +279,8 @@ You can use any argument or result type as long as it is an instance of 'NvimObj
 
 The second part of of the puzzle, which is the definition of @plugin@
 in @~\/.config\/nvim\/lib\/Fibonacci.hs@, shows what a plugin is. It is essentially
-an environment that and a list of functions, commands or autocommands in the context of vim
-terminology. In the end, all of those things map to a function at the side
+an empty environment and a list of functions, commands or autocommands in the context of vim
+terminology.  In the end, all of those things map to a function at the side
 of /nvim-hs/. If you really want to know what the distinction between those is, you
 have to consult the @:help@ pages of neovim (e.g. @:help :function@, @:help :command@
 and @:help :autocmd@). What's relevant from the side of /nvim-hs/ is the environment.
@@ -299,7 +288,7 @@ The environment is a data type that is avaiable to all exported functions of you
 plugin. This example does not make use of anything of that environment, so
 we used '()', also known as unit, as our environment. The definition of
 @fibonacci@ uses a type variable @env@ as it does not access the environment and
-can handly any environment. If you want to access the environment, you can call
+can handle any environment. If you want to access the environment, you can call
 'ask' or 'asks' if you are inside a 'Neovim' environment. An example that shows
 you how to use it can be found in a later chapter.
 
@@ -315,10 +304,7 @@ prime symbol before the function name! This would have probably caused you
 some trouble if I haven't mentioned it here! Template Haskell simply requires
 you to put that in front of function names that are passed in a splice.
 
-If you compile this (which should happen automatically if you have put those
-files at the appropriate places), you can restart /nvim-hs/ with the command
-@:RestartNvimhs@ which is available as long as you do not remove the default
-plugins from you rconfig. Afterwards, you can calculate the 2000th Fibonacci
+If you compile this and restart the plugin, you can calculate the 2000th Fibonacci
 number like as if it were a normal vim-script function:
 
 @
@@ -332,6 +318,9 @@ mode:
 @
 \<C-r\>=Fibonacci(2000)
 @
+
+The haddock documentation will now list all the things we have used up until now.
+Afterwards, there is a plugin with state which uses the environment.
 
 -}
 -- 2}}}
@@ -372,7 +361,7 @@ nextRandom = do
     tVarWithRandomNumbers <- 'ask'
     atomically $ do
         -- pick the head of our list of random numbers
-        r <- 'head' <$> 'readTVar' tVarWithRandomNumbers
+        r \<- 'head' <$> 'readTVar' tVarWithRandomNumbers
 
         -- Since we do not want to return the same number all over the place
         -- remove the head of our list of random numbers
@@ -430,13 +419,11 @@ main = 'neovim' 'defaultConfig'
 
 That wasn't too hard, was it? The definition is very similar to the previous
 example, we just were able to mutate our state and share that with other
-functions. The only slightly tedious thing was to define the 'statefulExports'
-field because it is a list of triples which has a list of exported
-functionalities as its third argument. Another noteworthy detail, in case you
+functions. Another noteworthy detail, in case you
 are not familiar with it, is the use of 'liftIO' in front of 'newStdGen'. You
 have to do this, because 'newStdGen' has type @'IO' 'StdGen'@ but the actions
 inside the startup code are of type
-@'Neovim' ('StartupConfig' 'NeovimConfig') () something@. 'liftIO' lifts an
+@'Neovim' () something@. 'liftIO' lifts an
 'IO' function so that it can be run inside the 'Neovim' context (or more
 generally, any monad that implements the 'MonadIO' type class).
 
@@ -469,11 +456,10 @@ inspectBuffer = do
     isValid <- 'buffer_is_valid' cb
     when isValid $ do
         let newName = "magic"
-        retval <- 'wait'' $ 'buffer_set_name' cb newName
-        case retval of
-            Right cbName | cbName == newName -> 'return' ()
-            Right _ -> 'err' $ "Renaming the current buffer failed!"
-            Left e -> 'err' $ 'show' e
+        cbName \<- 'wait'' $ 'buffer_set_name' cb newName
+        case () of
+            _ | cbName == newName -> 'return' ()
+            _ -> 'err' $ "Renaming the current buffer failed!"
 @
 
 You may have noticed the 'wait'' function in there. Some functions have a return
@@ -484,9 +470,7 @@ call because we want to inspect the result immediately, though. The other
 functions either returned a result directly or they returned
 @'Either' 'Object' something@ whose result we inspected ourselves. The 'err'
 function directly terminates the current thread and sends the given error
-message to neovim which the user immediately notices. Since it is not unusual to
-not know what to do if the remote function call failed, the functions 'waitErr'
-and 'waitErr'' can save you from some typing and deeply nested case expressions.
+message to neovim which the user immediately notices.
 
 That's pretty much all there is to it.
 -}
