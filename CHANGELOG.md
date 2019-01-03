@@ -1,3 +1,31 @@
+# 2.0.0.0
+
+* Your configuration is now just a Haskell project. The dependency to Dyre has
+  been removed and you are now forced to write a line of vimL and add a normal
+  nvim-plugin to your setup. The template still does set everything up for you.
+  The distinction between a plugin and a personal nvim-hs configuration is now
+  gone and apart from settings things up, nothing has changed in this regard.
+  The nvim-plugin contains the necessary documentation on what to do and
+  should be available with `:help nvim-hs` when installed correctly.
+
+* Since basically all generated functions were throwing exceptions anyway, the
+  primed functions have become the default and if you want to explicitly handle
+  error cases, you have to surround your code with `catch` or something more
+  appropriate from `UnliftIO.Exception`. You have to remove `'` from your API
+  calls or you have to adjust your error handling.
+
+* There are now three flavors of APIs and you have to import one additionally to
+  importing the `Neovim` module:
+
+  - *Neovim.API.Text*: This uses strict `Text` for strings and `Vector` as
+    lists. This is the recommended API to use.
+
+  - *Neovim.API.String*: This is the same as before. Strings are `String`
+    and lists are `[]`. This is for the lazy and backwards-ish compatiblity.
+
+  - *Neovim.API.ByteString*: This can be useful for really performance critical
+    stuff or if you`re writing a plugin for binary files.
+
 # 1.0.1.0
 
 * The `Neovim.Debug` module is now more pleasant to use.

@@ -1,8 +1,8 @@
 flags: {}
 packages:
 - '.'
-resolver: lts-12.25
-extra-deps: []
+resolver: nightly-2019-03-03
+extra-deps: [messagepack-0.5.4]
 
 allow-newer: true
 
