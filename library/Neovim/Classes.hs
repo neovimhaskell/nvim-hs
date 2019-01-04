@@ -123,6 +123,8 @@ class NFData o => NvimObject o where
     fromObject' :: (MonadIO io) => Object -> io o
     fromObject' = either (throwIO . ErrorMessage) return . fromObject
 
+    {-# MINIMAL toObject, (fromObject | fromObjectUnsafe) #-}
+
 
 -- Instances for NvimObject {{{1
 instance NvimObject () where
