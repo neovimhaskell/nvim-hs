@@ -34,39 +34,53 @@ module Neovim.Classes
     , module Control.DeepSeq
     ) where
 
-import           Neovim.Exceptions                         (NeovimException (..))
+import Neovim.Exceptions (NeovimException (..))
 
 import           Control.Applicative
 import           Control.Arrow                             ((***))
 import           Control.DeepSeq
 import           Control.Monad.Except
 import           Data.ByteString                           (ByteString)
-import           Data.Int                                  (Int16, Int32, Int64,
-                                                            Int8)
+import           Data.Int
+    ( Int16
+    , Int32
+    , Int64
+    , Int8
+    )
 import qualified Data.Map.Strict                           as SMap
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                                 as Text (Text)
-import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
-                                                            defaultLayoutOptions,
-                                                            layoutPretty, viaShow,
-                                                            (<+>))
+import           Data.Text.Prettyprint.Doc
+    ( Doc
+    , Pretty (..)
+    , defaultLayoutOptions
+    , layoutPretty
+    , viaShow
+    , (<+>)
+    )
 import qualified Data.Text.Prettyprint.Doc                 as P
-import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle,
-                                                            renderStrict)
+import           Data.Text.Prettyprint.Doc.Render.Terminal
+    ( AnsiStyle
+    , renderStrict
+    )
 import           Data.Traversable                          hiding (forM, mapM)
-import           Data.Word                                 (Word, Word16,
-                                                            Word32, Word64,
-                                                            Word8)
+import           Data.Vector                               (Vector)
+import qualified Data.Vector                               as V
+import           Data.Word
+    ( Word
+    , Word16
+    , Word32
+    , Word64
+    , Word8
+    )
 import           GHC.Generics                              (Generic)
 
-import qualified Data.ByteString.UTF8                      as UTF8 (fromString,
-                                                                    toString)
-import           Data.Text.Encoding                        (decodeUtf8,
-                                                            encodeUtf8)
-import           UnliftIO.Exception                        (throwIO)
+import qualified Data.ByteString.UTF8 as UTF8 (fromString, toString)
+import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
+import           UnliftIO.Exception   (throwIO)
 
-import           Prelude
+import Prelude
 
 
 infixr 5 +:
@@ -292,6 +306,12 @@ instance NvimObject o => NvimObject (Maybe o) where
     fromObject ObjectNil = return Nothing
     fromObject o         = either throwError (return . Just) $ fromObject o
 
+
+instance NvimObject o => NvimObject (Vector o) where
+    toObject = ObjectArray . V.toList . V.map toObject
+
+    fromObject (ObjectArray os) = V.fromList <$> mapM fromObject os
+    fromObject o                = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 
 -- | Right-biased instance for toObject.

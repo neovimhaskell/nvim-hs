@@ -61,13 +61,9 @@ module Neovim (
     -- $remote
     wait,
     wait',
-    waitErr,
-    waitErr',
     err,
     errOnInvalidResult,
     NeovimException(..),
-    -- ** Generated functions for neovim interaction
-    module Neovim.API.String,
 
     -- * Unsorted exports
     -- This section contains just a bunch of more or less useful functions which
@@ -99,7 +95,6 @@ import           Data.Int                     (Int16, Int32, Int64, Int8)
 import           Data.MessagePack             (Object (..))
 import           Data.Monoid
 import           Data.Word                    (Word, Word16, Word32, Word8)
-import           Neovim.API.String
 import           Neovim.API.TH                (autocmd, command, command',
                                                function, function')
 import           Neovim.Classes               (Dictionary, NvimObject (..),
@@ -120,7 +115,7 @@ import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                Synchronous (..))
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
                                                wrapPlugin)
-import           Neovim.RPC.FunctionCall      (wait, wait', waitErr, waitErr')
+import           Neovim.RPC.FunctionCall      (wait, wait')
 import           Neovim.Util                  (unlessM, whenM)
 import           System.Log.Logger            (Priority (..))
 import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)

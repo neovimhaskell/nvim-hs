@@ -56,6 +56,8 @@ library
   -- the Neovim module. Since we are still in a prototyping stage, every user of
   -- this library should have the freedom to do what she wants.
                       , Neovim.API.String
+                      , Neovim.API.Text
+                      , Neovim.API.ByteString
                       , Neovim.Classes
                       , Neovim.Compat.Megaparsec
                       , Neovim.Config
@@ -130,6 +132,7 @@ library
                       , unliftio >= 0.2
                       , unliftio-core
                       , utf8-string
+                      , vector
                       , void
   hs-source-dirs:       library
   default-language:     Haskell2010
@@ -181,6 +184,7 @@ test-suite hspec
                       , unliftio
                       , unliftio-core
                       , utf8-string
+                      , vector
                       , HUnit
 
   other-modules:        Neovim.API.THSpec

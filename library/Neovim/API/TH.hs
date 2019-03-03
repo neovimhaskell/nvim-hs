@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE CPP               #-}
 {- |
@@ -17,7 +18,9 @@ module Neovim.API.TH
     , command
     , command'
     , autocmd
-    , defaultAPITypeToHaskellTypeMap
+    , stringListTypeMap
+    , textVectorTypeMap
+    , bytestringVectorTypeMap
 
     , module UnliftIO.Exception
     , module Neovim.Classes
@@ -55,6 +58,7 @@ import           Data.Monoid
 import qualified Data.Set                 as Set
 import           Data.Text                (Text)
 import           Data.Text.Prettyprint.Doc ((<+>), Doc, viaShow, Pretty(..))
+import           Data.Vector              (Vector)
 import           UnliftIO.Exception
 
 import           Prelude
@@ -77,7 +81,7 @@ dataD' cxtQ n tyvarbndrs conq ns =
 -- must form an isomorphism with the sent messages types. Currently, it
 -- provides a Convenient way to replace the /String/ type with 'Text',
 -- 'ByteString' or 'String'.
-generateAPI :: Map String (Q Type) -> Q [Dec]
+generateAPI :: TypeMap -> Q [Dec]
 generateAPI typeMap = do
     api <- either (fail . show) return =<< runIO parseAPI
     let exceptionName = mkName "NeovimExceptionGen"
@@ -93,27 +97,57 @@ generateAPI typeMap = do
         ]
 
 
--- | Default type mappings for the requested API.
-defaultAPITypeToHaskellTypeMap :: Map String (Q Type)
-defaultAPITypeToHaskellTypeMap = Map.fromList
+-- | Maps type identifiers from the neovim API to Haskell types.
+data TypeMap = TypeMap
+  { typesOfAPI :: Map String (Q Type)
+  , list       :: Q Type
+  }
+
+
+stringListTypeMap :: TypeMap
+stringListTypeMap = TypeMap
+  { typesOfAPI = Map.fromList
     [ ("Boolean"   , [t|Bool|])
     , ("Integer"   , [t|Int64|])
     , ("Float"     , [t|Double|])
+    , ("String"    , [t|String|])
     , ("Array"     , [t|[Object]|])
-    , ("Dictionary", [t|Map Object Object|])
+    , ("Dictionary", [t|Map String Object|])
     , ("void"      , [t|()|])
     ]
+  , list = listT
+  }
 
+textVectorTypeMap :: TypeMap
+textVectorTypeMap = stringListTypeMap
+  { typesOfAPI = adjustTypeMapForText $ typesOfAPI stringListTypeMap
+  , list = [t|Vector|]
+  }
+  where
+    adjustTypeMapForText =
+      Map.insert "String"     [t|Text|] .
+      Map.insert "Array"      [t|Vector Object|] .
+      Map.insert "Dictionary" [t|Map Text Object|]
 
-apiTypeToHaskellType :: Map String (Q Type) -> NeovimType -> Q Type
-apiTypeToHaskellType typeMap at = case at of
+bytestringVectorTypeMap :: TypeMap
+bytestringVectorTypeMap = textVectorTypeMap
+  { typesOfAPI = adjustTypeMapForByteString $ typesOfAPI textVectorTypeMap
+  }
+  where
+    adjustTypeMapForByteString =
+      Map.insert "String"     [t|ByteString|] .
+      Map.insert "Array"      [t|Vector Object|] .
+      Map.insert "Dictionary" [t|Map ByteString Object|]
+
+apiTypeToHaskellType :: TypeMap -> NeovimType -> Q Type
+apiTypeToHaskellType typeMap@TypeMap{typesOfAPI,list} at = case at of
     Void -> [t|()|]
     NestedType t Nothing ->
-        appT listT $ apiTypeToHaskellType typeMap t
+        appT list $ apiTypeToHaskellType typeMap t
     NestedType t (Just n) ->
         foldl appT (tupleT n) . replicate n $ apiTypeToHaskellType typeMap t
     SimpleType t ->
-        fromMaybe ((conT . mkName) t) $ Map.lookup t typeMap
+        fromMaybe ((conT . mkName) t) $ Map.lookup t typesOfAPI
 
 
 -- | This function will create a wrapper function with neovim's function name
@@ -141,30 +175,23 @@ apiTypeToHaskellType typeMap at = case at of
 --                               ]
 -- @
 --
-createFunction :: Map String (Q Type) -> NeovimFunction -> Q [Dec]
+createFunction :: TypeMap -> NeovimFunction -> Q [Dec]
 createFunction typeMap nf = do
     let withDeferred | async nf    = appT [t|STM|]
                      | otherwise   = id
 
-        withException' | canFail nf = appT [t|Either NeovimException|]
-                       | otherwise  = id
+        callFn | async nf               = [|acall'|]
+               | otherwise              = [|scall'|]
 
-        callFns | async nf && canFail nf = [ [|acall|] ]
-                | async nf               = [ [|acall'|] ]
-                | canFail nf             = [ [|scall|], [|scallThrow|] ]
-                | otherwise              = [ [|scall'|] ]
-
-        functionNames = map mkName [ name nf, name nf ++ "'" ]
+        functionName = mkName $ name nf
         toObjVar v = [|toObject $(varE v)|]
 
 
-    retTypes <- let env = (mkName "env")
-                    createSig retTypeFun =
-                        forallT [PlainTV env] (return [])
-                        . appT ([t|Neovim $(varT env) |])
-                        . withDeferred . retTypeFun
-                        . apiTypeToHaskellType typeMap $ returnType nf
-                in mapM createSig [ withException', id ]
+    retType <- let env = (mkName "env")
+               in forallT [PlainTV env] (return [])
+                       . appT ([t|Neovim $(varT env) |])
+                       . withDeferred
+                       . apiTypeToHaskellType typeMap $ returnType nf
 
     -- prefix with arg0_, arg1_ etc. to prevent generated code from crashing due
     -- to keywords being used.
@@ -176,7 +203,7 @@ createFunction typeMap nf = do
                                 <*> newName n)
             $ applyPrefixWithNumber nf
 
-    let impl functionName callFn retType =
+    sequence
             [ sigD functionName . return
                 . foldr (AppT . AppT ArrowT) retType $ map fst vars
             , funD functionName
@@ -188,8 +215,6 @@ createFunction typeMap nf = do
                     []
                 ]
             ]
-
-    sequence . concat $ zipWith3 impl functionNames callFns retTypes
 
 
 -- | @ createDataTypeWithObjectComponent SomeName [Foo,Bar]@
