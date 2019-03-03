@@ -15,6 +15,7 @@ module Neovim.Test (
     ) where
 
 import           Neovim
+import           Neovim.API.Text
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.RPC.Common       (RPCConfig, newRPCConfig)
 import           Neovim.RPC.EventHandler (runEventHandler)

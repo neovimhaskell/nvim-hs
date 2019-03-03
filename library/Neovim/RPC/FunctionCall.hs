@@ -18,8 +18,6 @@ module Neovim.RPC.FunctionCall (
     atomically',
     wait,
     wait',
-    waitErr,
-    waitErr',
     respond,
     ) where
 
@@ -29,7 +27,6 @@ import qualified Neovim.Context.Internal   as Internal
 import           Neovim.Plugin.Classes     (FunctionName)
 import           Neovim.Plugin.IPC.Classes
 import qualified Neovim.RPC.Classes        as MsgpackRPC
-import           Neovim.Exceptions         (NeovimException(..), exceptionToDoc)
 
 import           Control.Applicative
 import           Control.Concurrent.STM
@@ -127,25 +124,6 @@ wait = (=<<) atomically'
 -- | Variant of 'wait' that discards the result.
 wait' :: Neovim env (STM result) -> Neovim env ()
 wait' = void . wait
-
-
--- | Wait for the result of the 'STM' action and call @'err' . (loc++) . show@
--- if the action returned an error.
-waitErr :: String                             -- ^ Prefix error message with this.
-        -> Neovim env (STM (Either NeovimException result)) -- ^ Function call to neovim
-        -> Neovim env result
-waitErr loc act = wait act >>= \case
-    Left e ->
-        err $ pretty loc <+> exceptionToDoc e
-    Right result ->
-        return result
-
-
--- | 'waitErr' that discards the result.
-waitErr' :: String
-         -> Neovim env (STM (Either NeovimException result))
-         -> Neovim env ()
-waitErr' loc = void . waitErr loc
 
 
 -- | Send the result back to the neovim instance.

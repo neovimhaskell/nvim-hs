@@ -50,7 +50,7 @@ import           Data.Traversable             (forM)
 import           System.Log.Logger
 import           UnliftIO.Async               (Async, async, race)
 import           UnliftIO.Concurrent          (threadDelay)
-import           UnliftIO.Exception           (SomeException, try)
+import           UnliftIO.Exception           (SomeException, try, catch)
 import           UnliftIO.STM
 
 import           Prelude
@@ -87,18 +87,19 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#FunctionOnHost", toObject n))
                 (\c -> ("remote#define#FunctionOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction $
-            host +: functionName +: s +: functionName +: (Map.empty :: Dictionary) +: []
-
-        case ret of
-            Left e -> do
+            reportError (e :: NeovimException) = do
                 liftIO . errorM logger $
                     "Failed to register function: " ++ show functionName ++ show e
                 return False
-            Right _ -> do
+            logSuccess = do
                 liftIO . debugM logger $
                     "Registered function: " ++ show functionName
                 return True
+
+        flip catch reportError $ do
+          void $ vim_call_function defineFunction $
+            host +: functionName +: s +: functionName +: (Map.empty :: Dictionary) +: []
+          logSuccess
 
     Command (F functionName) copts -> do
         let sync = case getCommandOptions copts of
@@ -112,18 +113,18 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#CommandOnHost", toObject n))
                 (\c -> ("remote#define#CommandOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction $
-                    host +: functionName +: sync +: functionName +: copts +: []
-
-        case ret of
-            Left e -> do
+            reportError (e :: NeovimException) = do
                 liftIO . errorM logger $
                     "Failed to register command: " ++ show functionName ++ show e
                 return False
-            Right _ -> do
+            logSuccess = do
                 liftIO . debugM logger $
                     "Registered command: " ++ show functionName
                 return True
+        flip catch reportError $ do
+          void $ vim_call_function defineFunction $
+            host +: functionName +: sync +: functionName +: copts +: []
+          logSuccess
 
     Autocmd acmdType (F functionName) opts -> do
         pName <- getProviderName
@@ -131,17 +132,18 @@ registerWithNeovim = \case
                 (\n -> ("remote#define#AutocmdOnHost", toObject n))
                 (\c -> ("remote#define#AutocmdOnChannel", toObject c))
                 pName
-        ret <- vim_call_function defineFunction $
-                    host +:  functionName +:  Async  +:  acmdType  +:  opts +: []
-        case ret of
-            Left e -> do
+            reportError (e :: NeovimException) = do
                 liftIO . errorM logger $
                     "Failed to register autocmd: " ++ show functionName ++ show e
                 return False
-            Right _ -> do
+            logSuccess = do
                 liftIO . debugM logger $
                     "Registered autocmd: " ++ show functionName
                 return True
+        flip catch reportError $ do
+          void $ vim_call_function defineFunction $
+            host +:  functionName +:  Async  +:  acmdType  +:  opts +: []
+          logSuccess
 
 
 -- | Return or retrive the provider name that the current instance is associated
@@ -156,7 +158,8 @@ getProviderName = do
         Nothing -> do
             api <- nvim_get_api_info
             case api of
-                Right (i:_) -> do
+                [] -> err "empty nvim_get_api_info"
+                (i:_) -> do
                     case fromObject i :: Either (Doc AnsiStyle) Int of
                       Left _ ->
                           err $ "Expected an integral value as the first"
@@ -164,9 +167,6 @@ getProviderName = do
                       Right channelId -> do
                           liftIO . atomically . putTMVar mp . Right $ fromIntegral channelId
                           return . Right $ fromIntegral channelId
-
-                _ ->
-                    err "Could not determine provider name."
 
 
 registerFunctionality :: FunctionalityDescription
@@ -325,7 +325,7 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
                         (executeFunction f notArgs)
                     case result of
                       Left message ->
-                          nvim_err_writeln' message
+                          nvim_err_writeln message
                       Right _ ->
                           return ()
 

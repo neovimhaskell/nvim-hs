@@ -22,5 +22,5 @@ module Neovim.API.String
 
 import           Neovim.API.TH
 
-$(generateAPI defaultAPITypeToHaskellTypeMap)
+$(generateAPI stringListTypeMap)
 

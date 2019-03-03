@@ -309,6 +309,9 @@ instance NvimObject RangeSpecification where
         WholeFile    -> ObjectBinary "%"
         RangeCount n -> toObject n
 
+    fromObject o = throwError $
+      "Did not expect to receive a RangeSpecification object:" <+> viaShow o
+
 
 -- | You can use this type as the first argument for a function which is
 -- intended to be exported as a command. It holds information about the special
