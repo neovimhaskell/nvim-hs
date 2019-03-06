@@ -3,9 +3,9 @@
 set -ev
 
 if [ -f configure.ac ]; then autoreconf -i; fi
-rm -rf dist/
+rm -rf dist-newstyle/
 cabal sdist # test that a source-distribution can be generated
-cd dist/
+cd dist-newstyle/
 SRCTAR=$(ls *.tar.gz)
 SRC_BASENAME="${SRCTAR/%.tar.gz}"
 tar -xvf "./$SRC_BASENAME.tar.gz"
