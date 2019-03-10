@@ -63,7 +63,7 @@ runEventHandlerContext env (EventHandler a) =
 
 eventHandlerSource :: ConduitT () SomeMessage EventHandler ()
 eventHandlerSource = asks Internal.eventQueue >>= \q ->
-    forever $ yield =<< atomically' (readTQueue q)
+    forever $ yield =<< readSomeMessage q
 
 
 eventHandler :: ConduitM SomeMessage EncodedResponse EventHandler ()

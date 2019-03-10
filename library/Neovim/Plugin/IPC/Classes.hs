@@ -19,6 +19,8 @@ module Neovim.Plugin.IPC.Classes (
     FunctionCall(..),
     Request(..),
     Notification(..),
+    writeMessage,
+    readSomeMessage,
 
     UTCTime,
     getCurrentTime,
@@ -29,13 +31,14 @@ module Neovim.Plugin.IPC.Classes (
 import           Neovim.Classes
 import           Neovim.Plugin.Classes     (FunctionName)
 
+import           Control.Exception         (evaluate)
 import           Control.Concurrent.STM
+import           Control.Monad.IO.Class    (MonadIO(..))
 import           Data.Data                 (Typeable, cast)
 import           Data.Int                  (Int64)
 import           Data.MessagePack
 import           Data.Time                 (UTCTime, formatTime, getCurrentTime)
 import           Data.Time.Locale.Compat   (defaultTimeLocale)
-
 import           Data.Text.Prettyprint.Doc (Pretty (..), nest, hardline, (<+>), (<>), viaShow)
 
 import           Prelude
@@ -54,19 +57,28 @@ data SomeMessage = forall msg. Message msg => SomeMessage msg
 -- type withouth having to pattern match on the constructors. This also allows
 -- plugin authors to create their own message types without having to change the
 -- core code of /nvim-hs/.
-class Typeable message => Message message where
+class (NFData message, Typeable message) => Message message where
     -- | Try to convert a given message to a value of the message type we are
     -- interested in. Will evaluate to 'Nothing' for any other type.
     fromMessage :: SomeMessage -> Maybe message
     fromMessage (SomeMessage message) = cast message
 
+writeMessage :: (MonadIO m, Message message) => TQueue SomeMessage -> message -> m ()
+writeMessage q message = liftIO $ do
+    evaluate (rnf message)
+    atomically $ writeTQueue q (SomeMessage message)
+
+readSomeMessage :: MonadIO m => TQueue SomeMessage -> m SomeMessage
+readSomeMessage q = liftIO $ atomically (readTQueue q)
 
 -- | Haskell representation of supported Remote Procedure Call messages.
 data FunctionCall
     = FunctionCall FunctionName [Object] (TMVar (Either Object Object)) UTCTime
     -- ^ Method name, parameters, callback, timestamp
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
+instance NFData FunctionCall where
+  rnf (FunctionCall f os v t) = f `deepseq` os `deepseq` v `seq` t `deepseq` ()
 
 instance Message FunctionCall
 
