@@ -68,7 +68,7 @@ acall fn parameters = do
     q <- Internal.asks' Internal.eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
-    atomically' . writeTQueue q . SomeMessage $ FunctionCall fn parameters mv timestamp
+    writeMessage q $ FunctionCall fn parameters mv timestamp
     return $ convertObject <$> readTMVar mv
   where
     convertObject :: (NvimObject result)
@@ -152,6 +152,6 @@ waitErr' loc = void . waitErr loc
 respond :: (NvimObject result) => Request -> Either String result -> Neovim env ()
 respond Request{..} result = do
     q <- Internal.asks' Internal.eventQueue
-    atomically' . writeTQueue q . SomeMessage . MsgpackRPC.Response reqId $
+    writeMessage q . MsgpackRPC.Response reqId $
         either (Left . toObject) (Right . toObject) result
 

@@ -128,8 +128,8 @@ handleRequestOrNotification requestId functionToCall params = do
         Nothing -> do
             let errM = "No provider for: " <> show functionToCall
             debugM logger errM
-            forM_ requestId $ \i -> atomically' . writeTQueue (Internal.eventQueue rpc)
-                . SomeMessage $ MsgpackRPC.Response i (Left (toObject errM))
+            forM_ requestId $ \i -> writeMessage (Internal.eventQueue rpc) $
+                MsgpackRPC.Response i (Left (toObject errM))
 
         Just (copts, Internal.Stateful c) -> do
             now <- liftIO getCurrentTime
@@ -139,12 +139,10 @@ handleRequestOrNotification requestId functionToCall params = do
             case requestId of
                 Just i -> do
                     atomically' . modifyTVar q $ Map.insert i (now, reply)
-                    atomically' . writeTQueue c . SomeMessage $
-                        Request functionToCall i (parseParams copts params)
+                    writeMessage c $ Request functionToCall i (parseParams copts params)
 
                 Nothing ->
-                    atomically' . writeTQueue c . SomeMessage $
-                        Notification functionToCall (parseParams copts params)
+                    writeMessage c $ Notification functionToCall (parseParams copts params)
 
 
 parseParams :: FunctionalityDescription -> [Object] -> [Object]

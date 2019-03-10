@@ -307,7 +307,7 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
                     -> TVar (Map FunctionName ([Object] -> Neovim env Object))
                     -> Neovim env ()
     listeningThread q route = do
-        msg <- liftIO . atomically $ readTQueue q
+        msg <- readSomeMessage q
 
         forM_ (fromMessage msg) $ \req@Request{..} -> do
             route' <- liftIO $ readTVarIO route
