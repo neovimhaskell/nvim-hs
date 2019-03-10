@@ -29,7 +29,7 @@ maintainer:          woozletoff@gmail.com
 copyright:           Copyright 2017-2018 Sebastian Witte <woozletoff@gmail.com>
 category:            Editor
 build-type:          Simple
-cabal-version:       >=1.18
+cabal-version:       1.18
 extra-source-files:    nvim-hs-devel.sh
                      , test-files/hello
                      , apiblobs/0.1.7.msgpack
