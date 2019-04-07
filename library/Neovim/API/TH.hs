@@ -35,6 +35,7 @@ import           Neovim.Plugin.Classes    (CommandArguments (..),
                                            CommandOption (..),
                                            FunctionalityDescription (..),
                                            FunctionName(..),
+                                           Synchronous(Async),
                                            mkCommandOptions)
 import           Neovim.Plugin.Internal   (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
@@ -452,7 +453,7 @@ autocmd functionName =
         (as, fun) <- functionImplementation functionName
         case as of
             [] ->
-                [|\t acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) acmdOpts, $(return fun))|]
+                [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
 
             _ ->
                 error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."

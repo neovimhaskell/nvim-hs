@@ -126,7 +126,7 @@ registerWithNeovim = \case
             host +: functionName +: sync +: functionName +: copts +: []
           logSuccess
 
-    Autocmd acmdType (F functionName) opts -> do
+    Autocmd acmdType (F functionName) sync opts -> do
         pName <- getProviderName
         let (defineFunction, host) = either
                 (\n -> ("remote#define#AutocmdOnHost", toObject n))
@@ -142,7 +142,7 @@ registerWithNeovim = \case
                 return True
         flip catch reportError $ do
           void $ vim_call_function defineFunction $
-            host +:  functionName +:  Async  +:  acmdType  +:  opts +: []
+            host +:  functionName +:  sync  +:  acmdType  +:  opts +: []
           logSuccess
 
 
@@ -190,7 +190,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
 
   where
     freeFun = \case
-        Autocmd event _ AutocmdOptions{..} -> do
+        Autocmd event _ _ AutocmdOptions{..} -> do
             void . vim_command . unwords $ catMaybes
                     [ Just "autocmd!", acmdGroup
                     , Just (toString event) , Just acmdPattern
@@ -242,14 +242,15 @@ registerPlugin reg d f q tm = registerWithNeovim d >>= \case
 --
 addAutocmd :: ByteString
            -- ^ The event to register to (e.g. BufWritePost)
+           -> Synchronous
            -> AutocmdOptions
            -> (Neovim env ())
            -- ^ Fully applied function to register
            -> Neovim env (Maybe (Either (Neovim anyEnv ()) ReleaseKey))
            -- ^ A 'ReleaseKey' if the registration worked
-addAutocmd event (opts@AutocmdOptions{..}) f = do
+addAutocmd event s (opts@AutocmdOptions{..}) f = do
     n <- newUniqueFunctionName
-    fmap snd <$> registerFunctionality (Autocmd event n opts) (\_ -> toObject <$> f)
+    fmap snd <$> registerFunctionality (Autocmd event n s opts) (\_ -> toObject <$> f)
 
 
 -- | Create a listening thread for events and add update the 'FunctionMap' with

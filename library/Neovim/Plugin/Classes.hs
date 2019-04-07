@@ -76,7 +76,7 @@ data FunctionalityDescription
     -- * Name of the command (must start with an uppercase letter)
     -- * Options to configure neovim's behavior for calling the command
 
-    | Autocmd ByteString FunctionName AutocmdOptions
+    | Autocmd ByteString FunctionName Synchronous AutocmdOptions
     -- ^ Exported autocommand. Will call the given function if the type and
     -- filter match.
     --
@@ -85,6 +85,7 @@ data FunctionalityDescription
     --
     -- * Type of the autocmd (e.g. \"BufWritePost\")
     -- * Name for the function to call
+    -- * Whether to use rpcrequest or rpcnotify
     -- * Options for the autocmd (use 'def' here if you don't want to change anything)
 
     deriving (Show, Read, Eq, Ord, Generic)
@@ -101,8 +102,9 @@ instance Pretty FunctionalityDescription where
         Command fname copts ->
             "Command" <+> pretty copts <+> pretty fname
 
-        Autocmd t fname aopts ->
+        Autocmd t fname s aopts ->
             "Autocmd" <+> pretty (decodeUtf8 t)
+                <+> pretty s
                 <+> pretty aopts
                 <+> pretty fname
 
@@ -443,5 +445,5 @@ instance HasFunctionName FunctionalityDescription where
     name = \case
         Function  n _ -> n
         Command   n _ -> n
-        Autocmd _ n _ -> n
+        Autocmd _ n _ _ -> n
 
