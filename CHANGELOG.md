@@ -1,3 +1,10 @@
+# 2.1.0.0
+
+* Autocommands now take an additional parameter of type `Synchronous`, allowing
+  them to execute synchronous (previously hardcoded as `Async`).
+  In order to adapt to this, change ` $(autocmd 'handler) opts` to
+  `$(autocmd 'handler) Async opts`.
+
 # 2.0.0.0
 
 * Your configuration is now just a Haskell project. The dependency to Dyre has
