@@ -35,7 +35,6 @@ import           Neovim.Plugin.Classes    (CommandArguments (..),
                                            CommandOption (..),
                                            FunctionalityDescription (..),
                                            FunctionName(..),
-                                           Synchronous(Async),
                                            mkCommandOptions)
 import           Neovim.Plugin.Internal   (ExportedFunctionality (..))
 import           Neovim.RPC.FunctionCall
