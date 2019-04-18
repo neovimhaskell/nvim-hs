@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase  #-}
-{-# LANGUAGE QuasiQuotes #-}
 module Neovim.EmbeddedRPCSpec
     where
 
@@ -24,16 +23,15 @@ import qualified Data.Map               as Map
 import           Path
 import           Path.IO
 import           System.Exit            (ExitCode (..))
-import           System.IO              (hClose)
 import           System.Process.Typed
 
 
 spec :: Spec
 spec = parallel $ do
-  let helloFile = [relfile|test-files/hello|]
-      withNeovimEmbedded f a = testWithEmbeddedNeovim f (Seconds 3) () a
+  let withNeovimEmbedded f a = testWithEmbeddedNeovim f (Seconds 3) () a
   describe "Read hello test file" .
-    it "should match 'Hello, World!'" . withNeovimEmbedded (Just helloFile) $ do
+    it "should match 'Hello, World!'" . withNeovimEmbedded Nothing $ do
+        nvim_command "edit test-files/hello"
         bs <- vim_get_buffers
         l <- vim_get_current_line
         liftIO $ l `shouldBe` "Hello, World!"
