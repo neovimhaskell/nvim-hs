@@ -1,8 +1,8 @@
 flags: {}
 packages:
 - '.'
-resolver: nightly-2019-03-10
-extra-deps: [messagepack-0.5.4]
+resolver: nightly-2019-04-16
+extra-deps: []
 
 allow-newer: false
 
