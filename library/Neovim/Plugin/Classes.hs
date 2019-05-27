@@ -439,6 +439,7 @@ instance NvimObject AutocmdOptions where
 -- | Conveniennce class to extract a name from some value.
 class HasFunctionName a where
     name :: a -> FunctionName
+    methodName :: a -> ByteString
 
 
 instance HasFunctionName FunctionalityDescription where
@@ -447,3 +448,7 @@ instance HasFunctionName FunctionalityDescription where
         Command   n _ -> n
         Autocmd _ n _ _ -> n
 
+    methodName = \case
+        Function (F n) _ -> "function:" <> n
+        Command (F n) _ -> "command:" <> n
+        Autocmd _ (F n) _ _ -> n

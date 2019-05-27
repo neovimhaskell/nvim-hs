@@ -39,7 +39,7 @@ instance Arbitrary RandomCommandOption where
             2 -> return $ CmdNargs ""
             3 -> CmdRange <$> elements [CurrentLine, WholeFile, RangeCount 1]
             4 -> CmdCount <$> arbitrary
-            5 -> return CmdBang
+            _ -> return CmdBang
         return $ RCO o
 
 

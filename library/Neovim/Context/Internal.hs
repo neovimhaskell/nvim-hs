@@ -173,7 +173,7 @@ type FunctionMap = Map FunctionName FunctionMapEntry
 
 -- | Create a new function map from the given list of 'FunctionMapEntry' values.
 mkFunctionMap :: [FunctionMapEntry] -> FunctionMap
-mkFunctionMap = Map.fromList . map (\e -> (name (fst e), e))
+mkFunctionMap = Map.fromList . map (\e -> (F (methodName (fst e)), e))
 
 
 -- | A wrapper for a reader value that contains extra fields required to
