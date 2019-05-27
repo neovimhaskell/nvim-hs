@@ -4,11 +4,9 @@ module Neovim.RPC.SocketReaderSpec
 
 import           Neovim
 import           Neovim.Plugin.Classes
-import           Neovim.RPC.Common
 import           Neovim.RPC.SocketReader (parseParams)
 
 import           Test.Hspec
-import           Test.QuickCheck
 
 spec :: Spec
 spec = do

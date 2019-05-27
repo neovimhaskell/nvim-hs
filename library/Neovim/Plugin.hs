@@ -81,7 +81,7 @@ startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
 -- Note that this does not have any effect on the side of /nvim-hs/.
 registerWithNeovim :: FunctionalityDescription -> Neovim anyEnv Bool
 registerWithNeovim = \case
-    Function (F functionName) s -> do
+    func@(Function (F functionName) s) -> do
         pName <- getProviderName
         let (defineFunction, host) = either
                 (\n -> ("remote#define#FunctionOnHost", toObject n))
@@ -98,10 +98,10 @@ registerWithNeovim = \case
 
         flip catch reportError $ do
           void $ vim_call_function defineFunction $
-            host +: functionName +: s +: functionName +: (Map.empty :: Dictionary) +: []
+            host +: (methodName func) +: s +: functionName +: (Map.empty :: Dictionary) +: []
           logSuccess
 
-    Command (F functionName) copts -> do
+    cmd@(Command (F functionName) copts) -> do
         let sync = case getCommandOptions copts of
                     -- This works because CommandOptions are sorted and CmdSync is
                     -- the smallest element in the sorting
@@ -123,7 +123,7 @@ registerWithNeovim = \case
                 return True
         flip catch reportError $ do
           void $ vim_call_function defineFunction $
-            host +: functionName +: sync +: functionName +: copts +: []
+            host +: (methodName cmd) +: sync +: functionName +: copts +: []
           logSuccess
 
     Autocmd acmdType (F functionName) sync opts -> do
@@ -212,7 +212,7 @@ registerInGlobalFunctionMap e = do
     funMap <- Internal.asks' Internal.globalFunctionMap
     liftIO . atomically $ do
         m <- takeTMVar funMap
-        putTMVar funMap $ Map.insert ((name . fst) e) e m
+        putTMVar funMap $ Map.insert ((F . methodName . fst) e) e m
     liftIO . debugM logger $ "Added function to global function map." ++ show (fst e)
 
 registerPlugin
@@ -224,9 +224,9 @@ registerPlugin
     -> Neovim env (Maybe FunctionMapEntry)
 registerPlugin reg d f q tm = registerWithNeovim d >>= \case
     True -> do
-        let n = name d
+        let n = methodName d
             e = (d, Stateful q)
-        liftIO . atomically . modifyTVar tm $ Map.insert n f
+        liftIO . atomically . modifyTVar tm $ Map.insert (F n) f
         reg e
         return (Just e)
 

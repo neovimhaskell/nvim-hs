@@ -18,8 +18,6 @@ import qualified Data.Map                   as Map
 import           Test.Hspec
 import           Test.QuickCheck
 
-import           Control.Applicative
-
 call :: ([Object] -> Neovim () Object) -> [Object]
      -> IO Object
 call f args = do
@@ -73,7 +71,7 @@ spec = do
 
 
   describe "generating a command from the two argument test function" $ do
-      let EF (Command fname _, testFun) = $(command' 'testFunction2) []
+      let EF (Command fname _, _) = $(command' 'testFunction2) []
       it "should capitalize the first character" $
         fname `shouldBe` (F "TestFunction2")
 
@@ -111,7 +109,7 @@ spec = do
     it "should capitalize the first letter" $
         cname `shouldBe` (F "TestCommandOptArgument")
 
-    it "should return \"defalt\" when passed no argument" $ do
+    it "should return \"default\" when passed no argument" $ do
         call testFun [defCmdArgs] `shouldReturn` toObject ("default" :: String)
 
     it "should return what is passed otherwise" . property $ do
