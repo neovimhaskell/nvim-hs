@@ -14,6 +14,7 @@ Portability :  GHC
 module Neovim.Plugin.Classes (
     FunctionalityDescription(..),
     FunctionName(..),
+    NvimMethod(..),
     Synchronous(..),
     CommandOption(..),
     CommandOptions,
@@ -426,7 +427,7 @@ instance Default AutocmdOptions where
 
 
 instance NvimObject AutocmdOptions where
-    toObject (AutocmdOptions{..}) =
+    toObject AutocmdOptions{..} =
         (toObject :: Dictionary -> Object) . Map.fromList $
             [ ("pattern", toObject acmdPattern)
             , ("nested", toObject acmdNested)
@@ -436,10 +437,22 @@ instance NvimObject AutocmdOptions where
     fromObject o = throwError  $
         "Did not expect to receive an AutocmdOptions object: " <+> viaShow o
 
+newtype NvimMethod =
+  NvimMethod { nvimMethodName :: ByteString }
+  deriving (Eq, Ord, Show, Read, Generic)
+
+
+instance NFData NvimMethod
+
+
+instance Pretty NvimMethod where
+    pretty (NvimMethod n) = pretty $ decodeUtf8 n
+
+
 -- | Conveniennce class to extract a name from some value.
 class HasFunctionName a where
     name :: a -> FunctionName
-    methodName :: a -> ByteString
+    nvimMethod :: a -> NvimMethod
 
 
 instance HasFunctionName FunctionalityDescription where
@@ -448,7 +461,7 @@ instance HasFunctionName FunctionalityDescription where
         Command   n _ -> n
         Autocmd _ n _ _ -> n
 
-    methodName = \case
-        Function (F n) _ -> "function:" <> n
-        Command (F n) _ -> "command:" <> n
-        Autocmd _ (F n) _ _ -> n
+    nvimMethod = \case
+        Function (F n) _ -> NvimMethod $ "function:" <> n
+        Command (F n) _ -> NvimMethod $ "command:" <> n
+        Autocmd _ (F n) _ _ -> NvimMethod n

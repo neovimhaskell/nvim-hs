@@ -43,7 +43,7 @@ getFunction (EF (_, f)) = f
 
 instance HasFunctionName (ExportedFunctionality env) where
     name = name . getDescription
-    methodName = methodName . getDescription
+    nvimMethod = nvimMethod . getDescription
 
 
 -- | This data type contains meta information for the plugin manager.
