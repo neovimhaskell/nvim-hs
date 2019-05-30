@@ -98,7 +98,7 @@ registerWithNeovim = \case
 
         flip catch reportError $ do
           void $ vim_call_function defineFunction $
-            host +: (methodName func) +: s +: functionName +: (Map.empty :: Dictionary) +: []
+            host +: nvimMethodName (nvimMethod func) +: s +: functionName +: (Map.empty :: Dictionary) +: []
           logSuccess
 
     cmd@(Command (F functionName) copts) -> do
@@ -123,7 +123,7 @@ registerWithNeovim = \case
                 return True
         flip catch reportError $ do
           void $ vim_call_function defineFunction $
-            host +: (methodName cmd) +: sync +: functionName +: copts +: []
+            host +: nvimMethodName (nvimMethod cmd) +: sync +: functionName +: copts +: []
           logSuccess
 
     Autocmd acmdType (F functionName) sync opts -> do
@@ -212,7 +212,7 @@ registerInGlobalFunctionMap e = do
     funMap <- Internal.asks' Internal.globalFunctionMap
     liftIO . atomically $ do
         m <- takeTMVar funMap
-        putTMVar funMap $ Map.insert ((F . methodName . fst) e) e m
+        putTMVar funMap $ Map.insert ((nvimMethod . fst) e) e m
     liftIO . debugM logger $ "Added function to global function map." ++ show (fst e)
 
 registerPlugin
@@ -220,13 +220,13 @@ registerPlugin
     -> FunctionalityDescription
     -> ([Object] -> Neovim env Object)
     -> TQueue SomeMessage
-    -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+    -> TVar (Map NvimMethod ([Object] -> Neovim env Object))
     -> Neovim env (Maybe FunctionMapEntry)
 registerPlugin reg d f q tm = registerWithNeovim d >>= \case
     True -> do
-        let n = methodName d
+        let n = nvimMethod d
             e = (d, Stateful q)
-        liftIO . atomically . modifyTVar tm $ Map.insert (F n) f
+        liftIO . atomically . modifyTVar tm $ Map.insert n f
         reg e
         return (Just e)
 
@@ -305,25 +305,27 @@ registerStatefulFunctionality (Plugin { environment = env, exports = fs }) = do
 
 
     listeningThread :: TQueue SomeMessage
-                    -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+                    -> TVar (Map NvimMethod ([Object] -> Neovim env Object))
                     -> Neovim env ()
     listeningThread q route = do
         msg <- readSomeMessage q
 
-        forM_ (fromMessage msg) $ \req@Request{..} -> do
+        forM_ (fromMessage msg) $ \req@(Request fun@(F methodName) _ args) -> do
+            let method = NvimMethod methodName
             route' <- liftIO $ readTVarIO route
-            forM_ (Map.lookup reqMethod route') $ \f -> do
+            forM_ (Map.lookup method route') $ \f -> do
                 respond req . either Left id =<< race
-                    (timeoutAndLog 10 reqMethod)
-                    (executeFunction f reqArgs)
+                    (timeoutAndLog 10 fun)
+                    (executeFunction f args)
 
-        forM_ (fromMessage msg) $ \Notification{..} -> do
+        forM_ (fromMessage msg) $ \(Notification fun@(F methodName) args) -> do
+            let method = NvimMethod methodName
             route' <- liftIO $ readTVarIO route
-            forM_ (Map.lookup notMethod route') $ \f ->
+            forM_ (Map.lookup method route') $ \f ->
                 void . async $ do
                     result <- either Left id <$> race
-                        (timeoutAndLog 600 notMethod)
-                        (executeFunction f notArgs)
+                        (timeoutAndLog 600 fun)
+                        (executeFunction f args)
                     case result of
                       Left message ->
                           nvim_err_writeln message

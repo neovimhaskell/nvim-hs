@@ -391,7 +391,7 @@ classifyArgType t = do
 command :: String -> Name -> Q Exp
 command [] _ = error "Empty names are not allowed for exported commands."
 command customFunctionName@(c:_) functionName
-    | (not . isUpper) c = error $ "Custom command name must start with a capiatl letter: " <> show customFunctionName
+    | (not . isUpper) c = error $ "Custom command name must start with a capital letter: " <> show customFunctionName
     | otherwise = do
         (argTypes, fun) <- functionImplementation functionName
         -- See :help :command-nargs for what the result strings mean

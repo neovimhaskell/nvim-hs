@@ -22,6 +22,7 @@ import qualified Neovim.Context.Internal    as Internal
 import           Neovim.Plugin.Classes      (CommandArguments (..),
                                              CommandOption (..),
                                              FunctionName (..),
+                                             NvimMethod (..),
                                              FunctionalityDescription (..),
                                              getCommandOptions)
 import           Neovim.Plugin.IPC.Classes
@@ -105,7 +106,7 @@ handleResponse i result = do
 -- function call identifier.
 handleRequestOrNotification :: Maybe Int64 -> FunctionName -> [Object]
                             -> ConduitT a Void SocketHandler ()
-handleRequestOrNotification requestId functionToCall params = do
+handleRequestOrNotification requestId functionToCall@(F functionName) params = do
     cfg <- lift Internal.ask'
     void . liftIO . async $ race logTimeout (handle cfg)
     return ()
@@ -114,7 +115,7 @@ handleRequestOrNotification requestId functionToCall params = do
     lookupFunction
         :: TMVar Internal.FunctionMap
         -> STM (Maybe (FunctionalityDescription, Internal.FunctionType))
-    lookupFunction funMap = Map.lookup functionToCall <$> readTMVar funMap
+    lookupFunction funMap = Map.lookup (NvimMethod functionName) <$> readTMVar funMap
 
     logTimeout :: IO ()
     logTimeout = do

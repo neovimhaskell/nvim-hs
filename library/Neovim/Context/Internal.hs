@@ -168,12 +168,12 @@ type FunctionMapEntry = (FunctionalityDescription, FunctionType)
 -- a thread that reads from a 'TQueue'. (NB: persistent currently means, that
 -- state is stored for as long as the plugin provider is running and not
 -- restarted.)
-type FunctionMap = Map FunctionName FunctionMapEntry
+type FunctionMap = Map NvimMethod FunctionMapEntry
 
 
 -- | Create a new function map from the given list of 'FunctionMapEntry' values.
 mkFunctionMap :: [FunctionMapEntry] -> FunctionMap
-mkFunctionMap = Map.fromList . map (\e -> (F (methodName (fst e)), e))
+mkFunctionMap = Map.fromList . map (\e -> (nvimMethod (fst e), e))
 
 
 -- | A wrapper for a reader value that contains extra fields required to
@@ -238,10 +238,10 @@ data PluginSettings env where
         :: (FunctionalityDescription
             -> ([Object] -> Neovim env Object)
             -> TQueue SomeMessage
-            -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+            -> TVar (Map NvimMethod ([Object] -> Neovim env Object))
             -> Neovim env (Maybe FunctionMapEntry))
         -> TQueue SomeMessage
-        -> TVar (Map FunctionName ([Object] -> Neovim env Object))
+        -> TVar (Map NvimMethod ([Object] -> Neovim env Object))
         -> PluginSettings env
 
 
