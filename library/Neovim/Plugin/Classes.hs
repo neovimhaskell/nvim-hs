@@ -462,6 +462,6 @@ instance HasFunctionName FunctionalityDescription where
         Autocmd _ n _ _ -> n
 
     nvimMethod = \case
-        Function (F n) _ -> NvimMethod $ "function:" <> n
-        Command (F n) _ -> NvimMethod $ "command:" <> n
+        Function (F n) _ -> NvimMethod $ n <> ":function"
+        Command (F n) _ -> NvimMethod $ n <> ":command"
         Autocmd _ (F n) _ _ -> NvimMethod n
