@@ -1,3 +1,7 @@
+# 2.1.0.1
+
+* Exported functions and commands now can have the same name.
+
 # 2.1.0.0
 
 * Autocommands now take an additional parameter of type `Synchronous`, allowing
