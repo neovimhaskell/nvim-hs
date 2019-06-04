@@ -1,4 +1,4 @@
-# 2.1.0.1
+# 2.1.0.2
 
 * Exported functions and commands now can have the same name.
 
