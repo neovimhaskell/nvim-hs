@@ -191,6 +191,8 @@ data CommandOption = CmdSync Synchronous
                    --
                    -- Stringliteral: \"!\"
 
+                   | CmdComplete String
+                   -- ^ Verbatim string passed to the @-complete=@ command attribute
     deriving (Eq, Ord, Show, Read, Generic)
 
 instance NFData CommandOption
@@ -215,6 +217,9 @@ instance Pretty CommandOption where
 
         CmdBang ->
             "!"
+
+        CmdComplete cs ->
+          pretty cs
 
 
 instance IsString CommandOption where
@@ -268,12 +273,13 @@ instance NvimObject CommandOptions where
         (toObject :: Dictionary -> Object) . Map.fromList $ mapMaybe addOption opts
       where
         addOption = \case
-            CmdRange r    -> Just ("range"   , toObject r)
-            CmdCount n    -> Just ("count"   , toObject n)
-            CmdBang       -> Just ("bang"    , ObjectBinary "")
-            CmdRegister   -> Just ("register", ObjectBinary "")
-            CmdNargs n    -> Just ("nargs"   , toObject n)
-            _             -> Nothing
+            CmdRange r     -> Just ("range"   , toObject r)
+            CmdCount n     -> Just ("count"   , toObject n)
+            CmdBang        -> Just ("bang"    , ObjectBinary "")
+            CmdRegister    -> Just ("register", ObjectBinary "")
+            CmdNargs n     -> Just ("nargs"   , toObject n)
+            CmdComplete cs -> Just ("complete", toObject cs)
+            _              -> Nothing
 
     fromObject o = throwError $
         "Did not expect to receive a CommandOptions object:" <+> viaShow o
