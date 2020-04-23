@@ -33,7 +33,6 @@ import           Neovim.RPC.FunctionCall
 import           Control.Applicative
 import           Control.Concurrent.STM
 import           Control.Monad              (void)
-import           Control.Monad.Trans.Class  (lift)
 import           Conduit               as C
 import           Data.Conduit.Cereal        (conduitGet2)
 import           Data.Default               (def)

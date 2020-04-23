@@ -24,8 +24,7 @@ import           Data.Monoid
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
-import           Data.Text.Prettyprint.Doc (Doc, viaShow, (<+>))
-import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
+import           Data.Text.Prettyprint.Doc (viaShow)
 
 import           Prelude
 
