@@ -46,7 +46,6 @@ import           UnliftIO.STM
 
 import           Data.Text.Prettyprint.Doc                 (nest, softline,
                                                             vcat, vsep)
-import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)
 
 import           Prelude
 

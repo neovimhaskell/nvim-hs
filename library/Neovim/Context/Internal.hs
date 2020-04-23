@@ -39,9 +39,7 @@ import           Data.MessagePack                          (Object)
 import           System.Log.Logger
 import           UnliftIO
 
-import           Data.Text.Prettyprint.Doc                 (Doc, Pretty (..),
-                                                            viaShow)
-import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
+import           Data.Text.Prettyprint.Doc                 (viaShow)
 
 import qualified Control.Monad.Fail as Fail
 import           Prelude

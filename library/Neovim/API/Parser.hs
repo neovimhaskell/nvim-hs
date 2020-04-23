@@ -30,9 +30,6 @@ import           System.Process.Typed
 import           UnliftIO.Exception                        (SomeException,
                                                             catch)
 
-import           Data.Text.Prettyprint.Doc                 (Doc, Pretty(..), (<+>))
-import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
-
 import           Prelude
 
 data NeovimType = SimpleType String

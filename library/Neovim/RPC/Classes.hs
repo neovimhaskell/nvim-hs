@@ -24,11 +24,9 @@ import qualified Neovim.Plugin.IPC.Classes as IPC
 import           Control.Applicative
 import           Control.Monad.Error.Class
 import           Data.Data                 (Typeable)
-import           Data.Int                  (Int64)
 import           Data.MessagePack          (Object (..))
 
-import           Data.Text.Prettyprint.Doc (Pretty (..), hardline, nest,
-                                            viaShow, (<+>), (<>))
+import           Data.Text.Prettyprint.Doc (hardline, nest, viaShow)
 
 import           Prelude
 

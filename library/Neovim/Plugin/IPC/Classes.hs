@@ -39,7 +39,7 @@ import           Data.Int                  (Int64)
 import           Data.MessagePack
 import           Data.Time                 (UTCTime, formatTime, getCurrentTime)
 import           Data.Time.Locale.Compat   (defaultTimeLocale)
-import           Data.Text.Prettyprint.Doc (Pretty (..), nest, hardline, (<+>), (<>), viaShow)
+import           Data.Text.Prettyprint.Doc (nest, hardline, viaShow)
 
 import           Prelude
 
