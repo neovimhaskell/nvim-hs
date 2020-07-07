@@ -56,7 +56,7 @@ newtype Neovim env a = Neovim
     { unNeovim :: ResourceT (ReaderT (Config env) IO) a }
 
   deriving (Functor, Applicative, Monad, MonadIO
-           , MonadThrow)
+           , MonadThrow, MonadUnliftIO)
 
 
 -- | User facing instance declaration for the reader state.
@@ -70,11 +70,6 @@ instance MonadReader env (Neovim env) where
 
 instance MonadResource (Neovim env) where
     liftResourceT m = Neovim $ liftResourceT m
-
-
-instance MonadUnliftIO (Neovim env) where
-    askUnliftIO = Neovim . withUnliftIO $ \x ->
-        return (UnliftIO (unliftIO x . unNeovim))
 
 
 instance Fail.MonadFail (Neovim env) where

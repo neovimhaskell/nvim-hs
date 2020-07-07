@@ -130,7 +130,7 @@ library
                       , transformers-base
                       , typed-process
                       , unliftio >= 0.2
-                      , unliftio-core
+                      , unliftio-core >= 0.2
                       , utf8-string
                       , vector
                       , void
