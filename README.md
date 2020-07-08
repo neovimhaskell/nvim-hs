@@ -45,7 +45,7 @@ To use that template, you'll first need to [install stack](https://docs.haskells
 and have the Neovim executable on the path (the API code generation calls `nvim --api-info` so it needs access to `nvim`).
 
 After you've done that, you can run these commands to setup the template (assuming your Neovim configuration folder
-is in `$XDG_CONFIG_HOME/nvim`:
+is in `$XDG_CONFIG_HOME/nvim`):
 
 ```
 $ cd $XDG_CONFIG_HOME/nvim
