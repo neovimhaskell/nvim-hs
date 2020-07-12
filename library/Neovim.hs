@@ -153,7 +153,7 @@ just keep reading. @:-)@
 {- $existingplugins
 The easiest way to start is to use the stack template as described in the
 @README.md@ of this package. If you initialize it in your neovim configuration
-directory (@~/.config/nvim@ on linux-based systems), it should automatically be
+directory (@~\/.config\/nvim@ on linux-based systems), it should automatically be
 compiled and run with two simple example plugins.
 
 You have to define a haskell project that depends on this package and
