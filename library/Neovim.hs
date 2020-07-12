@@ -153,11 +153,11 @@ just keep reading. @:-)@
 {- $existingplugins
 The easiest way to start is to use the stack template as described in the
 @README.md@ of this package. If you initialize it in your neovim configuration
-directory (@~/.convig/nvim@ on linux-based systems), it should automatically be
-compiled and run with two simple example plugins
+directory (@~/.config/nvim@ on linux-based systems), it should automatically be
+compiled and run with two simple example plugins.
 
 You have to define a haskell project that depends on this package and
-contains an executable secion with a main file that looks like this:
+contains an executable secion within a main file that looks something like this:
 
 @
 import TestPlugin.ExamplePlugin (examplePlugin)
@@ -171,8 +171,8 @@ main = 'neovim' 'def'
 /nvim-hs/ is all about importing and creating plugins. This is done following a
 concise API. Let's start by making a given plugin available inside
 our plugin provider. Assuming that we have installed a cabal package that exports
-an @examplePlugin@ from the module @TestPlugin.ExamplePlugin@. A minimal
-main file would then look like this:
+an @examplePlugin@ from the module @TestPlugin.ExamplePlugin@, a minimal
+main file would look something like this:
 
 That's all you have to do! Multiple plugins are simply imported and put in a
 list.
