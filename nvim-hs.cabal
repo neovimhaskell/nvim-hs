@@ -117,7 +117,7 @@ library
                       , mtl >= 2.2.1 && < 2.3
                       , optparse-applicative
                       , time-locale-compat
-                      , megaparsec < 9
+                      , megaparsec < 10
                       , prettyprinter >= 1.2 && < 2
                       , prettyprinter-ansi-terminal
                       , resourcet >= 1.1.11
