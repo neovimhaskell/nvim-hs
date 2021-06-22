@@ -40,7 +40,6 @@ import           Control.Applicative
 import           Control.Monad                (foldM, void)
 import           Control.Monad.Trans.Resource hiding (register)
 import           Data.ByteString              (ByteString)
-import           Data.ByteString.UTF8         (toString)
 import           Data.Foldable                (forM_)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
@@ -190,11 +189,8 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
 
   where
     freeFun = \case
-        Autocmd event _ _ AutocmdOptions{..} -> do
-            void . vim_command . unwords $ catMaybes
-                    [ Just "autocmd!", acmdGroup
-                    , Just (toString event) , Just acmdPattern
-                    ]
+        Autocmd _ _ _ AutocmdOptions{} -> do
+            liftIO $ warningM logger "Free not implemented for autocmds."
 
         Command{} ->
             liftIO $ warningM logger "Free not implemented for commands."
@@ -203,7 +199,7 @@ registerFunctionality d f = Internal.asks' Internal.pluginSettings >>= \case
             liftIO $ warningM logger "Free not implemented for functions."
 
 
-    free cfg = const . void . liftIO . runNeovimInternal return cfg . freeFun
+    free cfg fd _ = void . runNeovimInternal return cfg $ freeFun fd
 
 
 registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim env ()
@@ -248,7 +244,7 @@ addAutocmd :: ByteString
            -- ^ Fully applied function to register
            -> Neovim env (Maybe (Either (Neovim anyEnv ()) ReleaseKey))
            -- ^ A 'ReleaseKey' if the registration worked
-addAutocmd event s (opts@AutocmdOptions{..}) f = do
+addAutocmd event s (opts@AutocmdOptions{}) f = do
     n <- newUniqueFunctionName
     fmap snd <$> registerFunctionality (Autocmd event n s opts) (\_ -> toObject <$> f)
 
