@@ -63,7 +63,13 @@ import           UnliftIO.Exception
 
 import           Prelude
 
+#if MIN_VERSION_template_haskell(2,17,0)
+dataD' :: CxtQ -> Name -> [TyVarBndr ()] -> [ConQ] -> [Name] -> DecQ
+#else
 dataD' :: CxtQ -> Name -> [TyVarBndr] -> [ConQ] -> [Name] -> DecQ
+#endif
+-- XXX This should probably be tied to the proper template haskell version
+-- similar to the type signature.
 #if __GLASGOW_HASKELL__ < 800
 dataD' = dataD
 #elif __GLASGOW_HASKELL__ < 802
@@ -72,6 +78,14 @@ dataD' cxtQ n tyvarbndrs conq ns =
 #else
 dataD' cxtQ n tyvarbndrs conq ns =
     dataD cxtQ n tyvarbndrs Nothing conq ((return . return . DerivClause Nothing . map ConT) ns)
+#endif
+
+#if MIN_VERSION_template_haskell(2,17,0)
+plainTV' :: Name -> TyVarBndr Specificity
+plainTV' env = PlainTV env SpecifiedSpec
+#else
+plainTV' :: Name -> TyVarBndr
+plainTV' = PlainTV env
 #endif
 
 -- | Generate the API types and functions provided by @nvim --api-info@.
@@ -188,7 +202,7 @@ createFunction typeMap nf = do
 
 
     retType <- let env = (mkName "env")
-               in forallT [PlainTV env] (return [])
+               in forallT [plainTV' env] (return [])
                        . appT ([t|Neovim $(varT env) |])
                        . withDeferred
                        . apiTypeToHaskellType typeMap $ returnType nf
