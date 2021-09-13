@@ -85,7 +85,7 @@ plainTV' :: Name -> TyVarBndr Specificity
 plainTV' env = PlainTV env SpecifiedSpec
 #else
 plainTV' :: Name -> TyVarBndr
-plainTV' = PlainTV env
+plainTV' env = PlainTV env
 #endif
 
 -- | Generate the API types and functions provided by @nvim --api-info@.
