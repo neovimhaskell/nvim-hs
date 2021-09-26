@@ -101,6 +101,7 @@ stringListTypeMap =
             Map.fromList
                 [ ("Boolean", [t|Bool|])
                 , ("Integer", [t|Int64|])
+                , ("LuaRef", [t|Int64|])
                 , ("Float", [t|Double|])
                 , ("String", [t|String|])
                 , ("Array", [t|[Object]|])
