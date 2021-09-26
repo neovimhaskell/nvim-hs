@@ -124,6 +124,7 @@ library
                       , stm
                       , streaming-commons
                       , template-haskell
+                      , template-haskell-compat-v0208
                       , text
                       , time
                       , transformers
@@ -178,6 +179,7 @@ test-suite hspec
                       , streaming-commons
                       , text
                       , template-haskell
+                      , template-haskell-compat-v0208
                       , time
                       , transformers
                       , transformers-base
