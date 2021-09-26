@@ -80,10 +80,10 @@ generateAPI typeMap = do
         customTypesN = first mkName `map` customTypes api
     join
         <$> sequence
-            [ fmap (join . return) $ createDataTypeWithByteStringComponent exceptionName (map fst exceptions)
+            [ join . pure <$> createDataTypeWithByteStringComponent exceptionName (map fst exceptions)
             , exceptionInstance exceptionName
             , customTypeInstance exceptionName exceptions
-            , fmap join . mapM (\n -> createDataTypeWithByteStringComponent n [n]) $ (map fst customTypesN)
+            , fmap join (mapM ((\n -> createDataTypeWithByteStringComponent n [n]) . fst) customTypesN)
             , join <$> mapM (\(n, i) -> customTypeInstance n [(n, i)]) customTypesN
             , fmap join . mapM (createFunction typeMap) $ functions api
             ]
