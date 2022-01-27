@@ -40,16 +40,15 @@ import           Prelude
 -- This fails with a runtime exception. It is used by the Template Haskell API
 -- generator for functions that are defined as not being able to fail. If this
 -- exception occurs, it is a bug in neovim.
-unexpectedException :: String -> err -> a
-unexpectedException fn _ = error $
-    "Function threw an exception even though it was declared not to throw one: "
-    ++ fn
+unexpectedException :: Show exception => String -> exception -> a
+unexpectedException fn exception = error $
+    "Exception in function " <> fn <> " with cause: " <> show exception
 
 
 -- | Strip the error result from the function call. This should only be used by
 -- the Template Haskell API generated code for functions that declare
 -- themselves as unfailable.
-withIgnoredException :: (Functor f)
+withIgnoredException :: (Functor f, Show err)
                      => FunctionName -- ^ For better error messages
                      -> f (Either err result)
                      -> f result
