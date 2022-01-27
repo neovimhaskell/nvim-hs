@@ -63,6 +63,7 @@ module Neovim (
     wait',
     err,
     errOnInvalidResult,
+    catchNeovimException,
     NeovimException(..),
 
     -- * Unsorted exports
@@ -107,6 +108,7 @@ import           Neovim.Context               (Neovim,
                                                ask, asks, err,
                                                errOnInvalidResult)
 import           Neovim.Main                  (neovim)
+import           Neovim.Exceptions            (catchNeovimException)
 import           Neovim.Plugin                (addAutocmd)
 import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                CommandArguments (..),

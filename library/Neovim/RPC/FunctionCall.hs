@@ -11,7 +11,6 @@ Stability   :  experimental
 -}
 module Neovim.RPC.FunctionCall (
     acall,
-    acall',
     scall,
     scall',
     scallThrow,
@@ -36,25 +35,6 @@ import           UnliftIO.Exception        (throwIO)
 
 import           Prelude
 
--- | Simply fail and call 'error' in case an unexpected exception is thrown.
--- This fails with a runtime exception. It is used by the Template Haskell API
--- generator for functions that are defined as not being able to fail. If this
--- exception occurs, it is a bug in neovim.
-unexpectedException :: Show exception => String -> exception -> a
-unexpectedException fn exception = error $
-    "Exception in function " <> fn <> " with cause: " <> show exception
-
-
--- | Strip the error result from the function call. This should only be used by
--- the Template Haskell API generated code for functions that declare
--- themselves as unfailable.
-withIgnoredException :: (Functor f, Show err)
-                     => FunctionName -- ^ For better error messages
-                     -> f (Either err result)
-                     -> f result
-withIgnoredException fn = fmap (either ((unexpectedException . show) fn) id)
-
-
 -- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall :: (NvimObject result)
      => FunctionName
@@ -70,19 +50,10 @@ acall fn parameters = do
     convertObject :: (NvimObject result)
                   => Either Object Object -> Either NeovimException result
     convertObject = \case
-        Left e -> Left $ ErrorResult e
+        Left e -> Left $ ErrorResult (pretty fn) e
         Right o -> case fromObject o of
                      Left e -> Left $ ErrorMessage e
                      Right r -> Right r
-
--- | Helper function similar to 'acall' that throws a runtime exception if the
--- result is an error object.
-acall' :: (NvimObject result)
-       => FunctionName
-       -> [Object]
-       -> Neovim env (STM result)
-acall' fn parameters = withIgnoredException fn <$> acall fn parameters
-
 
 -- | Call a neovim function synchronously. This function blocks until the
 -- result is available.
@@ -104,7 +75,7 @@ scallThrow fn parameters = scall fn parameters >>= either throwIO return
 -- | Helper function similar to 'scall' that throws a runtime exception if the
 -- result is an error object.
 scall' :: NvimObject result => FunctionName -> [Object] -> Neovim env result
-scall' fn = withIgnoredException fn . scall fn
+scall' fn = either throwIO pure <=< scall fn
 
 
 -- | Lifted variant of 'atomically'.

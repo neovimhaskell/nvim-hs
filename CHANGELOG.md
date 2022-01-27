@@ -1,3 +1,13 @@
+# 2.2.0.0
+
+* NeovimException are now thrown from (synchronous) remote functions and are no
+  longer suppressed with an `error` call that also had a terrible error message.
+  A function `catchNeovimException` (specialized `catch`) has been added that 
+  catches these errors. 
+* The return type of asynchronous functions is now alwas 
+  `STM (Either NeovimException result)` and errors have to be handled by the 
+  caller explicitly.
+
 # 2.1.0.2
 
 * Exported functions and commands now can have the same name.

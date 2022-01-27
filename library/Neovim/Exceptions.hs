@@ -13,6 +13,7 @@ Portability :  GHC
 module Neovim.Exceptions
     ( NeovimException(..)
     , exceptionToDoc
+    , catchNeovimException
     ) where
 
 import           Control.Exception                         (Exception)
@@ -21,15 +22,16 @@ import           Data.String                               (IsString (..))
 import           Data.Text.Prettyprint.Doc                 (Doc, (<+>), viaShow)
 import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 import           Data.Typeable                             (Typeable)
+import           UnliftIO                                  (MonadUnliftIO, catch)
 
 -- | Exceptions specific to /nvim-hs/.
 data NeovimException
     = ErrorMessage (Doc AnsiStyle)
-    -- ^ Simply error message that is passed to neovim. It should currently only
+    -- ^ Simple error message that is passed to neovim. It should currently only
     -- contain one line of text.
-    | ErrorResult Object
-    -- ^ Error that can be returned by a remote API call. A call of 'fromObject'
-    -- on this value could be converted to a value of 'NeovimExceptionGen'.
+    | ErrorResult (Doc AnsiStyle) Object
+    -- ^ Error that can be returned by a remote API call. The 'Doc' argument is
+    -- the name of the remote function that threw this exception.
     deriving (Typeable, Show)
 
 
@@ -45,6 +47,9 @@ exceptionToDoc = \case
     ErrorMessage e ->
         "Error message:" <+> e
 
-    ErrorResult o ->
-        "Result representing an error:" <+> viaShow o
+    ErrorResult fn o ->
+        "Function" <+> fn <+> "has thrown an error:" <+> viaShow o
 
+-- | Specialization of 'catch' for 'NeovimException's.
+catchNeovimException :: MonadUnliftIO io => io a -> (NeovimException -> io a) -> io a
+catchNeovimException action exceptionHandler = action `catch` exceptionHandler
