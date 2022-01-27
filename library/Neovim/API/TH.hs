@@ -20,6 +20,7 @@ module Neovim.API.TH (
     stringListTypeMap,
     textVectorTypeMap,
     bytestringVectorTypeMap,
+    createFunction,
     module UnliftIO.Exception,
     module Neovim.Classes,
     module Data.Data,
@@ -172,11 +173,11 @@ apiTypeToHaskellType typeMap@TypeMap{typesOfAPI, list} at = case at of
 createFunction :: TypeMap -> NeovimFunction -> Q [Dec]
 createFunction typeMap nf = do
     let withDeferred
-            | async nf = appT [t|STM|]
+            | async nf = appT [t|STM|] . appT [t|Either NeovimException|]
             | otherwise = id
 
         callFn
-            | async nf = [|acall'|]
+            | async nf = [|acall|]
             | otherwise = [|scall'|]
 
         functionName = mkName $ name nf

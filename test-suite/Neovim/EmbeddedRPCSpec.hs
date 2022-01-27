@@ -7,6 +7,7 @@ import Test.HUnit
 
 import           Neovim
 import           Neovim.API.Text
+import           Neovim.Context (docToText)
 import qualified Neovim.Context.Internal as Internal
 import           Neovim.Quickfix
 import           Neovim.RPC.Common
@@ -65,3 +66,15 @@ spec = parallel $ do
         q' <- vim_eval "getqflist()"
         liftIO $ fromObjectUnsafe q' `shouldBe` [q]
 
+    it "throws NeovimException with function that failed as Doc" $ do
+        let getUndefinedVariable = withNeovimEmbedded Nothing $ vim_get_var "notDefined"
+        getUndefinedVariable `shouldThrow` \case
+          ErrorResult f _ -> docToText f == "vim_get_var"
+          _ -> False
+
+    it "catches" . withNeovimEmbedded Nothing $ do
+        let getUndefinedVariable = vim_get_var "notDefined"
+        functionThatFailed <- getUndefinedVariable `catchNeovimException` \case
+                ErrorResult f _ -> pure . toObject $ docToText f
+                _ -> pure ObjectNil
+        liftIO $ functionThatFailed `shouldBe` toObject ("vim_get_var" :: String)
