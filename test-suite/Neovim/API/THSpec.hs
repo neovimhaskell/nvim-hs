@@ -37,7 +37,7 @@ spec = do
   describe "calling function without an argument" $ do
     let EF (Function fname _, testFun) = $(TH.function  "TestFunction0" 'testFunction0) Sync
     it "should have a capitalized prefix" $
-        fname `shouldBe` (F "TestFunction0")
+        fname `shouldBe` F "TestFunction0"
 
     it "should return the consant value" $
       call testFun [] `shouldReturn` ObjectInt 42
@@ -49,7 +49,7 @@ spec = do
   describe "calling testFunction with two arguments" $ do
     let EF (Function fname _, testFun) = $(function' 'testFunction2) Sync
     it "should have a capitalized prefix" $
-        fname `shouldBe` (F "TestFunction2")
+        fname `shouldBe` F "TestFunction2"
 
     it "should return 2 for proper arguments" $
       call testFun [ ObjectNil
@@ -73,12 +73,12 @@ spec = do
   describe "generating a command from the two argument test function" $ do
       let EF (Command fname _, _) = $(command' 'testFunction2) []
       it "should capitalize the first character" $
-        fname `shouldBe` (F "TestFunction2")
+        fname `shouldBe` F "TestFunction2"
 
   describe "generating the test successor functions" $ do
       let EF (Function fname _, testFun) = $(function' 'testSucc) Sync
       it "should be named TestSucc" $
-          fname `shouldBe` (F "TestSucc")
+          fname `shouldBe` F "TestSucc"
 
       it "should return the old value + 1" . property $
           \x -> call testFun [ObjectInt x] `shouldReturn` ObjectInt (x+1)
@@ -86,7 +86,7 @@ spec = do
   describe "calling test function with a map argument" $ do
       let EF (Function fname _, testFun) = $(TH.function "TestFunctionMap" 'testFunctionMap) Sync
       it "should capitalize the first letter" $
-          fname `shouldBe` (F "TestFunctionMap")
+          fname `shouldBe` F "TestFunctionMap"
 
       it "should fail for the wrong number of arguments" $
         call testFun [] `shouldThrow` isNeovimException
@@ -107,7 +107,7 @@ spec = do
     let EF (Command cname _, testFun) = $(command' 'testCommandOptArgument) []
         defCmdArgs = toObject (def :: CommandArguments)
     it "should capitalize the first letter" $
-        cname `shouldBe` (F "TestCommandOptArgument")
+        cname `shouldBe` F "TestCommandOptArgument"
 
     it "should return \"default\" when passed no argument" $ do
         call testFun [defCmdArgs] `shouldReturn` toObject ("default" :: String)
