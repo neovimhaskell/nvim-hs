@@ -27,6 +27,11 @@ import           System.Exit            (ExitCode (..))
 import           System.Process.Typed
 
 
+-- | Tests in here should always be wrapped in 'withNeovimEmbedded' because they
+-- don't fail if neovim isn't installed.  This is particularly helpful to run
+-- tests on stackage and be notified if non-neovim-dependent tests fail.
+-- Basically everybody else who runs these tests has neovim installed and would
+-- see the test failing.
 spec :: Spec
 spec = parallel $ do
   let withNeovimEmbedded f a = testWithEmbeddedNeovim f (Seconds 3) () a
@@ -66,11 +71,12 @@ spec = parallel $ do
         q' <- vim_eval "getqflist()"
         liftIO $ fromObjectUnsafe q' `shouldBe` [q]
 
-    it "throws NeovimException with function that failed as Doc" $ do
-        let getUndefinedVariable = withNeovimEmbedded Nothing $ vim_get_var "notDefined"
-        getUndefinedVariable `shouldThrow` \case
-          ErrorResult f _ -> docToText f == "vim_get_var"
-          _ -> False
+    it "throws NeovimException with function that failed as Doc" . withNeovimEmbedded Nothing $ do
+        let getVariableValue = False <$ vim_get_var "notDefined"
+        hasTrhownNeovimExceptionWithFunctionName <- getVariableValue `catchNeovimException` \case
+          ErrorResult f _ -> pure $ docToText f == "vim_get_var"
+          _ -> pure False
+        liftIO $ hasTrhownNeovimExceptionWithFunctionName `shouldBe` True
 
     it "catches" . withNeovimEmbedded Nothing $ do
         let getUndefinedVariable = vim_get_var "notDefined"
