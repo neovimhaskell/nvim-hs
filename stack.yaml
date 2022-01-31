@@ -1,7 +1,7 @@
 flags: {}
 packages:
 - '.'
-resolver: nightly-2021-09-18
+resolver: nightly-2022-01-27
 extra-deps: []
 
 allow-newer: false
