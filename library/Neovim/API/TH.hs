@@ -380,15 +380,15 @@ classifyArgType t = do
  following five signatures, where you can replace 'String' with 'ByteString'
  or 'Text' if you wish:
 
- * 'CommandArguments' -> 'Neovim' r st ()
+ * 'CommandArguments' -> 'Neovim' env ()
 
- * 'CommandArguments' -> 'Maybe' 'String' -> 'Neovim' r st ()
+ * 'CommandArguments' -> 'Maybe' 'String' -> 'Neovim' env ()
 
- * 'CommandArguments' -> 'String' -> 'Neovim' r st ()
+ * 'CommandArguments' -> 'String' -> 'Neovim' env ()
 
- * 'CommandArguments' -> ['String'] -> 'Neovim' r st ()
+ * 'CommandArguments' -> ['String'] -> 'Neovim' env ()
 
- * 'CommandArguments' -> 'String' -> ['String'] -> 'Neovim' r st ()
+ * 'CommandArguments' -> 'String' -> ['String'] -> 'Neovim' env ()
 
  Example: @ $(command \"RememberThePrime\" 'someFunction) ['CmdBang'] @
 
@@ -470,7 +470,7 @@ autocmd functionName =
             (as, fun) <- functionImplementation functionName
             case as of
                 [] ->
-                    [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
+                    [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(fun return))|]
                 _ ->
                     error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."
 
