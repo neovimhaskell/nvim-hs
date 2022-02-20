@@ -470,7 +470,7 @@ autocmd functionName =
             (as, fun) <- functionImplementation functionName
             case as of
                 [] ->
-                    [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(fun return))|]
+                    [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
                 _ ->
                     error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."
 
