@@ -1,8 +1,9 @@
 flags: {}
 packages:
 - '.'
-resolver: nightly-2022-01-27
-extra-deps: []
+
+resolver: nightly-2022-06-04
+extra-deps: [template-haskell-compat-v0208-0.1.9]
 
 allow-newer: false
 

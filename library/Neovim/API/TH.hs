@@ -40,7 +40,7 @@ import Neovim.Plugin.Classes (
 import Neovim.Plugin.Internal (ExportedFunctionality (..))
 import Neovim.RPC.FunctionCall
 
-import Language.Haskell.TH hiding (dataD, instanceD)
+import Language.Haskell.TH hiding (dataD, instanceD, conP)
 import TemplateHaskell.Compat.V0208
 
 import Control.Applicative
@@ -270,15 +270,15 @@ exceptionInstance exceptionName = do
 customTypeInstance :: Name -> [(Name, Int64)] -> Q [Dec]
 customTypeInstance typeName nis = do
     let fromObjectClause :: Name -> Int64 -> Q Clause
-        fromObjectClause n i =
-            newName "bs" >>= \bs ->
-                clause
-                    [ conP
+        fromObjectClause n i = do
+            bs <- newName "bs"
+            let objectExtMatch = conP
                         (mkName "ObjectExt")
-                        [(litP . integerL . fromIntegral) i, varP bs]
-                    ]
-                    (normalB [|return $ $(conE n) $(varE bs)|])
-                    []
+                        [(LitP . integerL . fromIntegral) i, VarP bs]
+            clause
+                [ pure objectExtMatch ]
+                (normalB [|return $ $(conE n) $(varE bs)|])
+                []
         fromObjectErrorClause :: Q Clause
         fromObjectErrorClause = do
             o <- newName "o"
@@ -297,12 +297,12 @@ customTypeInstance typeName nis = do
                 []
 
         toObjectClause :: Name -> Int64 -> Q Clause
-        toObjectClause n i =
-            newName "bs" >>= \bs ->
-                clause
-                    [conP n [varP bs]]
-                    (normalB [|ObjectExt $((litE . integerL . fromIntegral) i) $(varE bs)|])
-                    []
+        toObjectClause n i = do
+            bs <- newName "bs"
+            clause
+                [pure (conP n [VarP bs])]
+                (normalB [|ObjectExt $((litE . integerL . fromIntegral) i) $(varE bs)|])
+                []
 
     tNvimObject <- [t|NvimObject|]
     fToObject <- funD (mkName "toObject") $ map (uncurry toObjectClause) nis
@@ -565,13 +565,13 @@ functionImplementation functionName = do
     successfulEvaluation =
         newName "action" >>= \action ->
             match
-                (conP (mkName "Right") [varP action])
+                (pure (conP (mkName "Right") [VarP action]))
                 (normalB [|toObject <$> $(varE action)|])
                 []
     failedEvaluation :: Q Match
     failedEvaluation =
         newName "e" >>= \e ->
             match
-                (conP (mkName "Left") [varP e])
+                (pure (conP (mkName "Left") [VarP e]))
                 (normalB [|err ($(varE e) :: Doc AnsiStyle)|])
                 []

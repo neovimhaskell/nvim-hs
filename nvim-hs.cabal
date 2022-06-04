@@ -1,5 +1,5 @@
 name:                nvim-hs
-version:             2.2.0.1
+version:             2.2.0.2
 synopsis:            Haskell plugin backend for neovim
 description:
   This package provides a plugin provider for neovim. It allows you to write
@@ -124,7 +124,7 @@ library
                       , stm
                       , streaming-commons
                       , template-haskell
-                      , template-haskell-compat-v0208
+                      , template-haskell-compat-v0208 >= 0.1.9
                       , text
                       , time
                       , transformers
