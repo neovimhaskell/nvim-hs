@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -36,6 +38,7 @@ import qualified Data.ByteString.UTF8                      as U (fromString)
 import           Data.Map                                  (Map)
 import qualified Data.Map                                  as Map
 import           Data.MessagePack                          (Object)
+import           Data.Monoid                               (Ap(Ap))
 import           System.Log.Logger
 import           UnliftIO
 
@@ -55,8 +58,8 @@ import           Prelude
 newtype Neovim env a = Neovim
     { unNeovim :: ResourceT (ReaderT (Config env) IO) a }
 
-  deriving (Functor, Applicative, Monad, MonadIO
-           , MonadThrow, MonadUnliftIO)
+  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadThrow, MonadUnliftIO)
+  deriving (Semigroup, Monoid) via (Ap (Neovim env) a)
 
 
 -- | User facing instance declaration for the reader state.
