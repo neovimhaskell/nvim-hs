@@ -139,6 +139,8 @@ library
   default-language:     Haskell2010
   ghc-options:          -Wall
 
+  if os(windows)
+    cpp-options: -DWINDOWS
 
 test-suite hspec
   type:                 exitcode-stdio-1.0
