@@ -28,12 +28,14 @@ import           Network.Socket         as N hiding (SocketType)
 import           System.IO              (BufferMode (..), Handle, IOMode(ReadWriteMode),
                                          hClose, hSetBuffering)
 import           System.Log.Logger
-import           UnliftIO (openFile)
+import           Neovim.Compat.Megaparsec as P
 
 import           Prelude
 import UnliftIO.Environment (lookupEnv)
 import Data.Maybe (catMaybes)
 import Data.List (intercalate)
+import qualified Data.List as List
+import qualified Text.Megaparsec.Char.Lexer as L
 
 
 -- | Things shared between the socket reader and the event handler.
@@ -97,20 +99,35 @@ createHandle = \case
     createTCPSocketHandle p h = liftIO $ getSocketTCP (fromString h) p
         >>= flip socketToHandle ReadWriteMode . fst
 
-    createSocketHandleFromEnvironment = do
+    createSocketHandleFromEnvironment = liftIO $ do
         -- NVIM_LISTEN_ADDRESS is for backwards compatibility
-        listenAddress <- fmap catMaybes $ liftIO $ mapM lookupEnv ["NVIM", "NVIM_LISTEN_ADDRESS"]
-        case words <$> listenAddress of
-            ([unixSocket]:_) -> createHandle (UnixSocket unixSocket)
-            ([h,p]:_) -> createHandle (TCP (read p) h)
+        envValues <- catMaybes <$> mapM lookupEnv ["NVIM", "NVIM_LISTEN_ADDRESS"]
+        listenAdresses <- mapM parseNvimEnvironmentVariable envValues
+        case listenAdresses of
+            (s:_) -> createHandle s
             _  -> do
                 let errMsg = unlines
                         [ "Unhandled socket type from environment variable: "
-                        , "\t" <> intercalate ", " listenAddress
+                        , "\t" <> intercalate ", " envValues
                         ]
                 liftIO $ errorM "createHandle" errMsg
                 error errMsg
 
+parseNvimEnvironmentVariable :: MonadFail m => String -> m SocketType
+parseNvimEnvironmentVariable envValue =
+  either (fail . show) pure $ parse (P.try pTcpAddress <|> pUnixSocket) envValue envValue
+
+pUnixSocket :: P.Parser SocketType
+pUnixSocket = UnixSocket <$> P.some anySingle <* P.eof
+
+pTcpAddress :: P.Parser SocketType
+pTcpAddress = do
+   prefixes <- P.some (P.try (P.many (P.anySingleBut ':') <* P.single ':'))
+   port <- L.lexeme P.eof L.decimal
+   P.eof
+   pure $ TCP port (List.intercalate ":" prefixes)
+
+  -- fail $ "Unsupported format for $NVIM environment variable: " <> envValue
 
 -- | Close the handle and print a warning if the conduit chain has been
 -- interrupted prematurely.
