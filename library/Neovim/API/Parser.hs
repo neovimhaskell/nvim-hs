@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {- |
 Module      :  Neovim.API.Parser
 Description :  P.Parser for the msgpack output stram API
@@ -71,7 +72,17 @@ data NeovimAPI = NeovimAPI
 
 -- | Run @nvim --api-info@ and parse its output.
 parseAPI :: IO (Either (Doc AnsiStyle) NeovimAPI)
-parseAPI = either (Left . pretty) extractAPI <$> (decodeAPI `catch` readFromAPIFile)
+parseAPI = either (Left . pretty) extractAPI <$> 
+#ifndef WINDOWS
+  (decodeAPI `catch` \(_ignored :: SomeException) -> readFromAPIFile)
+
+decodeAPI :: IO (Either String Object)
+decodeAPI =
+    decode . LB.toStrict <$> readProcessStdout_ (proc "nvim" ["--api-info"])
+
+#else
+  readFromAPIFile
+#endif
 
 extractAPI :: Object -> Either (Doc AnsiStyle) NeovimAPI
 extractAPI apiObj =
@@ -81,18 +92,13 @@ extractAPI apiObj =
             <*> extractCustomTypes apiMap
             <*> extractFunctions apiMap
 
-readFromAPIFile :: SomeException -> IO (Either String Object)
-readFromAPIFile _ = (decode <$> B.readFile "api") `catch` returnPreviousExceptionAsText
+readFromAPIFile :: IO (Either String Object)
+readFromAPIFile = (decode <$> B.readFile "api") `catch` returnNoApiForCodegeneratorErrorMessage
   where
-    returnPreviousExceptionAsText :: SomeException -> IO (Either String Object)
-    returnPreviousExceptionAsText _ =
+    returnNoApiForCodegeneratorErrorMessage :: SomeException -> IO (Either String Object)
+    returnNoApiForCodegeneratorErrorMessage _ =
         return . Left $
-            "The 'nvim' process could not be started and there is no file named\
-            \ 'api' in the working directory as a substitute."
-
-decodeAPI :: IO (Either String Object)
-decodeAPI =
-    decode . LB.toStrict <$> readProcessStdout_ (proc "nvim" ["--api-info"])
+            "The 'nvim' process could not be started and there is no file named 'api' in the working directory as a substitute."
 
 oLookup :: (NvimObject o) => String -> Map String Object -> Either (Doc AnsiStyle) o
 oLookup qry = maybe throwErrorMessage fromObject . Map.lookup qry
