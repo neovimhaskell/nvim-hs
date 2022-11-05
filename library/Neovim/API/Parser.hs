@@ -23,10 +23,10 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.MessagePack
-import Data.Serialize
+import Data.MessagePack ( Object )
+import Data.Serialize ( decode )
 import Neovim.Compat.Megaparsec as P
-import System.Process.Typed
+import System.Process.Typed ( proc, readProcessStdout_ )
 import UnliftIO.Exception (
     SomeException,
     catch,
