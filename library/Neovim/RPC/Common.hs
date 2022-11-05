@@ -85,7 +85,7 @@ createHandle = \case
 #ifndef WINDOWS
         liftIO $ createHandle . Stdout =<< flip socketToHandle ReadWriteMode =<< getSocketUnix f
 #else
-        openFile f ReadWriteMode
+        error "Windows' named pipes are not supported"
 #endif
 
     TCP p h ->
