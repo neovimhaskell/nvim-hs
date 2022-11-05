@@ -25,13 +25,15 @@ import           Data.Streaming.Network
 import           Data.String
 import           Data.Time
 import           Network.Socket         as N hiding (SocketType)
-import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode(ReadWriteMode),
                                          hClose, hSetBuffering)
 import           System.Log.Logger
 import           UnliftIO (openFile)
 
 import           Prelude
+import UnliftIO.Environment (lookupEnv)
+import Data.Maybe (catMaybes)
+import Data.List (intercalate)
 
 
 -- | Things shared between the socket reader and the event handler.
@@ -59,7 +61,7 @@ data SocketType = Stdout Handle
                 -- suitable for an embedded neovim which is used in test cases.
                 | Environment
                 -- ^ Read the connection information from the environment
-                -- variable @NVIM_LISTEN_ADDRESS@.
+                -- variable @NVIM@.
                 | UnixSocket FilePath
                 -- ^ Use a unix socket.
                 | TCP Int String
@@ -96,14 +98,15 @@ createHandle = \case
         >>= flip socketToHandle ReadWriteMode . fst
 
     createSocketHandleFromEnvironment = do
-        listenAddress <- liftIO (getEnv "NVIM_LISTEN_ADDRESS")
-        case words listenAddress of
-            [unixSocket] -> createHandle (UnixSocket unixSocket)
-            [h,p] -> createHandle (TCP (read p) h)
+        -- NVIM_LISTEN_ADDRESS is for backwards compatibility
+        listenAddress <- fmap catMaybes $ liftIO $ mapM lookupEnv ["NVIM", "NVIM_LISTEN_ADDRESS"]
+        case words <$> listenAddress of
+            ([unixSocket]:_) -> createHandle (UnixSocket unixSocket)
+            ([h,p]:_) -> createHandle (TCP (read p) h)
             _  -> do
                 let errMsg = unlines
                         [ "Unhandled socket type from environment variable: "
-                        , "\t" <> listenAddress
+                        , "\t" <> intercalate ", " listenAddress
                         ]
                 liftIO $ errorM "createHandle" errMsg
                 error errMsg

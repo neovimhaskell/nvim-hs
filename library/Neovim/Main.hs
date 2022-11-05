@@ -86,7 +86,7 @@ optParser = Opt
     <*> switch
         ( long "environment"
         <> short 'e'
-        <> help "Read connection information from $NVIM_LISTEN_ADDRESS.")
+        <> help "Read connection information from $NVIM.")
     <*> optional ((,)
         <$> strOption
             (long "log-file"
