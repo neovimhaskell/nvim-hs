@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE RankNTypes, CPP        #-}
 {- |
 Module      :  Neovim.RPC.Common
 Description :  Common functons for the RPC module
@@ -29,6 +29,7 @@ import           System.Environment     (getEnv)
 import           System.IO              (BufferMode (..), Handle, IOMode(ReadWriteMode),
                                          hClose, hSetBuffering)
 import           System.Log.Logger
+import           UnliftIO (openFile)
 
 import           Prelude
 
@@ -77,7 +78,11 @@ createHandle = \case
         return h
 
     UnixSocket f ->
-        createHandle . Stdout =<< createUnixSocketHandle f
+#ifndef WINDOWS
+        liftIO $ createHandle . Stdout =<< flip socketToHandle ReadWriteMode =<< getSocketUnix f
+#else
+        openFile f ReadWriteMode
+#endif
 
     TCP p h ->
         createHandle . Stdout =<< createTCPSocketHandle p h
@@ -86,10 +91,6 @@ createHandle = \case
         createHandle . Stdout =<< createSocketHandleFromEnvironment
 
   where
-    createUnixSocketHandle :: (MonadIO io) => FilePath -> io Handle
-    createUnixSocketHandle f =
-        liftIO $ getSocketUnix f >>= flip socketToHandle ReadWriteMode
-
     createTCPSocketHandle :: (MonadIO io) => Int -> String -> io Handle
     createTCPSocketHandle p h = liftIO $ getSocketTCP (fromString h) p
         >>= flip socketToHandle ReadWriteMode . fst
