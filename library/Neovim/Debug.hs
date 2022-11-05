@@ -53,7 +53,7 @@ import           Prelude
 -- | Run a 'Neovim' function.
 --
 -- This function connects to the socket pointed to by the environment variable
--- @$NVIM_LISTEN_ADDRESS@ and executes the command. It does not register itself
+-- @$NVIM@ and executes the command. It does not register itself
 -- as a real plugin provider, you can simply call neovim-functions from the
 -- module "Neovim.API.String" this way.
 --
