@@ -1,3 +1,12 @@
+# 2.3.0.0
+
+* Windows is now rudimentarily supported. Since I couldn't find a library to
+  connect to named pipes on windows and I didn't want to extend or write one,
+  you have to use TCP sockets or Standard in and out to communicate with
+  neovim. If you start neovim with `nvim --listen localhost:`, it will set the
+  `NVIM` environment variable, so that nvim-hs can automatically connect to the
+  neovim instance without passing any arguments.
+
 # 2.2.0.0
 
 * NeovimException are now thrown from (synchronous) remote functions and are no
