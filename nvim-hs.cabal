@@ -30,11 +30,14 @@ copyright:           Copyright 2017-2018 Sebastian Witte <woozletoff@gmail.com>
 category:            Editor
 build-type:          Simple
 cabal-version:       1.18
-extra-source-files:    nvim-hs-devel.sh
-                     , test-files/hello
+extra-source-files:    test-files/hello
                      , apiblobs/0.1.7.msgpack
                      , apiblobs/0.2.0.msgpack
                      , apiblobs/0.3.0.msgpack
+                     , apiblobs/0.4.3.msgpack
+                     , apiblobs/0.5.0.msgpack
+                     , apiblobs/0.6.1.msgpack
+                     , apiblobs/0.8.0.msgpack
                      , api
 
 extra-doc-files:       CHANGELOG.md
