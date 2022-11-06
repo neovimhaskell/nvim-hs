@@ -107,7 +107,7 @@ startEmbeddedNvim file (Seconds timeout) = do
     nvimProcess <- startProcess
         $ setStdin createPipe
         $ setStdout createPipe
-        $ proc "nvim" (["-n","-u","NONE","--embed"] ++ args)
+        $ proc "nvim" (["-n","--clean","--embed"] ++ args)
 
     cfg <- Internal.newConfig (pure Nothing) newRPCConfig
 
