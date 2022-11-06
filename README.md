@@ -9,7 +9,6 @@ some sense of reliability and type safety. Since Template Haskell is used
 to generate the neovim bindings and to avoid some of the boilerplate
 handy work, some exotic operating systems and architectures may not work.
 
-[![Build Status](https://travis-ci.org/neovimhaskell/nvim-hs.svg?branch=master)](https://travis-ci.org/neovimhaskell/nvim-hs)
 [![Hackage version](https://img.shields.io/hackage/v/nvim-hs.svg?style=flat)](https://hackage.haskell.org/package/nvim-hs)
 [![nvim-hs on latest Stackage LTS](http://stackage.org/package/nvim-hs/badge/lts)](http://stackage.org/lts/package/nvim-hs)
 [![nvim-hs on Stackage Nightly](http://stackage.org/package/nvim-hs/badge/nightly)](http://stackage.org/nightly/package/nvim-hs)
@@ -17,6 +16,16 @@ handy work, some exotic operating systems and architectures may not work.
 # What do I have to expect if I were to use it now?
 
 Check the issue list here on github.
+
+## For Windows users
+
+Named pipes are not supported at the momend #103. You therefore have to start
+`nvim-hs` instances by connecting to STDIN and STDOUT or TCP. By default `nvim-hs`
+connects to the listen socket pointed to by the `NVIM` environment variable and 
+the functions in the module `Neovim.Debug` rely on that. If you want to be able to 
+run these functions, start Neovim with `nvim --listen localhost:` or similar
+(This example command starts neovim with a socket listening on `localhost` and 
+random a random TCP port.)
 
 # How do I start using this?
 
