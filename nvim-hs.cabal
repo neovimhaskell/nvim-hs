@@ -197,6 +197,7 @@ test-suite hspec
   other-modules:        Neovim.API.THSpec
                       , Neovim.API.THSpecFunctions
                       , Neovim.EmbeddedRPCSpec
+                      , Neovim.EventSubscriptionSpec
                       , Neovim.Plugin.ClassesSpec
                       , Neovim.RPC.SocketReaderSpec
                       , Neovim.RPC.CommonSpec

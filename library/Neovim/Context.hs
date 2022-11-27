@@ -23,6 +23,8 @@ module Neovim.Context (
     errOnInvalidResult,
     restart,
     quit,
+    subscribe,
+    unsubscribe,
 
     ask,
     asks,
@@ -46,7 +48,7 @@ module Neovim.Context (
 import           Neovim.Classes
 import           Neovim.Context.Internal      (FunctionMap, FunctionMapEntry,
                                                Neovim, mkFunctionMap,
-                                               newUniqueFunctionName, runNeovim)
+                                               newUniqueFunctionName, runNeovim, subscribe, unsubscribe)
 import           Neovim.Exceptions            (NeovimException (..), exceptionToDoc)
 
 import qualified Neovim.Context.Internal      as Internal

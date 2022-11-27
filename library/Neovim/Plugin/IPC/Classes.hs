@@ -29,7 +29,7 @@ module Neovim.Plugin.IPC.Classes (
     ) where
 
 import           Neovim.Classes
-import           Neovim.Plugin.Classes     (FunctionName)
+import           Neovim.Plugin.Classes     (FunctionName, NeovimEventId)
 
 import           Control.Exception         (evaluate)
 import           Control.Concurrent.STM
@@ -121,8 +121,8 @@ instance Pretty Request where
 -- message is sent by neovim if the caller there does not care about the result
 -- of the computation.
 data Notification = Notification
-    { notMethod :: FunctionName
-    -- ^ Name of the function to call.
+    { notEvent :: NeovimEventId
+    -- ^ Event name of the notification.
     , notArgs   :: [Object]
     -- ^ Arguments for the function.
     } deriving (Eq, Ord, Show, Typeable, Generic)
@@ -137,6 +137,6 @@ instance Message Notification
 instance Pretty Notification where
     pretty Notification{..} =
         nest 2 $ "Notification"
-            <> hardline <> "Method:" <+> pretty notMethod
-            <> hardline <> "Arguments:" <+> viaShow notArgs
+            <> hardline <> "Event:" <+> pretty notEvent
+            <> hardline <> "Arguments:" <+> viaShow notEvent
 
