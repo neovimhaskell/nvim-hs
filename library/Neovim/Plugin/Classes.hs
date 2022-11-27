@@ -41,7 +41,7 @@ import           Data.String
 import           Data.Traversable             (sequence)
 import           Data.Text.Encoding           (decodeUtf8)
 
-import Data.Text.Prettyprint.Doc
+import           Prettyprinter
 
 import           Prelude                      hiding (sequence)
 

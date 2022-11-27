@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE RecordWildCards    #-}
 {- |
 Module      :  Neovim.RPC.Classes
 Description :  Data types and classes for the RPC components
@@ -25,8 +24,7 @@ import           Control.Applicative
 import           Control.Monad.Error.Class
 import           Data.Data                 (Typeable)
 import           Data.MessagePack          (Object (..))
-
-import           Data.Text.Prettyprint.Doc (hardline, nest, viaShow)
+import           Prettyprinter              (hardline, nest, viaShow)
 
 import           Prelude
 

@@ -19,8 +19,8 @@ module Neovim.Exceptions
 import           Control.Exception                         (Exception)
 import           Data.MessagePack                          (Object (..))
 import           Data.String                               (IsString (..))
-import           Data.Text.Prettyprint.Doc                 (Doc, (<+>), viaShow)
-import           Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
+import           Prettyprinter                             (Doc, (<+>), viaShow)
+import           Prettyprinter.Render.Terminal             (AnsiStyle)
 import           Data.Typeable                             (Typeable)
 import           UnliftIO                                  (MonadUnliftIO, catch)
 

@@ -59,7 +59,7 @@ import Data.MessagePack
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.Text (Text)
-import Data.Text.Prettyprint.Doc (viaShow)
+import Prettyprinter (viaShow)
 import Data.Vector (Vector)
 import UnliftIO.Exception
 

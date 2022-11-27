@@ -23,12 +23,11 @@ import           Neovim.RPC.SocketReader (runSocketReader)
 
 import Control.Monad.Reader                      (runReaderT)
 import Control.Monad.Trans.Resource              (runResourceT)
-import Data.Text.Prettyprint.Doc                 (annotate, vsep)
-import Data.Text.Prettyprint.Doc.Render.Terminal (Color (..), color)
+import Prettyprinter (annotate, vsep)
+import Prettyprinter.Render.Terminal (Color (..), color)
 import GHC.IO.Exception                          (ioe_filename)
 import Path
 import Path.IO
-import System.Exit                               (ExitCode (..))
 import System.IO                                 (Handle)
 import System.Process.Typed
 import UnliftIO.Async                            (async, cancel)
@@ -124,7 +123,7 @@ startEmbeddedNvim file (Seconds timeout) = do
                     (Internal.mkFunctionMap [])
 
     timeoutAsync <- async . void $ do
-        threadDelay $ (fromIntegral timeout) * 1000 * 1000
+        threadDelay $ fromIntegral timeout * 1000 * 1000
         getExitCode nvimProcess >>= maybe (stopProcess nvimProcess) (\_ -> return ())
 
     let cleanUp = mapM_ cancel [socketReader, eventHandler, timeoutAsync]

@@ -21,10 +21,11 @@ import qualified Data.Map                     as Map
 import           Data.Maybe
 import           Data.MessagePack
 import           Data.Monoid
+import           Prettyprinter                 (viaShow)
+
 import           Neovim.API.String
 import           Neovim.Classes
 import           Neovim.Context
-import           Data.Text.Prettyprint.Doc (viaShow)
 
 import           Prelude
 

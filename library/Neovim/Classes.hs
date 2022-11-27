@@ -3,9 +3,6 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
-#if __GLASGOW_HASKELL__ < 710
-{-# LANGUAGE OverlappingInstances  #-}
-#endif
 {- |
 Module      :  Neovim.Classes
 Description :  Type classes used for conversion of msgpack and Haskell types
@@ -51,7 +48,7 @@ import qualified Data.Map.Strict                           as SMap
 import           Data.MessagePack
 import           Data.Monoid
 import           Data.Text                                 as Text (Text)
-import           Data.Text.Prettyprint.Doc
+import           Prettyprinter
     ( Doc
     , Pretty (..)
     , defaultLayoutOptions
@@ -59,8 +56,8 @@ import           Data.Text.Prettyprint.Doc
     , viaShow
     , (<+>)
     )
-import qualified Data.Text.Prettyprint.Doc                 as P
-import           Data.Text.Prettyprint.Doc.Render.Terminal
+import qualified Prettyprinter                 as P
+import           Prettyprinter.Render.Terminal
     ( AnsiStyle
     , renderStrict
     )
@@ -336,10 +333,8 @@ instance (Ord key, NvimObject key, NvimObject val)
         . SMap.fromList . map (toObject *** toObject) . SMap.toList
 
     fromObject (ObjectMap om) = SMap.fromList <$>
-        (sequenceA
-            . map (uncurry (liftA2 (,))
-                    . (fromObject *** fromObject))
-                . SMap.toList) om
+        (traverse (uncurry (liftA2 (,))
+                    . (fromObject *** fromObject)) . SMap.toList) om
 
     fromObject o = throwError $ "Expected ObjectMap, but got" <+> viaShow o
 
@@ -387,7 +382,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3) => NvimObject (o1, o2, o3
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4) => NvimObject (o1, o2, o3, o4) where
-    toObject (o1, o2, o3, o4) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4]
+    toObject (o1, o2, o3, o4) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4]
 
     fromObject (ObjectArray [o1, o2, o3, o4]) = (,,,)
         <$> fromObject o1
@@ -398,7 +393,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4) => NvimObj
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5) => NvimObject (o1, o2, o3, o4, o5) where
-    toObject (o1, o2, o3, o4, o5) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5]
+    toObject (o1, o2, o3, o4, o5) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5]) = (,,,,)
         <$> fromObject o1
@@ -410,7 +405,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6) => NvimObject (o1, o2, o3, o4, o5, o6) where
-    toObject (o1, o2, o3, o4, o5, o6) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6]
+    toObject (o1, o2, o3, o4, o5, o6) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6]) = (,,,,,)
         <$> fromObject o1
@@ -423,7 +418,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
 
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7) => NvimObject (o1, o2, o3, o4, o5, o6, o7) where
-    toObject (o1, o2, o3, o4, o5, o6, o7) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7]
+    toObject (o1, o2, o3, o4, o5, o6, o7) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7]) = (,,,,,,)
         <$> fromObject o1

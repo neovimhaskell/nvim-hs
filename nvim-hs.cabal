@@ -121,7 +121,7 @@ library
                       , optparse-applicative
                       , time-locale-compat
                       , megaparsec < 10
-                      , prettyprinter >= 1.2 && < 2
+                      , prettyprinter >= 1.7 && < 2
                       , prettyprinter-ansi-terminal
                       , resourcet >= 1.1.11
                       , stm

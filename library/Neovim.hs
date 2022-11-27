@@ -120,7 +120,7 @@ import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
 import           Neovim.RPC.FunctionCall      (wait, wait')
 import           Neovim.Util                  (unlessM, whenM)
 import           System.Log.Logger            (Priority (..))
-import           Data.Text.Prettyprint.Doc.Render.Terminal (putDoc)
+import           Prettyprinter.Render.Terminal (putDoc)
 -- Installation {{{1
 {- $installation
 

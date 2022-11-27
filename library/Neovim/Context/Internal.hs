@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
@@ -42,7 +40,7 @@ import           Data.Monoid                               (Ap(Ap))
 import           System.Log.Logger
 import           UnliftIO
 
-import           Data.Text.Prettyprint.Doc                 (viaShow)
+import           Prettyprinter                             (viaShow)
 
 import qualified Control.Monad.Fail as Fail
 import           Prelude

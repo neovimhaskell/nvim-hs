@@ -44,7 +44,7 @@ import           UnliftIO.Async                            (Async, async,
 import           UnliftIO.Concurrent                       (putMVar, takeMVar)
 import           UnliftIO.STM
 
-import           Data.Text.Prettyprint.Doc                 (nest, softline,
+import           Prettyprinter                             (nest, softline,
                                                             vcat, vsep)
 
 import           Prelude
