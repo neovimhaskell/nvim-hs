@@ -27,7 +27,7 @@ module Neovim.Plugin.IPC.Classes (
 ) where
 
 import Neovim.Classes
-import Neovim.Plugin.Classes (FunctionName)
+import Neovim.Plugin.Classes (FunctionName, NeovimEventId)
 
 import Control.Concurrent.STM
 import Control.Exception (evaluate)
@@ -84,14 +84,12 @@ instance Message FunctionCall
 instance Pretty FunctionCall where
     pretty (FunctionCall fname args _ t) =
         nest 2 $
-            "Function call for:"
-                <+> pretty fname
-                    <> hardline
-                    <> "Arguments:"
-                <+> viaShow args
-                    <> hardline
-                    <> "Timestamp:"
-                <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
+            "Function call for:" <+> pretty fname
+                <> hardline
+                <> "Arguments:" <+> viaShow args
+                <> hardline
+                <> "Timestamp:"
+                    <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
 
 {- | A request is a data type containing the method to call, its arguments and
  an identifier used to map the result to the function that has been called.
@@ -113,15 +111,11 @@ instance Message Request
 instance Pretty Request where
     pretty Request{..} =
         nest 2 $
-            "Request"
-                <+> "#"
-                    <> pretty reqId
-                    <> hardline
-                    <> "Method:"
-                <+> pretty reqMethod
-                    <> hardline
-                    <> "Arguments:"
-                <+> viaShow reqArgs
+            "Request" <+> "#" <> pretty reqId
+                <> hardline
+                <> "Method:" <+> pretty reqMethod
+                <> hardline
+                <> "Arguments:" <+> viaShow reqArgs
 
 {- | A notification is similar to a 'Request'. It essentially does the same
  thing, but the function is only called for its side effects. This type of
@@ -129,8 +123,8 @@ instance Pretty Request where
  of the computation.
 -}
 data Notification = Notification
-    { -- | Name of the function to call.
-      notMethod :: FunctionName
+    { -- | Event name of the notification.
+      notEvent :: NeovimEventId
     , -- | Arguments for the function.
       notArgs :: [Object]
     }
@@ -145,8 +139,6 @@ instance Pretty Notification where
         nest 2 $
             "Notification"
                 <> hardline
-                <> "Method:"
-                <+> pretty notMethod
-                    <> hardline
-                    <> "Arguments:"
-                <+> viaShow notArgs
+                <> "Event:" <+> pretty notEvent
+                <> hardline
+                <> "Arguments:" <+> viaShow notEvent

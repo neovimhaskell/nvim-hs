@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- |
@@ -14,6 +15,9 @@ Portability :  GHC
 module Neovim.Plugin.Classes (
     FunctionalityDescription (..),
     FunctionName (..),
+    NeovimEventId (..),
+    SubscriptionId (..),
+    Subscription (..),
     NvimMethod (..),
     Synchronous (..),
     CommandOption (..),
@@ -38,8 +42,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.MessagePack
 import Data.String
+import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
-import Data.Traversable (sequence)
 
 import Prettyprinter
 
@@ -48,11 +52,29 @@ import Prelude hiding (sequence)
 -- | Essentially just a string.
 newtype FunctionName = F ByteString
     deriving (Eq, Ord, Show, Read, Generic)
-
-instance NFData FunctionName
+    deriving (NFData) via ByteString
 
 instance Pretty FunctionName where
     pretty (F n) = pretty $ decodeUtf8 n
+
+newtype NeovimEventId = NeovimEventId Text
+    deriving (Eq, Ord, Show, Read, Generic)
+    deriving (Pretty) via Text
+    deriving (NFData) via Text
+
+instance NvimObject NeovimEventId where
+    toObject (NeovimEventId e) = toObject e
+    fromObject o = NeovimEventId <$> fromObject o
+
+newtype SubscriptionId = SubscriptionId Int64
+    deriving (Eq, Ord, Show, Read)
+    deriving (Enum) via Int64
+
+data Subscription = Subscription
+    { subId :: SubscriptionId
+    , subEventId :: NeovimEventId
+    , subAction :: [Object] -> IO ()
+    }
 
 {- | Functionality specific functional description entries.
 
@@ -94,8 +116,7 @@ instance Pretty FunctionalityDescription where
         Command fname copts ->
             "Command" <+> pretty copts <+> pretty fname
         Autocmd t fname s aopts ->
-            "Autocmd"
-                <+> pretty (decodeUtf8 t)
+            "Autocmd" <+> pretty (decodeUtf8 t)
                 <+> pretty s
                 <+> pretty aopts
                 <+> pretty fname
@@ -355,7 +376,7 @@ instance NvimObject CommandArguments where
               ]
 
     fromObject (ObjectMap m) = do
-        let l key = sequence (fromObject <$> Map.lookup (ObjectBinary key) m)
+        let l key = mapM fromObject (Map.lookup (ObjectBinary key) m)
         bang <- l "bang"
         range <- l "range"
         count <- l "count"

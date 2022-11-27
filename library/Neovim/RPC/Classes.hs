@@ -18,7 +18,7 @@ module Neovim.RPC.Classes (
 ) where
 
 import Neovim.Classes
-import Neovim.Plugin.Classes (FunctionName (..))
+import Neovim.Plugin.Classes (FunctionName (..), NeovimEventId (..))
 import qualified Neovim.Plugin.IPC.Classes as IPC
 
 import Control.Applicative
@@ -62,14 +62,14 @@ instance NvimObject Message where
             ObjectArray $ (1 :: Int64) +: i +: e +: () +: []
         Response i (Right r) ->
             ObjectArray $ (1 :: Int64) +: i +: () +: r +: []
-        Notification (IPC.Notification (F m) ps) ->
-            ObjectArray $ (2 :: Int64) +: m +: ps +: []
+        Notification (IPC.Notification (NeovimEventId eventId) ps) ->
+            ObjectArray $ (2 :: Int64) +: eventId +: ps +: []
 
     fromObject = \case
         ObjectArray [ObjectInt 0, i, m, ps] -> do
             r <-
                 IPC.Request
-                    <$> (fmap F (fromObject m))
+                    <$> fmap F (fromObject m)
                     <*> fromObject i
                     <*> fromObject ps
             return $ Request r
@@ -77,13 +77,12 @@ instance NvimObject Message where
             let eer = case e of
                     ObjectNil -> Right r
                     _ -> Left e
-             in Response
-                    <$> fromObject i
+             in Response <$> fromObject i
                     <*> pure eer
         ObjectArray [ObjectInt 2, m, ps] -> do
             n <-
                 IPC.Notification
-                    <$> (fmap F (fromObject m))
+                    <$> fmap NeovimEventId (fromObject m)
                     <*> fromObject ps
             return $ Notification n
         o ->
@@ -95,10 +94,8 @@ instance Pretty Message where
             pretty request
         Response i ret ->
             nest 2 $
-                "Response"
-                    <+> "#"
-                        <> pretty i
-                        <> hardline
-                        <> either viaShow viaShow ret
+                "Response" <+> "#" <> pretty i
+                    <> hardline
+                    <> either viaShow viaShow ret
         Notification notification ->
             pretty notification

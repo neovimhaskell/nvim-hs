@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE RecordWildCards #-}
 
 {- |
 Module      :  Neovim.Plugin
@@ -70,7 +69,7 @@ startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
         NeovimPlugin p <- iop
         (es', tid) <- registerStatefulFunctionality p
 
-        return $ (es ++ es', tid : tids)
+        return (es ++ es', tid : tids)
 
 {- | Callthe vimL functions to define a function, command or autocmd on the
  neovim side. Returns 'True' if registration was successful.
@@ -254,6 +253,7 @@ registerStatefulFunctionality ::
 registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
     messageQueue <- liftIO newTQueueIO
     route <- liftIO $ newTVarIO Map.empty
+    subscribers <- liftIO $ newTVarIO []
 
     cfg <- Internal.ask'
 
@@ -285,7 +285,7 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
                 }
 
     tid <- liftIO . async . void . runNeovim pluginThreadConfig $ do
-        listeningThread messageQueue route
+        listeningThread messageQueue route subscribers
 
     return (map fst es, tid) -- NB: dropping release functions/keys here
   where
@@ -298,20 +298,23 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
             Left e -> return . Left $ show (e :: SomeException)
             Right res -> return $ Right res
 
+    killAfterSeconds :: Word -> Neovim anyEnv ()
+    killAfterSeconds seconds = threadDelay (fromIntegral seconds * 1000 * 1000)
+
     timeoutAndLog :: Word -> FunctionName -> Neovim anyEnv String
     timeoutAndLog seconds functionName = do
-        threadDelay (fromIntegral seconds * 1000 * 1000)
+        killAfterSeconds seconds
         return . show $
-            pretty functionName
-                <+> "has been aborted after"
+            pretty functionName <+> "has been aborted after"
                 <+> pretty seconds
                 <+> "seconds"
 
     listeningThread ::
         TQueue SomeMessage ->
         TVar (Map NvimMethod ([Object] -> Neovim env Object)) ->
+        TVar [Notification -> Neovim env ()] ->
         Neovim env ()
-    listeningThread q route = do
+    listeningThread q route subscribers = do
         msg <- readSomeMessage q
 
         forM_ (fromMessage msg) $ \req@(Request fun@(F methodName) _ args) -> do
@@ -323,20 +326,9 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
                         (timeoutAndLog 10 fun)
                         (executeFunction f args)
 
-        forM_ (fromMessage msg) $ \(Notification fun@(F methodName) args) -> do
-            let method = NvimMethod methodName
-            route' <- liftIO $ readTVarIO route
-            forM_ (Map.lookup method route') $ \f ->
-                void . async $ do
-                    result <-
-                        either Left id
-                            <$> race
-                                (timeoutAndLog 600 fun)
-                                (executeFunction f args)
-                    case result of
-                        Left message ->
-                            nvim_err_writeln message
-                        Right _ ->
-                            return ()
+        forM_ (fromMessage msg) $ \notification -> do
+            subscribers' <- liftIO $ readTVarIO subscribers
+            forM_ subscribers' $ \subscriber ->
+                async $ void $ race (subscriber notification) (killAfterSeconds 10)
 
-        listeningThread q route
+        listeningThread q route subscribers

@@ -1,7 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards #-}
-
 {- |
 Module      :  Neovim.RPC.SocketReader
 Description :  The component which reads RPC messages from the neovim instance
@@ -24,7 +20,9 @@ import Neovim.Plugin.Classes (
     CommandOption (..),
     FunctionName (..),
     FunctionalityDescription (..),
+    NeovimEventId (..),
     NvimMethod (..),
+    Subscription (..),
     getCommandOptions,
  )
 import Neovim.Plugin.IPC.Classes
@@ -40,6 +38,7 @@ import Data.Conduit.Cereal (conduitGet2)
 import Data.Default (def)
 import Data.Foldable (foldl', forM_)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.MessagePack
 import Data.Monoid
 import qualified Data.Serialize (get)
@@ -76,43 +75,27 @@ messageHandlerSink = awaitForever $ \rpc -> do
     liftIO . debugM logger $ "Received: " <> show rpc
     case fromObject rpc of
         Right (MsgpackRPC.Request (Request fn i ps)) ->
-            handleRequestOrNotification (Just i) fn ps
+            handleRequest i fn ps
         Right (MsgpackRPC.Response i r) ->
             handleResponse i r
-        Right (MsgpackRPC.Notification (Notification fn ps)) ->
-            handleRequestOrNotification Nothing fn ps
+        Right (MsgpackRPC.Notification (Notification eventId args)) ->
+            handleNotification eventId args
         Left e ->
-            liftIO . errorM logger $
-                "Unhandled rpc message: " <> show e
+            liftIO . errorM logger $ "Unhandled rpc message: " <> show e
 
-handleResponse ::
-    Int64 ->
-    Either Object Object ->
-    ConduitT a Void SocketHandler ()
+handleResponse :: Int64 -> Either Object Object -> ConduitT a Void SocketHandler ()
 handleResponse i result = do
     answerMap <- asks recipients
     mReply <- Map.lookup i <$> liftIO (readTVarIO answerMap)
     case mReply of
         Nothing ->
-            liftIO $
-                warningM
-                    logger
-                    "Received response but could not find a matching recipient."
+            liftIO $ warningM logger "Received response but could not find a matching recipient."
         Just (_, reply) -> do
             atomically' . modifyTVar' answerMap $ Map.delete i
             atomically' $ putTMVar reply result
 
-{- | Act upon the received request or notification. The main difference between
- the two is that a notification does not generate a reply. The distinction
- between those two cases is done via the first paramater which is 'Maybe' the
- function call identifier.
--}
-handleRequestOrNotification ::
-    Maybe Int64 ->
-    FunctionName ->
-    [Object] ->
-    ConduitT a Void SocketHandler ()
-handleRequestOrNotification requestId functionToCall@(F functionName) params = do
+handleRequest :: Int64 -> FunctionName -> [Object] -> ConduitT a Void SocketHandler ()
+handleRequest requestId functionToCall@(F functionName) params = do
     cfg <- lift Internal.ask'
     void . liftIO . async $ race logTimeout (handle cfg)
     return ()
@@ -126,7 +109,7 @@ handleRequestOrNotification requestId functionToCall@(F functionName) params = d
     logTimeout = do
         let seconds = 1000 * 1000
         threadDelay (10 * seconds)
-        debugM logger $ "Cancelled another action before it was finished"
+        debugM logger "Cancelled another action before it was finished"
 
     handle :: Internal.Config RPCConfig -> IO ()
     handle rpc =
@@ -134,20 +117,24 @@ handleRequestOrNotification requestId functionToCall@(F functionName) params = d
             Nothing -> do
                 let errM = "No provider for: " <> show functionToCall
                 debugM logger errM
-                forM_ requestId $ \i ->
-                    writeMessage (Internal.eventQueue rpc) $
-                        MsgpackRPC.Response i (Left (toObject errM))
+                writeMessage (Internal.eventQueue rpc) $
+                    MsgpackRPC.Response requestId (Left (toObject errM))
             Just (copts, Internal.Stateful c) -> do
                 now <- liftIO getCurrentTime
                 reply <- liftIO newEmptyTMVarIO
                 let q = (recipients . Internal.customConfig) rpc
                 liftIO . debugM logger $ "Executing stateful function with ID: " <> show requestId
-                case requestId of
-                    Just i -> do
-                        atomically' . modifyTVar q $ Map.insert i (now, reply)
-                        writeMessage c $ Request functionToCall i (parseParams copts params)
-                    Nothing ->
-                        writeMessage c $ Notification functionToCall (parseParams copts params)
+                atomically' . modifyTVar q $ Map.insert requestId (now, reply)
+                writeMessage c $ Request functionToCall requestId (parseParams copts params)
+
+handleNotification :: NeovimEventId -> [Object] -> ConduitT a Void SocketHandler ()
+handleNotification eventId args = do
+    subscriptions' <- lift $ Internal.asks' Internal.subscriptions
+    subscribers <- liftIO $
+        atomically $ do
+            s <- readTMVar subscriptions'
+            pure $ fromMaybe [] $ Map.lookup eventId (Internal.byEventId s)
+    forM_ subscribers $ \subscription -> liftIO $ subAction subscription args
 
 parseParams :: FunctionalityDescription -> [Object] -> [Object]
 parseParams (Function _ _) args = case args of
@@ -162,11 +149,9 @@ parseParams (Function _ _) args = case args of
 parseParams cmd@(Command _ opts) args = case args of
     (ObjectArray _ : _) ->
         let cmdArgs = filter isPassedViaRPC (getCommandOptions opts)
-            (c, args') =
-                foldl' createCommandArguments (def, []) $
-                    zip cmdArgs args
+            (c, args') = foldl' createCommandArguments (def, []) $ zip cmdArgs args
          in toObject c : args'
-    _ -> parseParams cmd $ [ObjectArray args]
+    _ -> parseParams cmd [ObjectArray args]
   where
     isPassedViaRPC :: CommandOption -> Bool
     isPassedViaRPC = \case
@@ -208,6 +193,6 @@ parseParams cmd@(Command _ opts) args = case args of
         (CmdRegister, o) ->
             either (const old) (\r -> (c{register = Just r}, args')) $ fromObject o
         _ -> old
-parseParams (Autocmd _ _ _ _) args = case args of
+parseParams Autocmd{} args = case args of
     [ObjectArray fArgs] -> fArgs
     _ -> args

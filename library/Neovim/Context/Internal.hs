@@ -41,6 +41,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.MessagePack (Object)
 import Data.Monoid (Ap (Ap))
+import Data.Text (Text)
 import System.Log.Logger
 import UnliftIO
 
@@ -167,6 +168,52 @@ type FunctionMap = Map NvimMethod FunctionMapEntry
 mkFunctionMap :: [FunctionMapEntry] -> FunctionMap
 mkFunctionMap = Map.fromList . map (\e -> (nvimMethod (fst e), e))
 
+data Subscriptions = Subscriptions
+    { nextSubscriptionId :: SubscriptionId
+    , byEventId :: Map NeovimEventId [Subscription]
+    }
+
+{- | Subscribe to an event. When the event is received, the given callback function
+ is run. It is usually necessary to call the appropriate API function in order for
+ /neovim/ to send the notifications to /nvim-hs/. The returned subscription can be
+ used to 'unsubscribe'.
+-}
+subscribe :: Text -> ([Object] -> Neovim env ()) -> Neovim env Subscription
+subscribe event action = do
+    let eventId = NeovimEventId event
+    cfg <- ask'
+    let subscriptions' = subscriptions cfg
+    atomically $ do
+        s <- takeTMVar subscriptions'
+        let subscriptionId = nextSubscriptionId s
+        let newSubscription =
+                Subscription
+                    { subId = subscriptionId
+                    , subEventId = eventId
+                    , subAction = void . runNeovim cfg . action
+                    }
+        putTMVar
+            subscriptions'
+            s
+                { nextSubscriptionId = succ subscriptionId
+                , byEventId = Map.insertWith (<>) eventId [newSubscription] (byEventId s)
+                }
+        pure newSubscription
+
+-- | Remove the subscription that has been returned by 'subscribe'.
+unsubscribe :: Subscription -> Neovim env ()
+unsubscribe subscription = do
+    subscriptions' <- asks' subscriptions
+    void . atomically $ do
+        s <- takeTMVar subscriptions'
+        let eventId = subEventId subscription
+            deleteSubscription = Just . filter ((/= subId subscription) . subId)
+        putTMVar
+            subscriptions'
+            s
+                { byEventId = Map.update deleteSubscription eventId (byEventId s)
+                }
+
 {- | A wrapper for a reader value that contains extra fields required to
  communicate with the messagepack-rpc components and provide necessary data to
  provide other globally available operations.
@@ -202,6 +249,8 @@ data Config env = Config
       -- | In a registered functionality this field contains a function (and
       -- possibly some context dependent values) to register new functionality.
       pluginSettings :: Maybe (PluginSettings env)
+    , -- | Plugins can dynamically subscribe to events that neovim sends.
+      subscriptions :: TMVar Subscriptions
     , -- | Plugin author supplyable custom configuration. Queried on the
       -- user-facing side with 'ask' or 'asks'.
       customConfig :: env
@@ -243,10 +292,11 @@ newConfig ioProviderName r =
     Config
         <$> newTQueueIO
         <*> newEmptyMVar
-        <*> (maybe (atomically newEmptyTMVar) (newTMVarIO . Left) =<< ioProviderName)
+        <*> (maybe newEmptyTMVarIO (newTMVarIO . Left) =<< ioProviderName)
         <*> newTVarIO 100
-        <*> atomically newEmptyTMVar
+        <*> newEmptyTMVarIO
         <*> pure Nothing
+        <*> newTMVarIO (Subscriptions (SubscriptionId 1) mempty)
         <*> r
 
 -- | The state that the plugin provider wants to transition to.

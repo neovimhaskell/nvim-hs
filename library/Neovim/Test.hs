@@ -27,15 +27,15 @@ import Path
 import Path.IO
 import Prettyprinter (annotate, vsep)
 import Prettyprinter.Render.Terminal (Color (..), color)
-import System.IO (Handle)
 import System.Process.Typed
-import UnliftIO.Async (async, cancel)
+import UnliftIO
 import UnliftIO.Concurrent (threadDelay)
-import UnliftIO.Exception
-import UnliftIO.STM (atomically, putTMVar)
 
 -- | Type synonym for 'Word'.
 newtype Seconds = Seconds Word
+
+microSeconds :: Integral i => Seconds -> i
+microSeconds (Seconds s) = fromIntegral s * 1000 * 1000
 
 {- | Run the given 'Neovim' action according to the given parameters.
  The embedded neovim instance is started without a config (i.e. it is passed
@@ -55,15 +55,16 @@ testWithEmbeddedNeovim ::
     -- | Test case
     Neovim env a ->
     IO ()
-testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
+testWithEmbeddedNeovim file timeoutAfter r (Internal.Neovim a) =
     runTest `catch` catchIfNvimIsNotOnPath
   where
     runTest = do
-        (nvimProcess, cfg, cleanUp) <- startEmbeddedNvim file timeout
+        (nvimProcess, cfg, cleanUp) <- startEmbeddedNvim file timeoutAfter
 
         let testCfg = Internal.retypeConfig r cfg
 
-        void $ runReaderT (runResourceT a) testCfg
+        result <- timeout (microSeconds timeoutAfter) $ do
+            runReaderT (runResourceT a) testCfg
 
         -- vim_command isn't asynchronous, so we need to avoid waiting for the
         -- result of the operation since neovim cannot send a result if it
@@ -74,8 +75,9 @@ testWithEmbeddedNeovim file timeout r (Internal.Neovim a) =
         waitExitCode nvimProcess >>= \case
             ExitFailure i ->
                 fail $ "Neovim returned with an exit status of: " ++ show i
-            ExitSuccess ->
-                return ()
+            ExitSuccess -> case result of
+                Nothing -> fail "Test timed out"
+                Just _ -> pure ()
         cancel testRunner
         cleanUp
 
@@ -94,14 +96,13 @@ startEmbeddedNvim ::
     Maybe (Path b File) ->
     Seconds ->
     IO (Process Handle Handle (), Internal.Config RPCConfig, IO ())
-startEmbeddedNvim file (Seconds timeout) = do
+startEmbeddedNvim file timeoutAfter = do
     args <- case file of
         Nothing ->
-            return []
+            pure []
         Just f -> do
-            -- 'fail' should work with most testing frameworks
             unlessM (doesFileExist f) . fail $ "File not found: " ++ show f
-            return [toFilePath f]
+            pure [toFilePath f]
 
     nvimProcess <-
         startProcess $
@@ -129,9 +130,9 @@ startEmbeddedNvim file (Seconds timeout) = do
             (Internal.mkFunctionMap [])
 
     timeoutAsync <- async . void $ do
-        threadDelay $ fromIntegral timeout * 1000 * 1000
-        getExitCode nvimProcess >>= maybe (stopProcess nvimProcess) (\_ -> return ())
+        threadDelay $ microSeconds timeoutAfter
+        getExitCode nvimProcess >>= maybe (stopProcess nvimProcess) (\_ -> pure ())
 
     let cleanUp = mapM_ cancel [socketReader, eventHandler, timeoutAsync]
 
-    return (nvimProcess, cfg, cleanUp)
+    pure (nvimProcess, cfg, cleanUp)
