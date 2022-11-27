@@ -34,7 +34,8 @@ import           System.Process.Typed
 -- see the test failing.
 spec :: Spec
 spec = parallel $ do
-  let withNeovimEmbedded f a = testWithEmbeddedNeovim f (Seconds 3) () a
+  let withNeovimEmbedded :: Maybe (Path.Path b File) -> Neovim () a -> IO ()
+      withNeovimEmbedded f = testWithEmbeddedNeovim f (Seconds 3) ()
   describe "Read hello test file" .
     it "should match 'Hello, World!'" . withNeovimEmbedded Nothing $ do
         nvim_command "edit test-files/hello"

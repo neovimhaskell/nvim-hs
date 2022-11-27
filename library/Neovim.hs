@@ -54,6 +54,12 @@ module Neovim (
     ask,
     asks,
 
+    -- ** Subscribing to notifications or events
+    Subscription,
+    subscribe,
+    unsubscribe,
+    NeovimEventId(..),
+
     -- ** Creating a stateful plugin
     -- $statefulplugin
 
@@ -106,7 +112,7 @@ import           Neovim.Context               (Neovim,
                                                NeovimException(..),
                                                exceptionToDoc,
                                                ask, asks, err,
-                                               errOnInvalidResult)
+                                               errOnInvalidResult, subscribe, unsubscribe)
 import           Neovim.Main                  (neovim)
 import           Neovim.Exceptions            (catchNeovimException)
 import           Neovim.Plugin                (addAutocmd)
@@ -114,7 +120,8 @@ import           Neovim.Plugin.Classes        (AutocmdOptions (..),
                                                CommandArguments (..),
                                                CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
                                                RangeSpecification (..),
-                                               Synchronous (..))
+                                               Synchronous (..),
+                                               Subscription, NeovimEventId(..))
 import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
                                                wrapPlugin)
 import           Neovim.RPC.FunctionCall      (wait, wait')
