@@ -40,7 +40,7 @@ import Neovim.Plugin.Classes (
 import Neovim.Plugin.Internal (ExportedFunctionality (..))
 import Neovim.RPC.FunctionCall
 
-import Language.Haskell.TH hiding (dataD, instanceD, conP)
+import Language.Haskell.TH hiding (conP, dataD, instanceD)
 import TemplateHaskell.Compat.V0208
 
 import Control.Applicative
@@ -59,8 +59,8 @@ import Data.MessagePack
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.Text (Text)
-import Prettyprinter (viaShow)
 import Data.Vector (Vector)
+import Prettyprinter (viaShow)
 import UnliftIO.Exception
 
 import Prelude
@@ -203,7 +203,8 @@ createFunction typeMap nf = do
     vars <-
         mapM
             ( \(t, n) ->
-                (,) <$> apiTypeToHaskellType typeMap t
+                (,)
+                    <$> apiTypeToHaskellType typeMap t
                     <*> newName n
             )
             $ applyPrefixWithNumber nf
@@ -272,11 +273,12 @@ customTypeInstance typeName nis = do
     let fromObjectClause :: Name -> Int64 -> Q Clause
         fromObjectClause n i = do
             bs <- newName "bs"
-            let objectExtMatch = conP
+            let objectExtMatch =
+                    conP
                         (mkName "ObjectExt")
                         [(LitP . integerL . fromIntegral) i, VarP bs]
             clause
-                [ pure objectExtMatch ]
+                [pure objectExtMatch]
                 (normalB [|return $ $(conE n) $(varE bs)|])
                 []
         fromObjectErrorClause :: Q Clause
@@ -518,7 +520,7 @@ functionImplementation functionName = do
             [varP args]
             ( caseE
                 (varE args)
-                (zipWith matchingCase [n, n -1 ..] [0 .. minLength] ++ [errorCase])
+                (zipWith matchingCase [n, n - 1 ..] [0 .. minLength] ++ [errorCase])
             )
 
     -- _ -> err "Wrong number of arguments"

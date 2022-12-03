@@ -3,7 +3,7 @@ module Random.Plugin (nextRandom, setNextRandom) where
 import Neovim
 
 import System.Random (newStdGen, randoms)
-import UnliftIO.STM  (TVar, atomically, readTVar, modifyTVar, newTVarIO)
+import UnliftIO.STM (TVar, atomically, modifyTVar, newTVarIO, readTVar)
 
 -- You may want to define a type alias for your plugin, so that if you change
 -- your environment, you don't have to change all type signatures.
@@ -33,4 +33,3 @@ nextRandom = do
         modifyTVar tVarWithRandomNumbers tail
 
         return r
-

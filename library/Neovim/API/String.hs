@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoOverloadedStrings #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE TemplateHaskell     #-}
+
 {- |
 Module      :  Neovim.API.String
 Description :  String based API
@@ -17,10 +18,8 @@ hackage, the actual functions of this module may be different from what is
 available to you. All the functions in this module depend on the neovim version
 that was used when this package was compiled.
 -}
-module Neovim.API.String
-    where
+module Neovim.API.String where
 
-import           Neovim.API.TH
+import Neovim.API.TH
 
 $(generateAPI stringListTypeMap)
-

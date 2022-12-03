@@ -7,30 +7,26 @@ License     :  Apache-2.0
 Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 Portability :  GHC
-
 -}
 module Neovim.Util (
     whenM,
     unlessM,
     oneLineErrorMessage,
-    ) where
+) where
 
-import           Control.Monad       (when, unless)
-import           Neovim.Context
+import Control.Monad (unless, when)
 import qualified Data.Text as T
-
+import Neovim.Context
 
 -- | 'when' with a monadic predicate.
 whenM :: (Monad m) => m Bool -> m () -> m ()
 whenM mp a = mp >>= \p -> when p a
 
-
 -- | 'unless' with a monadic predicate.
 unlessM :: (Monad m) => m Bool -> m () -> m ()
 unlessM mp a = mp >>= \p -> unless p a
 
-
 oneLineErrorMessage :: Doc AnsiStyle -> T.Text
 oneLineErrorMessage d = case T.lines $ docToText d of
-    (x:_) -> x
-    []    -> mempty
+    (x : _) -> x
+    [] -> mempty

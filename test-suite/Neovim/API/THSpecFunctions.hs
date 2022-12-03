@@ -1,8 +1,7 @@
-module Neovim.API.THSpecFunctions
-    where
+module Neovim.API.THSpecFunctions where
 
 import qualified Data.Map as Map
-import           Neovim
+import Neovim
 
 testFunction0 :: Neovim env Int
 testFunction0 = return 42
@@ -18,5 +17,5 @@ testSucc = return . succ
 
 testCommandOptArgument :: CommandArguments -> Maybe String -> Neovim env String
 testCommandOptArgument _ ms = case ms of
-    Just x  -> return x
+    Just x -> return x
     Nothing -> return "default"

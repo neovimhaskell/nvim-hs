@@ -7,5 +7,4 @@ fibonacci :: Int -> Neovim' String
 fibonacci n = return . show $ fibs !! n
   where
     fibs :: [Integer]
-    fibs = 0:1:scanl1 (+) fibs
-
+    fibs = 0 : 1 : scanl1 (+) fibs

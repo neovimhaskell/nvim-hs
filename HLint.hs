@@ -1,5 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 import "hint" HLint.Default
 import "hint" HLint.Dollar
 

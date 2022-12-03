@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+
 {- |
 Module      :  Neovim.Exceptions
 Description :  General Exceptions
@@ -8,45 +9,40 @@ License     :  Apache-2.0
 Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 Portability :  GHC
-
 -}
-module Neovim.Exceptions
-    ( NeovimException(..)
-    , exceptionToDoc
-    , catchNeovimException
-    ) where
+module Neovim.Exceptions (
+    NeovimException (..),
+    exceptionToDoc,
+    catchNeovimException,
+) where
 
-import           Control.Exception                         (Exception)
-import           Data.MessagePack                          (Object (..))
-import           Data.String                               (IsString (..))
-import           Prettyprinter                             (Doc, (<+>), viaShow)
-import           Prettyprinter.Render.Terminal             (AnsiStyle)
-import           Data.Typeable                             (Typeable)
-import           UnliftIO                                  (MonadUnliftIO, catch)
+import Control.Exception (Exception)
+import Data.MessagePack (Object (..))
+import Data.String (IsString (..))
+import Data.Typeable (Typeable)
+import Prettyprinter (Doc, viaShow, (<+>))
+import Prettyprinter.Render.Terminal (AnsiStyle)
+import UnliftIO (MonadUnliftIO, catch)
 
 -- | Exceptions specific to /nvim-hs/.
 data NeovimException
-    = ErrorMessage (Doc AnsiStyle)
-    -- ^ Simple error message that is passed to neovim. It should currently only
-    -- contain one line of text.
-    | ErrorResult (Doc AnsiStyle) Object
-    -- ^ Error that can be returned by a remote API call. The 'Doc' argument is
-    -- the name of the remote function that threw this exception.
+    = -- | Simple error message that is passed to neovim. It should currently only
+      -- contain one line of text.
+      ErrorMessage (Doc AnsiStyle)
+    | -- | Error that can be returned by a remote API call. The 'Doc' argument is
+      -- the name of the remote function that threw this exception.
+      ErrorResult (Doc AnsiStyle) Object
     deriving (Typeable, Show)
-
 
 instance Exception NeovimException
 
-
 instance IsString NeovimException where
     fromString = ErrorMessage . fromString
-
 
 exceptionToDoc :: NeovimException -> Doc AnsiStyle
 exceptionToDoc = \case
     ErrorMessage e ->
         "Error message:" <+> e
-
     ErrorResult fn o ->
         "Function" <+> fn <+> "has thrown an error:" <+> viaShow o
 
