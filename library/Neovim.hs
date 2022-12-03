@@ -19,38 +19,36 @@ module Neovim (
     -- $installation
 
     -- * Tutorial
+
     -- ** Motivation
     -- $overview
-    -- ** Combining existing plugins
     -- $existingplugins
     Neovim,
     neovim,
-    NeovimConfig(..),
+    NeovimConfig (..),
     defaultConfig,
     def,
 
-
     -- ** Creating a plugin
     -- $creatingplugins
-    NeovimPlugin(..),
-    Plugin(..),
-    NvimObject(..),
+    NeovimPlugin (..),
+    Plugin (..),
+    NvimObject (..),
     (+:),
     Dictionary,
-    Object(..),
+    Object (..),
     wrapPlugin,
     function,
     function',
     command,
     command',
     autocmd,
-    Synchronous(..),
-    CommandOption(..),
-    RangeSpecification(..),
-    CommandArguments(..),
-    AutocmdOptions(..),
+    Synchronous (..),
+    CommandOption (..),
+    RangeSpecification (..),
+    CommandArguments (..),
+    AutocmdOptions (..),
     addAutocmd,
-
     ask,
     asks,
 
@@ -64,9 +62,10 @@ module Neovim (
     err,
     errOnInvalidResult,
     catchNeovimException,
-    NeovimException(..),
+    NeovimException (..),
 
     -- * Unsorted exports
+
     -- This section contains just a bunch of more or less useful functions which
     -- were not introduced in any of the previous sections.
     liftIO,
@@ -76,62 +75,85 @@ module Neovim (
     docFromObject,
     Doc,
     AnsiStyle,
-    Pretty(..),
+    Pretty (..),
     putDoc,
     exceptionToDoc,
-    Priority(..),
+    Priority (..),
     module Control.Monad,
     module Control.Applicative,
     module Data.Monoid,
     module Data.Int,
     module Data.Word,
+) where
 
-    ) where
+import Control.Applicative
+import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
+import Data.Default (def)
+import Data.Int (Int16, Int32, Int64, Int8)
+import Data.MessagePack (Object (..))
+import Data.Monoid
+import Data.Word (Word, Word16, Word32, Word8)
+import Neovim.API.TH (
+    autocmd,
+    command,
+    command',
+    function,
+    function',
+ )
+import Neovim.Classes (
+    AnsiStyle,
+    Dictionary,
+    Doc,
+    NvimObject (..),
+    Pretty (..),
+    docFromObject,
+    docToObject,
+    (+:),
+ )
+import Neovim.Config (NeovimConfig (..))
+import Neovim.Context (
+    Neovim,
+    NeovimException (..),
+    ask,
+    asks,
+    err,
+    errOnInvalidResult,
+    exceptionToDoc,
+ )
+import Neovim.Exceptions (catchNeovimException)
+import Neovim.Main (neovim)
+import Neovim.Plugin (addAutocmd)
+import Neovim.Plugin.Classes (
+    AutocmdOptions (..),
+    CommandArguments (..),
+    CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
+    RangeSpecification (..),
+    Synchronous (..),
+ )
+import Neovim.Plugin.Internal (
+    NeovimPlugin (..),
+    Plugin (..),
+    wrapPlugin,
+ )
+import Neovim.RPC.FunctionCall (wait, wait')
+import Neovim.Util (unlessM, whenM)
+import Prettyprinter.Render.Terminal (putDoc)
+import System.Log.Logger (Priority (..))
 
-import           Control.Applicative
-import           Control.Monad                (void)
-import           Control.Monad.IO.Class       (liftIO)
-import           Data.Default                 (def)
-import           Data.Int                     (Int16, Int32, Int64, Int8)
-import           Data.MessagePack             (Object (..))
-import           Data.Monoid
-import           Data.Word                    (Word, Word16, Word32, Word8)
-import           Neovim.API.TH                (autocmd, command, command',
-                                               function, function')
-import           Neovim.Classes               (Dictionary, NvimObject (..),
-                                               Doc, AnsiStyle, Pretty(..),
-                                               docFromObject, docToObject, (+:))
-import           Neovim.Config                (NeovimConfig (..))
-import           Neovim.Context               (Neovim,
-                                               NeovimException(..),
-                                               exceptionToDoc,
-                                               ask, asks, err,
-                                               errOnInvalidResult)
-import           Neovim.Main                  (neovim)
-import           Neovim.Exceptions            (catchNeovimException)
-import           Neovim.Plugin                (addAutocmd)
-import           Neovim.Plugin.Classes        (AutocmdOptions (..),
-                                               CommandArguments (..),
-                                               CommandOption (CmdBang, CmdCount, CmdRange, CmdRegister, CmdSync),
-                                               RangeSpecification (..),
-                                               Synchronous (..))
-import           Neovim.Plugin.Internal       (NeovimPlugin (..), Plugin (..),
-                                               wrapPlugin)
-import           Neovim.RPC.FunctionCall      (wait, wait')
-import           Neovim.Util                  (unlessM, whenM)
-import           System.Log.Logger            (Priority (..))
-import           Prettyprinter.Render.Terminal (putDoc)
 -- Installation {{{1
+
 {- $installation
 
 Installation instructions are in the README.md file that comes with the source
 of this package. It is also on the repositories front page.
-
 -}
+
 -- 1}}}
 
 -- Tutorial {{{1
 -- Overview {{{2
+
 {- $overview
 An @nvim-hs@ plugin is just a collection of haskell functions that can be
 called from neovim.
@@ -146,12 +168,11 @@ writing a plugin.
 
 Since you are reading haddock documentation, you probably want the latter, so
 just keep reading. @:-)@
-
 -}
-
 
 -- 2}}}
 -- Combining Existing Plugins {{{2
+
 {- $existingplugins
 The easiest way to start is to use the stack template as described in the
 @README.md@ of this package. If you initialize it in your neovim configuration
@@ -178,27 +199,27 @@ main file would look something like this:
 
 That's all you have to do! Multiple plugins are simply imported and put in a
 list.
-
 -}
 
--- | Default configuration options for /nvim-hs/. If you want to keep the
--- default plugins enabled, you can define your config like this:
---
--- @
--- main = 'neovim' 'defaultConfig'
---          { plugins = plugins defaultConfig ++ myPlugins
---          }
--- @
---
-defaultConfig :: NeovimConfig
-defaultConfig = Config
-    { plugins      = []
-    , logOptions   = Nothing
-    }
+{- | Default configuration options for /nvim-hs/. If you want to keep the
+ default plugins enabled, you can define your config like this:
 
+ @
+ main = 'neovim' 'defaultConfig'
+          { plugins = plugins defaultConfig ++ myPlugins
+          }
+ @
+-}
+defaultConfig :: NeovimConfig
+defaultConfig =
+    Config
+        { plugins = []
+        , logOptions = Nothing
+        }
 
 -- 2}}}
 -- Creating a plugin {{{2
+
 {- $creatingplugins
 Creating plugins isn't difficult either. You just have to follow and survive the
 compile time errors of seemingly valid code. This may sound scary, but it is not
@@ -318,10 +339,11 @@ mode:
 
 The haddock documentation will now list all the things we have used up until now.
 Afterwards, there is a plugin with state which uses the environment.
-
 -}
+
 -- 2}}}
 -- Creating a stateful plugin {{{2
+
 {- $statefulplugin
 Now that we are a little bit comfortable with the interface provided by /nvim-hs/,
 we can start to write a more complicated plugin. Let's create a random number
@@ -436,10 +458,11 @@ You can also cheat and pretend you know the next number:
 @
 :call SetNextRandom(42)
 @
-
 -}
+
 -- 2}}}
 -- Calling remote functions {{{2
+
 {- $remote
 Calling remote functions is only possible inside a 'Neovim' context. There are
 a few patterns of return values for the available functions. Let's start with
@@ -471,6 +494,7 @@ message to neovim which the user immediately notices.
 
 That's pretty much all there is to it.
 -}
+
 -- 2}}}
 -- 1}}}
 

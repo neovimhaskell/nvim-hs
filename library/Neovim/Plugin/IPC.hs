@@ -11,10 +11,8 @@ This module reexports publicly available means to communicate between different
 plugins (or more generally threads running in the same plugin provider).
 -}
 module Neovim.Plugin.IPC (
-    SomeMessage(..),
+    SomeMessage (..),
     fromMessage,
+) where
 
-    ) where
-
-import           Neovim.Plugin.IPC.Classes
-
+import Neovim.Plugin.IPC.Classes

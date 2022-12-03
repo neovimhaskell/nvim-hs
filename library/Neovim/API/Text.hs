@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoOverloadedStrings #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE TemplateHaskell     #-}
+
 {- |
 Module      :  Neovim.API.Text
 Description :  Text based API
@@ -12,12 +13,9 @@ License     :  Apache-2.0
 Maintainer  :  woozletoff@gmail.com
 Stability   :  experimental
 Portability :  GHC
-
 -}
-module Neovim.API.Text
-    where
+module Neovim.API.Text where
 
-import           Neovim.API.TH
+import Neovim.API.TH
 
 $(generateAPI textVectorTypeMap)
-
