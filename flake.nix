@@ -45,6 +45,7 @@
           buildTools = [
             cabal-fmt
             cabal-install
+            fourmolu
             haskell-language-server
             hlint
           ];
