@@ -1,0 +1,17 @@
+flags: {}
+packages:
+- '.'
+
+resolver: lts-20.2
+extra-deps: []
+
+allow-newer: false
+
+nix:
+  # Not using pure here because it is very practical to inherit
+  # $NVIM when developing and debugging plugins.
+  pure: false
+
+  packages:
+  - zlib
+  - neovim # for api generation
