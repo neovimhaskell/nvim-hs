@@ -11,16 +11,14 @@ Stability   :  experimental
 -}
 module Neovim.RPC.Common where
 
-import Neovim.Context (MonadIO (..))
-import Neovim.OS (isWindows)
+import Neovim.OS (getSocketUnix)
 
 import Control.Applicative (Alternative ((<|>)))
-import Control.Concurrent.STM (TMVar, TVar, newTVarIO)
 import Control.Monad (unless)
 import Data.Int (Int64)
 import Data.Map (Map)
 import Data.MessagePack (Object)
-import Data.Streaming.Network (getSocketTCP, getSocketUnix)
+import Data.Streaming.Network (getSocketTCP)
 import Data.String (IsString (fromString))
 import Data.Time (UTCTime)
 import Neovim.Compat.Megaparsec as P (
@@ -34,13 +32,6 @@ import Neovim.Compat.Megaparsec as P (
     some,
  )
 import Network.Socket as N (socketToHandle)
-import System.IO (
-    BufferMode (..),
-    Handle,
-    IOMode (ReadWriteMode),
-    hClose,
-    hSetBuffering,
- )
 import System.Log.Logger (errorM, warningM)
 
 import Data.List (intercalate)
@@ -48,23 +39,25 @@ import qualified Data.List as List
 import Data.Maybe (catMaybes)
 import qualified Text.Megaparsec.Char.Lexer as L
 import UnliftIO.Environment (lookupEnv)
+import UnliftIO
+
 import Prelude
 
 -- | Things shared between the socket reader and the event handler.
 data RPCConfig = RPCConfig
-    { -- | A map from message identifiers (as per RPC spec) to a tuple with a
-      -- timestamp and a 'TMVar' that is used to communicate the result back to
-      -- the calling thread.
-      recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
-    , -- | Message identifier for the next message as per RPC spec.
-      nextMessageId :: TVar Int64
+    { recipients :: TVar (Map Int64 (UTCTime, TMVar (Either Object Object)))
+    -- ^ A map from message identifiers (as per RPC spec) to a tuple with a
+    -- timestamp and a 'TMVar' that is used to communicate the result back to
+    -- the calling thread.
+    , nextMessageId :: TVar Int64
+    -- ^ Message identifier for the next message as per RPC spec.
     }
 
 {- | Create a new basic configuration containing a communication channel for
  remote procedure call events and an empty lookup table for functions to
  mediate.
 -}
-newRPCConfig :: (Applicative io, MonadIO io) => io RPCConfig
+newRPCConfig :: (Applicative io, MonadUnliftIO io) => io RPCConfig
 newRPCConfig =
     RPCConfig
         <$> liftIO (newTVarIO mempty)
@@ -89,16 +82,13 @@ data SocketType
  The handle is not automatically closed.
 -}
 createHandle ::
-    (Functor io, MonadIO io) =>
+    (Functor io, MonadUnliftIO io) =>
     SocketType ->
     io Handle
 createHandle = \case
     Stdout h -> do
         liftIO $ hSetBuffering h (BlockBuffering Nothing)
         return h
-    UnixSocket _
-        | isWindows ->
-            error "Windows' named pipes are not supported"
     UnixSocket f ->
         liftIO $ createHandle . Stdout =<< flip socketToHandle ReadWriteMode =<< getSocketUnix f
     TCP p h ->
@@ -106,7 +96,7 @@ createHandle = \case
     Environment ->
         createHandle . Stdout =<< createSocketHandleFromEnvironment
   where
-    createTCPSocketHandle :: (MonadIO io) => Int -> String -> io Handle
+    createTCPSocketHandle :: (MonadUnliftIO io) => Int -> String -> io Handle
     createTCPSocketHandle p h =
         liftIO $
             getSocketTCP (fromString h) p
@@ -144,7 +134,7 @@ pTcpAddress = do
 {- | Close the handle and print a warning if the conduit chain has been
  interrupted prematurely.
 -}
-cleanUpHandle :: (MonadIO io) => Handle -> Bool -> io ()
+cleanUpHandle :: (MonadUnliftIO io) => Handle -> Bool -> io ()
 cleanUpHandle h completed = liftIO $ do
     hClose h
     unless completed $
