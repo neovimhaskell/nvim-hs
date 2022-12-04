@@ -18,36 +18,41 @@ To shorten function and data type names, import this qualfied as @Internal@.
 -}
 module Neovim.Context.Internal where
 
-import Neovim.Classes
+import Neovim.Classes (
+    AnsiStyle,
+    Doc,
+    NFData,
+    Pretty (pretty),
+    deepseq,
+ )
 import Neovim.Exceptions (
     NeovimException (..),
     exceptionToDoc,
  )
 import Neovim.Plugin.Classes
-import Neovim.Plugin.IPC (SomeMessage)
+import Neovim.Plugin.IPC
 
-import Control.Applicative
-import Control.Exception (
-    ArithException,
-    ArrayException,
-    ErrorCall,
-    PatternMatchFail,
- )
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.Trans.Resource
 import qualified Data.ByteString.UTF8 as U (fromString)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.MessagePack (Object)
 import Data.Monoid (Ap (Ap))
 import Data.Text (Text)
-import System.Log.Logger
+import System.Log.Logger (errorM)
 import UnliftIO
 
 import Prettyprinter (viaShow)
 
+import Control.Exception (
+    ArithException,
+    ArrayException,
+    ErrorCall,
+    PatternMatchFail,
+ )
 import qualified Control.Monad.Fail as Fail
+import Control.Monad.Reader
+import Control.Monad.Trans.Resource (MonadResource (..), MonadThrow)
+import UnliftIO.Resource
 import Prelude
 
 {- | This is the environment in which all plugins are initially started.
@@ -74,7 +79,7 @@ instance MonadReader env (Neovim env) where
                 (r{customConfig = f (customConfig r)})
 
 instance MonadResource (Neovim env) where
-    liftResourceT m = Neovim $ liftResourceT m
+    liftResourceT m = Neovim $ UnliftIO.Resource.liftResourceT m
 
 instance Fail.MonadFail (Neovim env) where
     fail = throwIO . ErrorMessage . pretty

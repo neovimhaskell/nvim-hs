@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {- |
@@ -26,7 +25,6 @@ import Conduit as C
 import Control.Applicative
 import Control.Concurrent.STM hiding (writeTQueue)
 import Control.Monad.Reader
-import Control.Monad.Trans.Resource
 import Data.ByteString (ByteString)
 import qualified Data.Map as Map
 import Data.Serialize (encode)
@@ -46,7 +44,7 @@ runEventHandler writeableHandle env =
     runEventHandlerContext env . runConduit $ do
         eventHandlerSource
             .| eventHandler
-            .| (sinkHandleFlush writeableHandle)
+            .| sinkHandleFlush writeableHandle
 
 -- | Convenient monad transformer stack for the event handler
 newtype EventHandler a

@@ -157,10 +157,10 @@ develMain neovimConfig =
                 return Nothing
             Internal.InitSuccess -> do
                 transitionHandlerThread <- async $ do
-                    void $ transitionHandler (tids) cfg
+                    void $ transitionHandler tids cfg
                 return . Just $
                     NvimHSDebugInstance
-                        { threads = (transitionHandlerThread : tids)
+                        { threads = transitionHandlerThread : tids
                         , neovimConfig = neovimConfig
                         , internalConfig = cfg
                         }
@@ -175,7 +175,7 @@ develMain neovimConfig =
                 putStrLn "Quit develMain"
                 return Nothing
             _ -> do
-                putStrLn $ "Unexpected transition state for develMain."
+                putStrLn "Unexpected transition state for develMain."
                 return Nothing
 
 -- | Quit a previously started plugin provider.
@@ -198,7 +198,7 @@ runNeovim' ::
     Neovim () a ->
     IO (Either (Doc AnsiStyle) a)
 runNeovim' NvimHSDebugInstance{internalConfig} =
-    runNeovim (Internal.retypeConfig () (internalConfig))
+    runNeovim (Internal.retypeConfig () internalConfig)
 
 -- | Print the global function map to the console.
 printGlobalFunctionMap :: NvimHSDebugInstance -> IO ()

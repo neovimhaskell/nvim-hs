@@ -136,12 +136,10 @@ instance
             , ("type", toObject errorType)
             , ("text", toObject text)
             ]
-                ++ concat
-                    [ case col of
-                        NoColumn -> []
-                        ByteIndexColumn i -> [("col", toObject i), ("vcol", toObject False)]
-                        VisualColumn i -> [("col", toObject i), ("vcol", toObject True)]
-                    ]
+                ++ case col of
+                    NoColumn -> []
+                    ByteIndexColumn i -> [("col", toObject i), ("vcol", toObject False)]
+                    VisualColumn i -> [("col", toObject i), ("vcol", toObject True)]
 
     fromObject objectMap@(ObjectMap _) = do
         m <- fromObject objectMap
@@ -167,11 +165,11 @@ instance
                 nr' -> return nr'
         c <- l' "col"
         v <- l' "vcol"
-        let col = maybe NoColumn id $ do
+        let col = fromMaybe NoColumn $ do
                 c' <- c
                 v' <- v
                 case (c', v') of
-                    (0, _) -> return $ NoColumn
+                    (0, _) -> return NoColumn
                     (_, True) -> return $ VisualColumn c'
                     (_, False) -> return $ ByteIndexColumn c'
         text <- fromMaybe mempty <$> l' "text"
