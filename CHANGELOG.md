@@ -1,3 +1,12 @@
+# 2.3.1.0
+
+* Add `subscribe` and `unsubscribe` function. Neovim doesn't automatically send
+  event notifications to nvim-hs (or any other remote plugin) and for the
+  callback of the `subscribe` funtion to trigger, you have to call a specific
+  function before (e.g. `nvim_buf_attach`). In any case, if you want to subscribe 
+  to a specific event, you have to read the documentation of the neovim 
+  documentation. Some events are still better handled with autocommands.
+
 # 2.3.0.0
 
 * Windows is now rudimentarily supported. Since I couldn't find a library to
