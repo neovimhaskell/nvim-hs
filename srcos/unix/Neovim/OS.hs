@@ -1,6 +1,10 @@
 module Neovim.OS (
-  isWindows
+  isWindows,
+  getSocketUnix
 ) where
 
+import Data.Streaming.Network (getSocketUnix)
+
 isWindows :: Bool
-isWindows = True
+isWindows = False
+
