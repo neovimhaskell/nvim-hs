@@ -332,7 +332,7 @@ function customName@(c : _) functionName
 -}
 function' :: Name -> Q Exp
 function' functionName =
-    let (c : cs) = nameBase functionName
+    let ~(c : cs) = nameBase functionName
      in function (toUpper c : cs) functionName
 
 {- | Simply data type used to identify a string-ish type (e.g. 'String', 'Text',
@@ -438,7 +438,7 @@ command customFunctionName@(c : _) functionName
 -}
 command' :: Name -> Q Exp
 command' functionName =
-    let (c : cs) = nameBase functionName
+    let ~(c : cs) = nameBase functionName
      in command (toUpper c : cs) functionName
 
 {- | This function generates an export for autocmd. Since this is a static
@@ -467,7 +467,7 @@ command' functionName =
 
 autocmd :: Name -> Q Exp
 autocmd functionName =
-    let (c : cs) = nameBase functionName
+    let ~(c : cs) = nameBase functionName
      in do
             (as, fun) <- functionImplementation functionName
             case as of

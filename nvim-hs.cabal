@@ -74,6 +74,7 @@ library
                       , Neovim.Plugin.IPC.Classes
                       , Neovim.Log
                       , Neovim.Main
+                      , Neovim.OS
                       , Neovim.RPC.Classes
                       , Neovim.RPC.Common
                       , Neovim.RPC.EventHandler
@@ -144,6 +145,10 @@ library
 
   if os(windows)
     cpp-options: -DWINDOWS
+    hs-source-dirs: srcos/windows
+  else
+    hs-source-dirs: srcos/unix
+    
 
 test-suite hspec
   type:                 exitcode-stdio-1.0

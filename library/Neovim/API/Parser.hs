@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {- |
 Module      :  Neovim.API.Parser
 Description :  P.Parser for the msgpack output stram API
@@ -16,17 +15,29 @@ module Neovim.API.Parser (
 ) where
 
 import Neovim.Classes
+import Neovim.OS (isWindows)
 
-import Control.Applicative
-import Control.Monad.Except
+import Control.Applicative (optional)
+import Control.Monad.Except (MonadError (throwError), forM)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.MessagePack ( Object )
-import Data.Serialize ( decode )
-import Neovim.Compat.Megaparsec as P
-import System.Process.Typed ( proc, readProcessStdout_ )
+import Data.MessagePack (Object)
+import Data.Serialize (decode)
+import Neovim.Compat.Megaparsec as P (
+    MonadParsec (eof, try),
+    Parser,
+    char,
+    noneOf,
+    oneOf,
+    parse,
+    some,
+    space,
+    string,
+    (<|>),
+ )
+import System.Process.Typed (proc, readProcessStdout_)
 import UnliftIO.Exception (
     SomeException,
     catch,
@@ -72,17 +83,15 @@ data NeovimAPI = NeovimAPI
 
 -- | Run @nvim --api-info@ and parse its output.
 parseAPI :: IO (Either (Doc AnsiStyle) NeovimAPI)
-parseAPI = either (Left . pretty) extractAPI <$> 
-#ifndef WINDOWS
-  (decodeAPI `catch` \(_ignored :: SomeException) -> readFromAPIFile)
+parseAPI = either (Left . pretty) extractAPI <$> go
+  where
+    go
+        | isWindows = readFromAPIFile
+        | otherwise = decodeAPI `catch` \(_ignored :: SomeException) -> readFromAPIFile
 
 decodeAPI :: IO (Either String Object)
 decodeAPI =
     decode . LB.toStrict <$> readProcessStdout_ (proc "nvim" ["--api-info"])
-
-#else
-  readFromAPIFile
-#endif
 
 extractAPI :: Object -> Either (Doc AnsiStyle) NeovimAPI
 extractAPI apiObj =
@@ -152,8 +161,10 @@ pSimple = SimpleType <$> P.some (noneOf [',', ')'])
 
 pArray :: P.Parser NeovimType
 pArray =
-    NestedType <$> (P.try (string "ArrayOf(") *> pType)
-        <*> optional pNum <* char ')'
+    NestedType
+        <$> (P.try (string "ArrayOf(") *> pType)
+        <*> optional pNum
+        <* char ')'
 
 pNum :: P.Parser Int
 pNum = read <$> (P.try (char ',') *> space *> P.some (oneOf ['0' .. '9']))

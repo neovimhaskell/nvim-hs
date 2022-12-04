@@ -128,17 +128,16 @@ import           Neovim.RPC.FunctionCall      (wait, wait')
 import           Neovim.Util                  (unlessM, whenM)
 import           System.Log.Logger            (Priority (..))
 import           Prettyprinter.Render.Terminal (putDoc)
--- Installation {{{1
+-- Installation
 {- $installation
 
 Installation instructions are in the README.md file that comes with the source
 of this package. It is also on the repositories front page.
 
 -}
--- 1}}}
 
--- Tutorial {{{1
--- Overview {{{2
+-- Tutorial
+-- Overview
 {- $overview
 An @nvim-hs@ plugin is just a collection of haskell functions that can be
 called from neovim.
@@ -157,8 +156,7 @@ just keep reading. @:-)@
 -}
 
 
--- 2}}}
--- Combining Existing Plugins {{{2
+-- Combining Existing Plugins
 {- $existingplugins
 The easiest way to start is to use the stack template as described in the
 @README.md@ of this package. If you initialize it in your neovim configuration
@@ -204,8 +202,7 @@ defaultConfig = Config
     }
 
 
--- 2}}}
--- Creating a plugin {{{2
+-- Creating a plugin
 {- $creatingplugins
 Creating plugins isn't difficult either. You just have to follow and survive the
 compile time errors of seemingly valid code. This may sound scary, but it is not
@@ -327,8 +324,7 @@ The haddock documentation will now list all the things we have used up until now
 Afterwards, there is a plugin with state which uses the environment.
 
 -}
--- 2}}}
--- Creating a stateful plugin {{{2
+-- Creating a stateful plugin
 {- $statefulplugin
 Now that we are a little bit comfortable with the interface provided by /nvim-hs/,
 we can start to write a more complicated plugin. Let's create a random number
@@ -445,8 +441,7 @@ You can also cheat and pretend you know the next number:
 @
 
 -}
--- 2}}}
--- Calling remote functions {{{2
+-- Calling remote functions
 {- $remote
 Calling remote functions is only possible inside a 'Neovim' context. There are
 a few patterns of return values for the available functions. Let's start with
@@ -478,7 +473,4 @@ message to neovim which the user immediately notices.
 
 That's pretty much all there is to it.
 -}
--- 2}}}
--- 1}}}
 
--- vim: foldmethod=marker

@@ -32,20 +32,18 @@ module Neovim.Plugin.Classes (
 
 import Neovim.Classes
 
-import Control.Applicative hiding (empty)
-import Control.Monad.Error.Class
+import Control.Monad.Error.Class (MonadError (throwError))
 import Data.ByteString (ByteString)
 import Data.Char (isDigit)
-import Data.Default
+import Data.Default (Default (..))
 import Data.List (groupBy, sort)
 import qualified Data.Map as Map
-import Data.Maybe
-import Data.MessagePack
-import Data.String
+import Data.Maybe (catMaybes, mapMaybe)
+import Data.MessagePack (Object (..))
+import Data.String (IsString (..))
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
-
-import Prettyprinter
+import Prettyprinter (cat, comma, lparen, rparen, viaShow)
 
 import Prelude hiding (sequence)
 
@@ -116,7 +114,8 @@ instance Pretty FunctionalityDescription where
         Command fname copts ->
             "Command" <+> pretty copts <+> pretty fname
         Autocmd t fname s aopts ->
-            "Autocmd" <+> pretty (decodeUtf8 t)
+            "Autocmd"
+                <+> pretty (decodeUtf8 t)
                 <+> pretty s
                 <+> pretty aopts
                 <+> pretty fname

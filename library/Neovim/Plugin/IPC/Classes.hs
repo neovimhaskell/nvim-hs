@@ -26,18 +26,33 @@ module Neovim.Plugin.IPC.Classes (
     module Data.Int,
 ) where
 
-import Neovim.Classes
+import Neovim.Classes (
+    Generic,
+    Int64,
+    NFData (..),
+    Pretty (pretty),
+    deepseq,
+    (<+>),
+ )
 import Neovim.Plugin.Classes (FunctionName, NeovimEventId)
 
-import Control.Concurrent.STM
-import Control.Exception (evaluate)
-import Control.Monad.IO.Class (MonadIO (..))
-import Data.Data (Typeable, cast)
+import Data.Data (cast)
 import Data.Int (Int64)
-import Data.MessagePack
+import Data.MessagePack (Object)
 import Data.Time (UTCTime, formatTime, getCurrentTime)
 import Data.Time.Locale.Compat (defaultTimeLocale)
 import Prettyprinter (hardline, nest, viaShow)
+import UnliftIO (
+    MonadIO (..),
+    MonadUnliftIO,
+    TMVar,
+    TQueue,
+    Typeable,
+    atomically,
+    evaluate,
+    readTQueue,
+    writeTQueue,
+ )
 
 import Prelude
 
@@ -62,7 +77,7 @@ class (NFData message, Typeable message) => Message message where
     fromMessage :: SomeMessage -> Maybe message
     fromMessage (SomeMessage message) = cast message
 
-writeMessage :: (MonadIO m, Message message) => TQueue SomeMessage -> message -> m ()
+writeMessage :: (MonadUnliftIO m, Message message) => TQueue SomeMessage -> message -> m ()
 writeMessage q message = liftIO $ do
     evaluate (rnf message)
     atomically $ writeTQueue q (SomeMessage message)
@@ -84,12 +99,14 @@ instance Message FunctionCall
 instance Pretty FunctionCall where
     pretty (FunctionCall fname args _ t) =
         nest 2 $
-            "Function call for:" <+> pretty fname
-                <> hardline
-                <> "Arguments:" <+> viaShow args
-                <> hardline
-                <> "Timestamp:"
-                    <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
+            "Function call for:"
+                <+> pretty fname
+                    <> hardline
+                    <> "Arguments:"
+                <+> viaShow args
+                    <> hardline
+                    <> "Timestamp:"
+                <+> (viaShow . formatTime defaultTimeLocale "%H:%M:%S (%q)") t
 
 {- | A request is a data type containing the method to call, its arguments and
  an identifier used to map the result to the function that has been called.
@@ -111,11 +128,15 @@ instance Message Request
 instance Pretty Request where
     pretty Request{..} =
         nest 2 $
-            "Request" <+> "#" <> pretty reqId
-                <> hardline
-                <> "Method:" <+> pretty reqMethod
-                <> hardline
-                <> "Arguments:" <+> viaShow reqArgs
+            "Request"
+                <+> "#"
+                    <> pretty reqId
+                    <> hardline
+                    <> "Method:"
+                <+> pretty reqMethod
+                    <> hardline
+                    <> "Arguments:"
+                <+> viaShow reqArgs
 
 {- | A notification is similar to a 'Request'. It essentially does the same
  thing, but the function is only called for its side effects. This type of
@@ -139,6 +160,8 @@ instance Pretty Notification where
         nest 2 $
             "Notification"
                 <> hardline
-                <> "Event:" <+> pretty notEvent
-                <> hardline
-                <> "Arguments:" <+> viaShow notEvent
+                <> "Event:"
+                <+> pretty notEvent
+                    <> hardline
+                    <> "Arguments:"
+                <+> viaShow notEvent

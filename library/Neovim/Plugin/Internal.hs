@@ -19,10 +19,13 @@ module Neovim.Plugin.Internal (
     wrapPlugin,
 ) where
 
-import Neovim.Context
-import Neovim.Plugin.Classes
+import Neovim.Context (Neovim)
+import Neovim.Plugin.Classes (
+    FunctionalityDescription,
+    HasFunctionName (..),
+ )
 
-import Data.MessagePack
+import Data.MessagePack (Object)
 
 {- | This data type is used in the plugin registration to properly register the
  functions.

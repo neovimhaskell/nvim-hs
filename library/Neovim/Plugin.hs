@@ -36,7 +36,7 @@ import Neovim.RPC.FunctionCall
 
 import Control.Applicative
 import Control.Monad (foldM, void)
-import Control.Monad.Trans.Resource hiding (register)
+import Control.Monad.Trans.Resource (ReleaseKey, allocate)
 import Data.ByteString (ByteString)
 import Data.Foldable (forM_)
 import Data.Map (Map)
@@ -237,10 +237,10 @@ addAutocmd ::
     Synchronous ->
     AutocmdOptions ->
     -- | Fully applied function to register
-    (Neovim env ()) ->
+    Neovim env () ->
     -- | A 'ReleaseKey' if the registration worked
     Neovim env (Maybe (Either (Neovim anyEnv ()) ReleaseKey))
-addAutocmd event s (opts@AutocmdOptions{}) f = do
+addAutocmd event s opts@AutocmdOptions{} f = do
     n <- newUniqueFunctionName
     fmap snd <$> registerFunctionality (Autocmd event n s opts) (\_ -> toObject <$> f)
 
