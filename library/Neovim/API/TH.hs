@@ -319,21 +319,24 @@ customTypeInstance typeName nis = do
  Example: @ $(function \"MyExportedFunction\" 'myDefinedFunction) 'Sync' @
 -}
 function :: String -> Name -> Q Exp
-function [] _ = error "Empty names are not allowed for exported functions."
+function [] _ = fail "Empty names are not allowed for exported functions."
 function customName@(c : _) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
     | otherwise = do
         (_, fun) <- functionImplementation functionName
         [|\funOpts -> EF (Function (F (fromString $(litE (StringL customName)))) funOpts, $(return fun))|]
 
+uppercaseFirstCharacter :: Name -> String
+uppercaseFirstCharacter name = case nameBase name of
+    "" -> ""
+    (c : cs) -> toUpper c : cs
+
 {- | Define an exported function. This function works exactly like 'function',
  but it generates the exported name automatically by converting the first
  letter to upper case.
 -}
 function' :: Name -> Q Exp
-function' functionName =
-    let ~(c : cs) = nameBase functionName
-     in function (toUpper c : cs) functionName
+function' functionName = function (uppercaseFirstCharacter functionName) functionName
 
 {- | Simply data type used to identify a string-ish type (e.g. 'String', 'Text',
  'ByteString' for a value of type.
@@ -437,9 +440,7 @@ command customFunctionName@(c : _) functionName
  it generates the command name by converting the first letter to upper case.
 -}
 command' :: Name -> Q Exp
-command' functionName =
-    let ~(c : cs) = nameBase functionName
-     in command (toUpper c : cs) functionName
+command' functionName = command (uppercaseFirstCharacter functionName) functionName
 
 {- | This function generates an export for autocmd. Since this is a static
  registration, arguments are not allowed here. You can, of course, define a
