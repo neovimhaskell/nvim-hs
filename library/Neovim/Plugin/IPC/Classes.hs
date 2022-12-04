@@ -97,12 +97,12 @@ instance Pretty FunctionCall where
  an identifier used to map the result to the function that has been called.
 -}
 data Request = Request
-    { reqMethod :: FunctionName
-    -- ^ Name of the function to call.
-    , reqId :: !Int64
-    -- ^ Identifier to map the result to a function call invocation.
-    , reqArgs :: [Object]
-    -- ^ Arguments for the function.
+    { -- | Name of the function to call.
+      reqMethod :: FunctionName
+    , -- | Identifier to map the result to a function call invocation.
+      reqId :: !Int64
+    , -- | Arguments for the function.
+      reqArgs :: [Object]
     }
     deriving (Eq, Ord, Show, Typeable, Generic)
 
@@ -129,10 +129,10 @@ instance Pretty Request where
  of the computation.
 -}
 data Notification = Notification
-    { notMethod :: FunctionName
-    -- ^ Name of the function to call.
-    , notArgs :: [Object]
-    -- ^ Arguments for the function.
+    { -- | Name of the function to call.
+      notMethod :: FunctionName
+    , -- | Arguments for the function.
+      notArgs :: [Object]
     }
     deriving (Eq, Ord, Show, Typeable, Generic)
 

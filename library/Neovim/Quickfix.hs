@@ -63,21 +63,21 @@ instance (NFData strType) => NFData (SignLocation strType)
  much.
 -}
 data QuickfixListItem strType = QFItem
-    { bufOrFile :: Either Int strType
-    -- ^ Since the filename is only used if no buffer can be specified, this
-    -- field is a merge of @bufnr@ and @filename@.
-    , lnumOrPattern :: Either Int strType
-    -- ^ Line number or search pattern to locate the error.
-    , col :: ColumnNumber
-    -- ^ A tuple of a column number and a boolean indicating which kind of
-    -- indexing should be used. 'True' means that the visual column should be
-    -- used. 'False' means to use the byte index.
-    , nr :: Maybe Int
-    -- ^ Error number.
-    , text :: strType
-    -- ^ Description of the error.
-    , errorType :: QuickfixErrorType
-    -- ^ Type of error.
+    { -- | Since the filename is only used if no buffer can be specified, this
+      -- field is a merge of @bufnr@ and @filename@.
+      bufOrFile :: Either Int strType
+    , -- | Line number or search pattern to locate the error.
+      lnumOrPattern :: Either Int strType
+    , -- | A tuple of a column number and a boolean indicating which kind of
+      -- indexing should be used. 'True' means that the visual column should be
+      -- used. 'False' means to use the byte index.
+      col :: ColumnNumber
+    , -- | Error number.
+      nr :: Maybe Int
+    , -- | Description of the error.
+      text :: strType
+    , -- | Type of error.
+      errorType :: QuickfixErrorType
     }
     deriving (Eq, Show, Generic)
 

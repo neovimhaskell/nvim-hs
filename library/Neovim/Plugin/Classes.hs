@@ -297,22 +297,22 @@ instance NvimObject RangeSpecification where
  attributes a command can take.
 -}
 data CommandArguments = CommandArguments
-    { bang :: Maybe Bool
-    -- ^ 'Nothing' means that the function was not defined to handle a bang,
-    -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
-    -- was not passed when called (@'Just' 'False'@).
-    , range :: Maybe (Int, Int)
-    -- ^ Range passed from neovim. Only set if 'CmdRange' was used in the export
-    -- declaration of the command.
-    --
-    -- Example:
-    --
-    -- * @Just (1,12)@
-    , count :: Maybe Int
-    -- ^ Count passed by neovim. Only set if 'CmdCount' was used in the export
-    -- declaration of the command.
-    , register :: Maybe String
-    -- ^ Register that the command can\/should\/must use.
+    { -- | 'Nothing' means that the function was not defined to handle a bang,
+      -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
+      -- was not passed when called (@'Just' 'False'@).
+      bang :: Maybe Bool
+    , -- | Range passed from neovim. Only set if 'CmdRange' was used in the export
+      -- declaration of the command.
+      --
+      -- Example:
+      --
+      -- * @Just (1,12)@
+      range :: Maybe (Int, Int)
+    , -- | Count passed by neovim. Only set if 'CmdCount' was used in the export
+      -- declaration of the command.
+      count :: Maybe Int
+    , -- | Register that the command can\/should\/must use.
+      register :: Maybe String
     }
     deriving (Eq, Ord, Show, Read, Generic)
 
@@ -371,14 +371,14 @@ instance NvimObject CommandArguments where
  referenced neovim help-page from the fields of this data type.
 -}
 data AutocmdOptions = AutocmdOptions
-    { acmdPattern :: String
-    -- ^ Pattern to match on. (default: \"*\")
-    , acmdNested :: Bool
-    -- ^ Nested autocmd. (default: False)
-    --
-    -- See @:h autocmd-nested@
-    , acmdGroup :: Maybe String
-    -- ^ Group in which the autocmd should be registered.
+    { -- | Pattern to match on. (default: \"*\")
+      acmdPattern :: String
+    , -- | Nested autocmd. (default: False)
+      --
+      -- See @:h autocmd-nested@
+      acmdNested :: Bool
+    , -- | Group in which the autocmd should be registered.
+      acmdGroup :: Maybe String
     }
     deriving (Show, Read, Eq, Ord, Generic)
 

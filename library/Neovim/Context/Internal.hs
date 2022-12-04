@@ -176,34 +176,35 @@ mkFunctionMap = Map.fromList . map (\e -> (nvimMethod (fst e), e))
 -}
 data Config env = Config
     -- Global settings; initialized once
-    { eventQueue :: TQueue SomeMessage
-    -- ^ A queue of messages that the event handler will propagate to
-    -- appropriate threads and handlers.
-    , transitionTo :: MVar StateTransition
-    -- ^ The main thread will wait for this 'MVar' to be filled with a value
-    -- and then perform an action appropriate for the value of type
-    -- 'StateTransition'.
-    , providerName :: TMVar (Either String Int)
-    -- ^ Since nvim-hs must have its "Neovim.RPC.SocketReader" and
-    -- "Neovim.RPC.EventHandler" running to determine the actual channel id
-    -- (i.e. the 'Int' value here) this field can only be set properly later.
-    -- Hence, the value of this field is put in an 'TMVar'.
-    -- Name that is used to identify this provider. Assigning such a name is
-    -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
-    , uniqueCounter :: TVar Integer
-    -- ^ This 'TVar' is used to generate uniqe function names on the side of
-    -- /nvim-hs/. This is useful if you don't want to overwrite existing
-    -- functions or if you create autocmd functions.
-    , globalFunctionMap :: TMVar FunctionMap
-    -- ^ This map is used to dispatch received messagepack function calls to
-    -- it's appropriate targets.
+    { -- | A queue of messages that the event handler will propagate to
+      -- appropriate threads and handlers.
+      eventQueue :: TQueue SomeMessage
+    , -- | The main thread will wait for this 'MVar' to be filled with a value
+      -- and then perform an action appropriate for the value of type
+      -- 'StateTransition'.
+      transitionTo :: MVar StateTransition
+    , -- | Since nvim-hs must have its "Neovim.RPC.SocketReader" and
+      -- "Neovim.RPC.EventHandler" running to determine the actual channel id
+      -- (i.e. the 'Int' value here) this field can only be set properly later.
+      -- Hence, the value of this field is put in an 'TMVar'.
+      -- Name that is used to identify this provider. Assigning such a name is
+      -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
+      providerName :: TMVar (Either String Int)
+    , -- | This 'TVar' is used to generate uniqe function names on the side of
+      -- /nvim-hs/. This is useful if you don't want to overwrite existing
+      -- functions or if you create autocmd functions.
+      uniqueCounter :: TVar Integer
+    , -- | This map is used to dispatch received messagepack function calls to
+      -- it's appropriate targets.
+      globalFunctionMap :: TMVar FunctionMap
     , -- Local settings; intialized for each stateful component
+
+      -- | In a registered functionality this field contains a function (and
+      -- possibly some context dependent values) to register new functionality.
       pluginSettings :: Maybe (PluginSettings env)
-    -- ^ In a registered functionality this field contains a function (and
-    -- possibly some context dependent values) to register new functionality.
-    , customConfig :: env
-    -- ^ Plugin author supplyable custom configuration. Queried on the
-    -- user-facing side with 'ask' or 'asks'.
+    , -- | Plugin author supplyable custom configuration. Queried on the
+      -- user-facing side with 'ask' or 'asks'.
+      customConfig :: env
     }
 
 {- | Convenient helper to create a new config for the given state and read-only
