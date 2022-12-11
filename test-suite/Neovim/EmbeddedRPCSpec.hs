@@ -35,10 +35,8 @@ import System.Process.Typed
 -}
 spec :: Spec
 spec = parallel $ do
-    describe "Read hello test file"
-        . it "should match 'Hello, World!'"
-        . runInEmbeddedNeovim' def
-        $ do
+    describe "Read hello test file" $
+        it "should match 'Hello, World!'" . runInEmbeddedNeovim' def $ do
             nvim_command "edit test-files/hello"
             bs <- vim_get_buffers
             l <- vim_get_current_line

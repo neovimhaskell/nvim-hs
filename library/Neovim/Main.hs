@@ -143,9 +143,9 @@ type TransitionHandler a = [Async ()] -> Internal.Config RPCConfig -> IO a
  using the "Config.Dyre" library while still using the /nvim-hs/ specific
  configuration facilities.
 -}
-realMain ::
-    TransitionHandler a ->
-    NeovimConfig ->
+realMain :: TransitionHandler a -- ^ 
+  -> NeovimConfig -- ^ 
+  ->
     IO ()
 realMain transitionHandler cfg = do
     os <- execParser opts
@@ -197,7 +197,7 @@ runPluginProvider os mcfg transitionHandler = case (hostPort os, unix os) of
                     putTMVar
                         (Internal.globalFunctionMap conf)
                         (Internal.mkFunctionMap funMapEntries)
-                putMVar (Internal.transitionTo conf) $ Internal.InitSuccess
+                putMVar (Internal.transitionTo conf) Internal.InitSuccess
                 transitionHandler (srTid : ehTid : pluginTids) conf
 
 standalone :: TransitionHandler ()

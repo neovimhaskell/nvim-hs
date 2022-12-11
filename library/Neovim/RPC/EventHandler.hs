@@ -89,7 +89,7 @@ handleMessage ::
     ConduitM i EncodedResponse EventHandler ()
 handleMessage = \case
     (Just (FunctionCall fn params reply time), _) -> do
-        cfg <- asks (Internal.customConfig)
+        cfg <- asks Internal.customConfig
         messageId <- atomically' $ do
             i <- readTVar (nextMessageId cfg)
             modifyTVar' (nextMessageId cfg) succ

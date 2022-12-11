@@ -13,12 +13,13 @@ Portability :  GHC
 module Neovim.Test (
     runInEmbeddedNeovim,
     runInEmbeddedNeovim',
+    Seconds (..),
+    TestConfiguration (..),
     -- deprecated
     testWithEmbeddedNeovim,
-    Seconds (..),
 ) where
 
-import Neovim (Neovim, def, putDoc, void)
+import Neovim
 import Neovim.API.Text (nvim_command, vim_command)
 import qualified Neovim.Context.Internal as Internal
 import Neovim.RPC.Common (RPCConfig, newRPCConfig)
@@ -30,6 +31,8 @@ import Control.Monad.Trans.Resource (runResourceT)
 import Data.Default (Default)
 import Data.Text (pack)
 import GHC.IO.Exception (ioe_filename)
+import Neovim.Plugin (startPluginThreads)
+import Neovim.Util (oneLineErrorMessage)
 import Path (File, Path, toFilePath)
 import Prettyprinter (annotate, vsep)
 import Prettyprinter.Render.Terminal (Color (..), color)
@@ -47,18 +50,8 @@ import System.Process.Typed (
     stopProcess,
     waitExitCode,
  )
-import UnliftIO (
-    Handle,
-    IOException,
-    async,
-    atomically,
-    cancel,
-    catch,
-    putTMVar,
-    throwIO,
-    timeout,
- )
-import UnliftIO.Concurrent (threadDelay)
+import UnliftIO (Handle, IOException, async, atomically, cancel, catch, newEmptyMVar, putMVar, putTMVar, throwIO, timeout)
+import UnliftIO.Concurrent (takeMVar, threadDelay)
 
 -- | Type synonym for 'Word'.
 newtype Seconds = Seconds Word
@@ -85,23 +78,24 @@ The 'TestConfiguration' contains sensible defaults.
 
 'env' is the state of your function that you want to test.
 -}
-runInEmbeddedNeovim :: TestConfiguration -> env -> Neovim env a -> IO ()
-runInEmbeddedNeovim TestConfiguration{..} env (Internal.Neovim action) =
-    runTest `catch` catchIfNvimIsNotOnPath
+runInEmbeddedNeovim :: TestConfiguration -> Plugin env -> Neovim env a -> IO ()
+runInEmbeddedNeovim TestConfiguration{..} plugin action =
+    warnIfNvimIsNotOnPath runTest
   where
     runTest = do
-        (nvimProcess, cfg, cleanUp) <- startEmbeddedNvim cancelAfter
+        resultMVar <- newEmptyMVar
+        let action' = do
+                result <- action
+                q <- Internal.asks' Internal.transitionTo
+                putMVar q Internal.Quit
+                -- vim_command isn't asynchronous, so we need to avoid waiting
+                -- for the result of the operation by using 'async' since
+                -- neovim cannot send a result if it has quit.
+                _ <- async . void $ vim_command "qa!"
+                putMVar resultMVar result
+        (nvimProcess, cleanUp) <- startEmbeddedNvim cancelAfter plugin action'
 
-        let actionCfg = Internal.retypeConfig env cfg
-
-        result <- timeout (microSeconds cancelAfter) $ do
-            runReaderT (runResourceT action) actionCfg
-
-        -- vim_command isn't asynchronous, so we need to avoid waiting for the
-        -- result of the operation since neovim cannot send a result if it
-        -- has quit.
-        let Internal.Neovim q = vim_command "qa!"
-        testRunner <- async . void $ runReaderT (runResourceT q) actionCfg
+        result <- timeout (microSeconds cancelAfter) (takeMVar resultMVar)
 
         waitExitCode nvimProcess >>= \case
             ExitFailure i ->
@@ -109,11 +103,25 @@ runInEmbeddedNeovim TestConfiguration{..} env (Internal.Neovim action) =
             ExitSuccess -> case result of
                 Nothing -> fail "Test timed out"
                 Just _ -> pure ()
-        cancel testRunner
         cleanUp
 
+type TransitionHandler a = Internal.Config RPCConfig -> IO a
+
+testTransitionHandler :: IO a -> TransitionHandler ()
+testTransitionHandler onInitAction cfg =
+    takeMVar (Internal.transitionTo cfg) >>= \case
+        Internal.InitSuccess -> do
+            void onInitAction
+            testTransitionHandler onInitAction cfg
+        Internal.Restart -> do
+            fail "Restart unexpected"
+        Internal.Failure e -> do
+            fail . show $ oneLineErrorMessage e
+        Internal.Quit -> do
+            return ()
+
 runInEmbeddedNeovim' :: TestConfiguration -> Neovim () a -> IO ()
-runInEmbeddedNeovim' testCfg = runInEmbeddedNeovim testCfg ()
+runInEmbeddedNeovim' testCfg = runInEmbeddedNeovim testCfg Plugin{environment = (), exports = []}
 
 {-# DEPRECATED testWithEmbeddedNeovim "Use \"runInEmbeddedNeovim def env action\" and open files with nvim_command \"edit file\"" #-}
 
@@ -131,14 +139,17 @@ testWithEmbeddedNeovim ::
     Neovim env a ->
     IO ()
 testWithEmbeddedNeovim file timeoutAfter env action =
-    runInEmbeddedNeovim def{cancelAfter = timeoutAfter} env (openTestFile <* action)
+    runInEmbeddedNeovim
+        def{cancelAfter = timeoutAfter}
+        Plugin{environment = env, exports = []}
+        (openTestFile <* action)
   where
     openTestFile = case file of
         Nothing -> pure ()
         Just f -> nvim_command $ pack $ "edit " ++ toFilePath f
 
-catchIfNvimIsNotOnPath :: IOException -> IO ()
-catchIfNvimIsNotOnPath e = case ioe_filename e of
+warnIfNvimIsNotOnPath :: IO a -> IO ()
+warnIfNvimIsNotOnPath test = void test `catch` \(e :: IOException) -> case ioe_filename e of
     Just "nvim" ->
         putDoc . annotate (color Red) $
             vsep
@@ -150,8 +161,10 @@ catchIfNvimIsNotOnPath e = case ioe_filename e of
 
 startEmbeddedNvim ::
     Seconds ->
-    IO (Process Handle Handle (), Internal.Config RPCConfig, IO ())
-startEmbeddedNvim timeoutAfter = do
+    Plugin env ->
+    Neovim env () ->
+    IO (Process Handle Handle (), IO ())
+startEmbeddedNvim timeoutAfter plugin (Internal.Neovim action) = do
     nvimProcess <-
         startProcess $
             setStdin createPipe $
@@ -172,15 +185,30 @@ startEmbeddedNvim timeoutAfter = do
                 (getStdin nvimProcess)
                 (cfg{Internal.pluginSettings = Nothing})
 
-    atomically $
-        putTMVar
-            (Internal.globalFunctionMap cfg)
-            (Internal.mkFunctionMap [])
+    let actionCfg = Internal.retypeConfig (environment plugin) cfg
+        action' = runReaderT (runResourceT action) actionCfg
+    pluginHandlers <-
+        startPluginThreads (Internal.retypeConfig () cfg) [wrapPlugin plugin] >>= \case
+            Left e -> do
+                putMVar (Internal.transitionTo cfg) $ Internal.Failure e
+                pure []
+            Right (funMapEntries, pluginTids) -> do
+                atomically $
+                    putTMVar
+                        (Internal.globalFunctionMap cfg)
+                        (Internal.mkFunctionMap funMapEntries)
+                putMVar (Internal.transitionTo cfg) Internal.InitSuccess
+                pure pluginTids
 
+    transitionHandler <- async . void $ do
+        testTransitionHandler action' cfg
     timeoutAsync <- async . void $ do
         threadDelay $ microSeconds timeoutAfter
         getExitCode nvimProcess >>= maybe (stopProcess nvimProcess) (\_ -> pure ())
 
-    let cleanUp = mapM_ cancel [socketReader, eventHandler, timeoutAsync]
+    let cleanUp =
+            mapM_ cancel $
+                [socketReader, eventHandler, timeoutAsync, transitionHandler]
+                    ++ pluginHandlers
 
-    pure (nvimProcess, cfg, cleanUp)
+    pure (nvimProcess, cleanUp)
