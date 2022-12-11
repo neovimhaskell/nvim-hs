@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Neovim.Plugin.ClassesSpec where
@@ -44,7 +43,7 @@ newtype RandomCommandOptions = RCOs {getRandomCommandOptions :: CommandOptions}
 instance Arbitrary RandomCommandOptions where
     arbitrary = do
         l <- choose (0, 20)
-        (RCOs . mkCommandOptions . map getRandomCommandOption) <$> vectorOf l arbitrary
+        RCOs . mkCommandOptions . map getRandomCommandOption <$> vectorOf l arbitrary
 
 spec :: Spec
 spec = do
