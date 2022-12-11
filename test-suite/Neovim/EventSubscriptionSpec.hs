@@ -34,9 +34,8 @@ parseBufLinesEvent event = case event of
 
 spec :: Spec
 spec = parallel $ do
-    let withNeovimEmbedded = testWithEmbeddedNeovim Nothing (Seconds 2) ()
     describe "Attaching to a buffer" $ do
-        it "receives nvim_buf_lines_event" . withNeovimEmbedded $ do
+        it "receives nvim_buf_lines_event" . runInEmbeddedNeovim' def $ do
             received <- newEmptyMVar
             subscribe "nvim_buf_lines_event" $ putMVar received . parseBufLinesEvent
             buf <- nvim_create_buf True False
@@ -51,7 +50,7 @@ spec = parallel $ do
                 bleLines `shouldBe` [""]
                 bleMore `shouldBe` False
 
-        it "receives nvim_buf_detach_event" . withNeovimEmbedded $ do
+        it "receives nvim_buf_detach_event" . runInEmbeddedNeovim' def $ do
             received <- newEmptyMVar
             subscribe "nvim_buf_detach_event" $ putMVar received
             buf <- nvim_create_buf True False
