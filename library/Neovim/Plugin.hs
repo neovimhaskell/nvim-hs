@@ -19,6 +19,7 @@ module Neovim.Plugin (
     CommandOption (..),
     addAutocmd,
     registerPlugin,
+    registerFunctionality,
 ) where
 
 import Neovim.API.String
@@ -71,7 +72,7 @@ startPluginThreads cfg = runNeovimInternal return cfg . foldM go ([], [])
 
         return (es ++ es', tid : tids)
 
-{- | Callthe vimL functions to define a function, command or autocmd on the
+{- | Call the vimL functions to define a function, command or autocmd on the
  neovim side. Returns 'True' if registration was successful.
 
  Note that this does not have any effect on the side of /nvim-hs/.

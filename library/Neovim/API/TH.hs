@@ -321,7 +321,7 @@ customTypeInstance typeName nis = do
 function :: String -> Name -> Q Exp
 function [] _ = fail "Empty names are not allowed for exported functions."
 function customName@(c : _) functionName
-    | (not . isUpper) c = error $ "Custom function name must start with a capiatl letter: " <> show customName
+    | (not . isUpper) c = error $ "Custom function name must start with a capital letter: " <> show customName
     | otherwise = do
         (_, fun) <- functionImplementation functionName
         [|\funOpts -> EF (Function (F (fromString $(litE (StringL customName)))) funOpts, $(return fun))|]
