@@ -32,12 +32,11 @@ import Neovim.Exceptions (
 import Neovim.Plugin.Classes
 import Neovim.Plugin.IPC
 
-import qualified Data.ByteString.UTF8 as U (fromString)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.MessagePack (Object)
 import Data.Monoid (Ap (Ap))
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import System.Log.Logger (errorM)
 import UnliftIO
 
@@ -135,7 +134,7 @@ newUniqueFunctionName = do
     tu <- asks' uniqueCounter
     -- reverseing the integer string should distribute the first character more
     -- evently and hence cause faster termination for comparisons.
-    fmap (F . U.fromString . reverse . show) . liftIO . atomically $ do
+    fmap (F . pack . reverse . show) . liftIO . atomically $ do
         u <- readTVar tu
         modifyTVar' tu succ
         return u
