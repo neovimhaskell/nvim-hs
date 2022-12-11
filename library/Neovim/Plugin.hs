@@ -20,6 +20,7 @@ module Neovim.Plugin (
     addAutocmd,
     registerPlugin,
     registerFunctionality,
+    getProviderName,
 ) where
 
 import Neovim.API.String
@@ -37,13 +38,12 @@ import Neovim.RPC.FunctionCall
 
 import Control.Applicative
 import Control.Monad (foldM, void)
-import Control.Monad.Trans.Resource (ReleaseKey, allocate)
-import Data.ByteString (ByteString)
 import Data.Foldable (forM_)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
+import Data.Either (rights)
 import Data.MessagePack
+import Data.Text (Text)
 import Data.Traversable (forM)
 import System.Log.Logger
 import UnliftIO.Async (Async, async, race)
@@ -173,31 +173,19 @@ getProviderName = do
 registerFunctionality ::
     FunctionalityDescription ->
     ([Object] -> Neovim env Object) ->
-    Neovim env (Maybe (FunctionMapEntry, Either (Neovim anyEnv ()) ReleaseKey))
-registerFunctionality d f =
+    Neovim env (Either (Doc AnsiStyle) FunctionMapEntry)
+registerFunctionality d f = do
     Internal.asks' Internal.pluginSettings >>= \case
         Nothing -> do
-            liftIO $ errorM logger "Cannot register functionality in this context."
-            return Nothing
+            let msg = "Cannot register functionality in this context."
+            liftIO $ errorM logger msg
+            return $ Left $ pretty msg
         Just (Internal.StatefulSettings reg q m) ->
             reg d f q m >>= \case
                 Just e -> do
-                    -- Redefine fields so that it gains a new type
-                    cfg <- Internal.retypeConfig () <$> Internal.ask'
-                    rk <- fst <$> allocate (return ()) (free cfg (fst e))
-                    return $ Just (e, Right rk)
+                    pure $ Right e
                 Nothing ->
-                    return Nothing
-  where
-    freeFun = \case
-        Autocmd _ _ _ AutocmdOptions{} -> do
-            liftIO $ warningM logger "Free not implemented for autocmds."
-        Command{} ->
-            liftIO $ warningM logger "Free not implemented for commands."
-        Function{} ->
-            liftIO $ warningM logger "Free not implemented for functions."
-
-    free cfg fd _ = void . runNeovimInternal return cfg $ freeFun fd
+                    pure $ Left ""
 
 registerInGlobalFunctionMap :: FunctionMapEntry -> Neovim env ()
 registerInGlobalFunctionMap e = do
@@ -234,16 +222,16 @@ registerPlugin reg d f q tm =
 -}
 addAutocmd ::
     -- | The event to register to (e.g. BufWritePost)
-    ByteString ->
+    Text ->
     Synchronous ->
     AutocmdOptions ->
     -- | Fully applied function to register
     Neovim env () ->
     -- | A 'ReleaseKey' if the registration worked
-    Neovim env (Maybe (Either (Neovim anyEnv ()) ReleaseKey))
+    Neovim env (Either (Doc AnsiStyle) FunctionMapEntry)
 addAutocmd event s opts@AutocmdOptions{} f = do
     n <- newUniqueFunctionName
-    fmap snd <$> registerFunctionality (Autocmd event n s opts) (\_ -> toObject <$> f)
+    registerFunctionality (Autocmd event n s opts) (\_ -> toObject <$> f)
 
 {- | Create a listening thread for events and add update the 'FunctionMap' with
  the corresponding 'TQueue's (i.e. communication channels).
@@ -272,7 +260,7 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
         registerFunctionality (getDescription f) (getFunction f)
     es <- case res of
         Left e -> err e
-        Right a -> return $ catMaybes a
+        Right a -> return $ rights a
 
     let pluginThreadConfig =
             cfg
@@ -288,7 +276,7 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
     tid <- liftIO . async . void . runNeovim pluginThreadConfig $ do
         listeningThread messageQueue route subscribers
 
-    return (map fst es, tid) -- NB: dropping release functions/keys here
+    return (es, tid) -- NB: dropping release functions/keys here
   where
     executeFunction ::
         ([Object] -> Neovim env Object) ->
@@ -327,7 +315,20 @@ registerStatefulFunctionality (Plugin{environment = env, exports = fs}) = do
                         (timeoutAndLog 10 fun)
                         (executeFunction f args)
 
-        forM_ (fromMessage msg) $ \notification -> do
+        forM_ (fromMessage msg) $ \notification@(Notification (NeovimEventId methodName) args) -> do
+            let method = NvimMethod methodName
+            route' <- liftIO $ readTVarIO route
+            forM_ (Map.lookup method route') $ \f ->
+                void . async $ do
+                    result <- either Left id <$> race
+                        (timeoutAndLog 600 (F methodName))
+                        (executeFunction f args)
+                    case result of
+                      Left message ->
+                          nvim_err_writeln message
+                      Right _ ->
+                          return ()
+
             subscribers' <- liftIO $ readTVarIO subscribers
             forM_ subscribers' $ \subscriber ->
                 async $ void $ race (subscriber notification) (killAfterSeconds 10)

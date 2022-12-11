@@ -204,6 +204,7 @@ test-suite hspec
                       , Neovim.EmbeddedRPCSpec
                       , Neovim.EventSubscriptionSpec
                       , Neovim.Plugin.ClassesSpec
+                      , AsyncFunctionSpec
                       , Neovim.RPC.SocketReaderSpec
                       , Neovim.RPC.CommonSpec
 

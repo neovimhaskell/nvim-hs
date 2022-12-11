@@ -44,8 +44,8 @@ import Data.Monoid
 import qualified Data.Serialize (get)
 import System.IO (Handle)
 import System.Log.Logger
-import UnliftIO.Async (async, race)
-import UnliftIO.Concurrent (threadDelay)
+import UnliftIO (timeout)
+import UnliftIO.Async (async)
 
 import Prelude
 
@@ -94,26 +94,23 @@ handleResponse i result = do
             atomically' . modifyTVar' answerMap $ Map.delete i
             atomically' $ putTMVar reply result
 
+lookupFunction ::
+    Internal.Config RPCConfig ->
+    FunctionName ->
+    IO (Maybe (FunctionalityDescription, Internal.FunctionType))
+lookupFunction rpc (F functionName) = do
+    functionMap <- atomically $ readTMVar (Internal.globalFunctionMap rpc)
+    pure $ Map.lookup (NvimMethod functionName) functionMap
+
 handleRequest :: Int64 -> FunctionName -> [Object] -> ConduitT a Void SocketHandler ()
-handleRequest requestId functionToCall@(F functionName) params = do
+handleRequest requestId functionToCall params = do
     cfg <- lift Internal.ask'
-    void . liftIO . async $ race logTimeout (handle cfg)
+    void . liftIO . async $ timeout (10 * 1000 * 1000) (handle cfg)
     return ()
   where
-    lookupFunction ::
-        TMVar Internal.FunctionMap ->
-        STM (Maybe (FunctionalityDescription, Internal.FunctionType))
-    lookupFunction funMap = Map.lookup (NvimMethod functionName) <$> readTMVar funMap
-
-    logTimeout :: IO ()
-    logTimeout = do
-        let seconds = 1000 * 1000
-        threadDelay (10 * seconds)
-        debugM logger "Cancelled another action before it was finished"
-
     handle :: Internal.Config RPCConfig -> IO ()
     handle rpc =
-        atomically (lookupFunction (Internal.globalFunctionMap rpc)) >>= \case
+        lookupFunction rpc functionToCall >>= \case
             Nothing -> do
                 let errM = "No provider for: " <> show functionToCall
                 debugM logger errM
@@ -128,13 +125,20 @@ handleRequest requestId functionToCall@(F functionName) params = do
                 writeMessage c $ Request functionToCall requestId (parseParams copts params)
 
 handleNotification :: NeovimEventId -> [Object] -> ConduitT a Void SocketHandler ()
-handleNotification eventId args = do
-    subscriptions' <- lift $ Internal.asks' Internal.subscriptions
-    subscribers <- liftIO $
-        atomically $ do
-            s <- readTMVar subscriptions'
-            pure $ fromMaybe [] $ Map.lookup eventId (Internal.byEventId s)
-    forM_ subscribers $ \subscription -> liftIO $ subAction subscription args
+handleNotification eventId@(NeovimEventId str) args = do
+    cfg <- lift Internal.ask'
+    liftIO (lookupFunction cfg (F str)) >>= \case
+        Just (copts, Internal.Stateful c) -> liftIO $ do
+            debugM logger $ "Executing function asynchronously: " <> show str
+            writeMessage c $ Notification eventId (parseParams copts args)
+        Nothing -> do
+            liftIO $ debugM logger $ "Handling event: " <> show str
+            subscriptions' <- lift $ Internal.asks' Internal.subscriptions
+            subscribers <- liftIO $
+                atomically $ do
+                    s <- readTMVar subscriptions'
+                    pure $ fromMaybe [] $ Map.lookup eventId (Internal.byEventId s)
+            forM_ subscribers $ \subscription -> liftIO $ subAction subscription args
 
 parseParams :: FunctionalityDescription -> [Object] -> [Object]
 parseParams (Function _ _) args = case args of
