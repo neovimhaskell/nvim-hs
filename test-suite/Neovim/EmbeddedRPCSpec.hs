@@ -21,12 +21,13 @@ import Control.Concurrent.STM
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (runStateT)
 import qualified Data.Map as Map
+import qualified GHC.IO.Device as Path
 import Path
 import Path.IO
 import System.Exit (ExitCode (..))
 import System.Process.Typed
 
-{- | Tests in here should always be wrapped in 'withNeovimEmbedded' because they
+{- | Tests in here should always be wrapped in 'runInEmbeddedNeovim' def' because they
  don't fail if neovim isn't installed.  This is particularly helpful to run
  tests on stackage and be notified if non-neovim-dependent tests fail.
  Basically everybody else who runs these tests has neovim installed and would
@@ -34,11 +35,9 @@ import System.Process.Typed
 -}
 spec :: Spec
 spec = parallel $ do
-    let withNeovimEmbedded :: Maybe (Path.Path b File) -> Neovim () a -> IO ()
-        withNeovimEmbedded f = testWithEmbeddedNeovim f (Seconds 3) ()
     describe "Read hello test file"
         . it "should match 'Hello, World!'"
-        . withNeovimEmbedded Nothing
+        . runInEmbeddedNeovim' def
         $ do
             nvim_command "edit test-files/hello"
             bs <- vim_get_buffers
@@ -47,7 +46,7 @@ spec = parallel $ do
             liftIO $ length bs `shouldBe` 1
 
     describe "New empty buffer test" $ do
-        it "should contain the test text" . withNeovimEmbedded Nothing $ do
+        it "should contain the test text" . runInEmbeddedNeovim' def $ do
             cl0 <- vim_get_current_line
             liftIO $ cl0 `shouldBe` ""
             bs <- vim_get_buffers
@@ -58,7 +57,7 @@ spec = parallel $ do
             cl1 <- vim_get_current_line
             liftIO $ cl1 `shouldBe` testContent
 
-        it "should create a new buffer" . withNeovimEmbedded Nothing $ do
+        it "should create a new buffer" . runInEmbeddedNeovim' def $ do
             bs0 <- vim_get_buffers
             liftIO $ length bs0 `shouldBe` 1
             vim_command "new"
@@ -68,13 +67,13 @@ spec = parallel $ do
             bs2 <- vim_get_buffers
             liftIO $ length bs2 `shouldBe` 3
 
-        it "should set the quickfix list" . withNeovimEmbedded Nothing $ do
+        it "should set the quickfix list" . runInEmbeddedNeovim' def $ do
             let q = quickfixListItem (Left 1) (Left 0) :: QuickfixListItem String
             setqflist [q] Replace
             q' <- vim_eval "getqflist()"
             liftIO $ fromObjectUnsafe q' `shouldBe` [q]
 
-        it "throws NeovimException with function that failed as Doc" . withNeovimEmbedded Nothing $ do
+        it "throws NeovimException with function that failed as Doc" . runInEmbeddedNeovim' def $ do
             let getVariableValue = False <$ vim_get_var "notDefined"
             hasTrhownNeovimExceptionWithFunctionName <-
                 getVariableValue `catchNeovimException` \case
@@ -82,7 +81,7 @@ spec = parallel $ do
                     _ -> pure False
             liftIO $ hasTrhownNeovimExceptionWithFunctionName `shouldBe` True
 
-        it "catches" . withNeovimEmbedded Nothing $ do
+        it "catches" . runInEmbeddedNeovim' def $ do
             let getUndefinedVariable = vim_get_var "notDefined"
             functionThatFailed <-
                 getUndefinedVariable `catchNeovimException` \case
