@@ -33,7 +33,6 @@ module Neovim.Plugin.Classes (
 import Neovim.Classes
 
 import Control.Monad.Error.Class (MonadError (throwError))
-import Data.ByteString (ByteString)
 import Data.Char (isDigit)
 import Data.Default (Default (..))
 import Data.List (groupBy, sort)
@@ -42,18 +41,14 @@ import Data.Maybe (catMaybes, mapMaybe)
 import Data.MessagePack (Object (..))
 import Data.String (IsString (..))
 import Data.Text (Text)
-import Data.Text.Encoding (decodeUtf8)
 import Prettyprinter (cat, comma, lparen, rparen, viaShow)
 
 import Prelude hiding (sequence)
 
 -- | Essentially just a string.
-newtype FunctionName = F ByteString
+newtype FunctionName = F Text
     deriving (Eq, Ord, Show, Read, Generic)
-    deriving (NFData) via ByteString
-
-instance Pretty FunctionName where
-    pretty (F n) = pretty $ decodeUtf8 n
+    deriving (NFData, Pretty) via Text
 
 newtype NeovimEventId = NeovimEventId Text
     deriving (Eq, Ord, Show, Read, Generic)
@@ -102,7 +97,7 @@ data FunctionalityDescription
       -- * Name for the function to call
       -- * Whether to use rpcrequest or rpcnotify
       -- * Options for the autocmd (use 'def' here if you don't want to change anything)
-      Autocmd ByteString FunctionName Synchronous AutocmdOptions
+      Autocmd Text FunctionName Synchronous AutocmdOptions
     deriving (Show, Read, Eq, Ord, Generic)
 
 instance NFData FunctionalityDescription
@@ -115,7 +110,7 @@ instance Pretty FunctionalityDescription where
             "Command" <+> pretty copts <+> pretty fname
         Autocmd t fname s aopts ->
             "Autocmd"
-                <+> pretty (decodeUtf8 t)
+                <+> pretty t
                 <+> pretty s
                 <+> pretty aopts
                 <+> pretty fname
@@ -317,22 +312,22 @@ instance NvimObject RangeSpecification where
  attributes a command can take.
 -}
 data CommandArguments = CommandArguments
-    { -- | 'Nothing' means that the function was not defined to handle a bang,
-      -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
-      -- was not passed when called (@'Just' 'False'@).
-      bang :: Maybe Bool
-    , -- | Range passed from neovim. Only set if 'CmdRange' was used in the export
-      -- declaration of the command.
-      --
-      -- Example:
-      --
-      -- * @Just (1,12)@
-      range :: Maybe (Int, Int)
-    , -- | Count passed by neovim. Only set if 'CmdCount' was used in the export
-      -- declaration of the command.
-      count :: Maybe Int
-    , -- | Register that the command can\/should\/must use.
-      register :: Maybe String
+    { bang :: Maybe Bool
+    -- ^ 'Nothing' means that the function was not defined to handle a bang,
+    -- otherwise it means that the bang was passed (@'Just' 'True'@) or that it
+    -- was not passed when called (@'Just' 'False'@).
+    , range :: Maybe (Int, Int)
+    -- ^ Range passed from neovim. Only set if 'CmdRange' was used in the export
+    -- declaration of the command.
+    --
+    -- Example:
+    --
+    -- * @Just (1,12)@
+    , count :: Maybe Int
+    -- ^ Count passed by neovim. Only set if 'CmdCount' was used in the export
+    -- declaration of the command.
+    , register :: Maybe String
+    -- ^ Register that the command can\/should\/must use.
     }
     deriving (Eq, Ord, Show, Read, Generic)
 
@@ -391,14 +386,14 @@ instance NvimObject CommandArguments where
  referenced neovim help-page from the fields of this data type.
 -}
 data AutocmdOptions = AutocmdOptions
-    { -- | Pattern to match on. (default: \"*\")
-      acmdPattern :: String
-    , -- | Nested autocmd. (default: False)
-      --
-      -- See @:h autocmd-nested@
-      acmdNested :: Bool
-    , -- | Group in which the autocmd should be registered.
-      acmdGroup :: Maybe String
+    { acmdPattern :: String
+    -- ^ Pattern to match on. (default: \"*\")
+    , acmdNested :: Bool
+    -- ^ Nested autocmd. (default: False)
+    --
+    -- See @:h autocmd-nested@
+    , acmdGroup :: Maybe String
+    -- ^ Group in which the autocmd should be registered.
     }
     deriving (Show, Read, Eq, Ord, Generic)
 
@@ -434,13 +429,9 @@ instance NvimObject AutocmdOptions where
         throwError $
             "Did not expect to receive an AutocmdOptions object: " <+> viaShow o
 
-newtype NvimMethod = NvimMethod {nvimMethodName :: ByteString}
+newtype NvimMethod = NvimMethod {nvimMethodName :: Text}
     deriving (Eq, Ord, Show, Read, Generic)
-
-instance NFData NvimMethod
-
-instance Pretty NvimMethod where
-    pretty (NvimMethod n) = pretty $ decodeUtf8 n
+    deriving (Pretty, NFData) via Text
 
 -- | Conveniennce class to extract a name from some value.
 class HasFunctionName a where
@@ -457,3 +448,4 @@ instance HasFunctionName FunctionalityDescription where
         Function (F n) _ -> NvimMethod $ n <> ":function"
         Command (F n) _ -> NvimMethod $ n <> ":command"
         Autocmd _ (F n) _ _ -> NvimMethod n
+

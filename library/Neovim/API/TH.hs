@@ -49,7 +49,6 @@ import Control.Concurrent.STM (STM)
 import Control.Exception
 import Control.Monad
 import Data.ByteString (ByteString)
-import Data.ByteString.UTF8 (fromString)
 import Data.Char (isUpper, toUpper)
 import Data.Data (Data, Typeable)
 import Data.Map (Map)
@@ -64,6 +63,7 @@ import Prettyprinter (viaShow)
 import UnliftIO.Exception
 
 import Prelude
+import qualified Data.Text as T
 
 {- | Generate the API types and functions provided by @nvim --api-info@.
 
@@ -217,7 +217,7 @@ createFunction typeMap nf = do
                 (map (varP . snd) vars)
                 ( normalB
                     ( callFn
-                        `appE` ([|(F . fromString)|] `appE` (litE . stringL . name) nf)
+                        `appE` ([|(F . T.pack)|] `appE` (litE . stringL . name) nf)
                         `appE` listE (map (toObjVar . snd) vars)
                     )
                 )
@@ -324,7 +324,7 @@ function customName@(c : _) functionName
     | (not . isUpper) c = error $ "Custom function name must start with a capital letter: " <> show customName
     | otherwise = do
         (_, fun) <- functionImplementation functionName
-        [|\funOpts -> EF (Function (F (fromString $(litE (StringL customName)))) funOpts, $(return fun))|]
+        [|\funOpts -> EF (Function (F (T.pack $(litE (StringL customName)))) funOpts, $(return fun))|]
 
 uppercaseFirstCharacter :: Name -> String
 uppercaseFirstCharacter name = case nameBase name of
@@ -430,7 +430,7 @@ command customFunctionName@(c : _) functionName
             \copts ->
                 EF
                     ( Command
-                        (F (fromString $(litE (StringL customFunctionName))))
+                        (F (T.pack $(litE (StringL customFunctionName))))
                         (mkCommandOptions ($(nargs) : copts))
                     , $(return fun)
                     )
@@ -473,7 +473,7 @@ autocmd functionName =
             (as, fun) <- functionImplementation functionName
             case as of
                 [] ->
-                    [|\t sync acmdOpts -> EF (Autocmd t (F (fromString $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
+                    [|\t sync acmdOpts -> EF (Autocmd t (F (T.pack $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
                 _ ->
                     error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."
 
