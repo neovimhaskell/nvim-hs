@@ -73,6 +73,16 @@ common defaults
                       , RecordWildCards
                       , TemplateHaskell
   ghc-options:        -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  build-depends:        base >=4.9 && < 5 
+                      , containers
+                      , data-default
+                      , deepseq >= 1.1 && < 1.5
+                      , prettyprinter
+                      , prettyprinter-ansi-terminal
+                      , unliftio >= 0.2
+                      , unliftio-core >= 0.2
+                      , vector
+                      , void
   
 library
   import: defaults
@@ -111,14 +121,10 @@ library
                       , Neovim.API.Parser
                       , Neovim.API.TH
   other-extensions:     CPP
-  build-depends:        base >=4.9 && < 5
-                      , bytestring
+  build-depends:        bytestring
                       , cereal
                       , cereal-conduit >= 0.8.0
                       , conduit >= 1.3.0
-                      , containers
-                      , data-default
-                      , deepseq >= 1.1 && < 1.5
                       , path
                       , path-io
                       , foreign-store
@@ -129,8 +135,6 @@ library
                       , optparse-applicative
                       , time-locale-compat
                       , megaparsec < 10
-                      , prettyprinter >= 1.7 && < 2
-                      , prettyprinter-ansi-terminal
                       , resourcet >= 1.1.11
                       , stm
                       , streaming-commons
@@ -141,11 +145,7 @@ library
                       , transformers
                       , transformers-base
                       , typed-process
-                      , unliftio >= 0.2
-                      , unliftio-core >= 0.2
                       , utf8-string
-                      , vector
-                      , void
   hs-source-dirs:       src
 
   if os(windows)
@@ -160,46 +160,11 @@ test-suite hspec
   type:                 exitcode-stdio-1.0
   hs-source-dirs:       tests
   main-is:              Spec.hs
-  build-depends:        base >= 4.6 && < 5
-                      , nvim-hs
+  build-depends:        nvim-hs
 
                       , hspec ==2.*
                       , hspec-discover
                       , QuickCheck >=2.6
-
-                      , bytestring
-                      , cereal
-                      , cereal-conduit
-                      , conduit
-                      , containers
-                      , data-default
-                      , path
-                      , path-io
-                      , foreign-store
-                      , hslogger
-                      , mtl
-                      , messagepack
-                      , time-locale-compat
-                      , network
-                      , optparse-applicative
-                      , megaparsec
-                      , prettyprinter
-                      , prettyprinter-ansi-terminal
-                      , typed-process >= 0.2.1.0
-                      , resourcet
-                      , stm
-                      , streaming-commons
-                      , text
-                      , template-haskell
-                      , template-haskell-compat-v0208
-                      , time
-                      , transformers
-                      , transformers-base
-                      , unliftio
-                      , unliftio-core
-                      , utf8-string
-                      , vector
-                      , HUnit
 
   other-modules:        API.THSpec
                       , API.THSpecFunctions
