@@ -50,19 +50,29 @@ source-repository head
 
 common defaults
   default-language:     Haskell2010
-  default-extensions:   ScopedTypeVariables
-  other-extensions:     BangPatterns
-                      , DeriveDataTypeable
+  default-extensions:   BangPatterns
+                      , ScopedTypeVariables
+                      , StrictData
+  other-extensions:     DeriveDataTypeable
                       , DeriveGeneric
+                      , DerivingVia
                       , ExistentialQuantification
                       , FlexibleContexts
                       , FlexibleInstances
                       , GADTs
                       , GeneralizedNewtypeDeriving
+                      , LambdaCase
                       , MultiParamTypeClasses
                       , NamedFieldPuns
+                      , NoOverloadedStrings
+                      , NoRebindableSyntax
+                      , OverloadedLists
+                      , OverloadedStrings
+                      , PackageImports
+                      , RankNTypes
                       , RecordWildCards
                       , TemplateHaskell
+  ghc-options:        -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   
 library
   import: defaults
@@ -136,8 +146,7 @@ library
                       , utf8-string
                       , vector
                       , void
-  hs-source-dirs:       library
-  ghc-options:          -Wall
+  hs-source-dirs:       src
 
   if os(windows)
     cpp-options: -DWINDOWS
