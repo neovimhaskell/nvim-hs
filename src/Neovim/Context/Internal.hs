@@ -2,8 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {- |
@@ -31,8 +31,16 @@ import Neovim.Exceptions (
     NeovimException (..),
     exceptionToDoc,
  )
-import Neovim.Plugin.Classes
-import Neovim.Plugin.IPC
+import Neovim.Plugin.Classes (
+    FunctionName (..),
+    FunctionalityDescription,
+    HasFunctionName (nvimMethod),
+    NeovimEventId (..),
+    NvimMethod,
+    Subscription (..),
+    SubscriptionId (..),
+ )
+import Neovim.Plugin.IPC (SomeMessage)
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -40,10 +48,34 @@ import Data.MessagePack (Object)
 import Data.Monoid (Ap (Ap))
 import Data.Text (Text, pack)
 import System.Log.Logger (errorM)
-import UnliftIO
+import UnliftIO (
+    Exception (fromException),
+    Handler (..),
+    MVar,
+    MonadIO (..),
+    MonadUnliftIO,
+    SomeException,
+    TMVar,
+    TQueue,
+    TVar,
+    atomically,
+    catches,
+    modifyTVar',
+    newEmptyMVar,
+    newEmptyTMVarIO,
+    newTMVarIO,
+    newTQueueIO,
+    newTVarIO,
+    putTMVar,
+    readTVar,
+    takeTMVar,
+    throwIO,
+    try,
+ )
 
 import Prettyprinter (viaShow)
 
+import Conduit (MonadThrow)
 import Control.Exception (
     ArithException,
     ArrayException,
@@ -51,9 +83,12 @@ import Control.Exception (
     PatternMatchFail,
  )
 import qualified Control.Monad.Fail as Fail
-import Control.Monad.Reader
-import Control.Monad.Trans.Resource (MonadResource (..), MonadThrow)
-import UnliftIO.Resource
+import Control.Monad.Reader (
+    MonadReader (ask, local),
+    ReaderT (..),
+    asks,
+    void,
+ )
 import Prelude
 
 {- | This is the environment in which all plugins are initially started.
@@ -65,7 +100,7 @@ import Prelude
  haskell programs.
 -}
 newtype Neovim env a = Neovim
-    {unNeovim :: ResourceT (ReaderT (Config env) IO) a}
+    {unNeovim :: ReaderT (Config env) IO a}
     deriving newtype (Functor, Applicative, Monad, MonadIO, MonadThrow, MonadUnliftIO)
     deriving (Semigroup, Monoid) via (Ap (Neovim env) a)
 
@@ -74,13 +109,7 @@ instance MonadReader env (Neovim env) where
     ask = Neovim $ asks customConfig
     local f (Neovim a) = do
         r <- Neovim ask
-        liftIO $
-            runReaderT
-                (runResourceT a)
-                (r{customConfig = f (customConfig r)})
-
-instance MonadResource (Neovim env) where
-    liftResourceT m = Neovim $ UnliftIO.Resource.liftResourceT m
+        liftIO $ runReaderT a (r{customConfig = f (customConfig r)})
 
 instance Fail.MonadFail (Neovim env) where
     fail = throwIO . ErrorMessage . pretty
@@ -118,7 +147,7 @@ runNeovimInternal ::
     Neovim env a ->
     IO (Either (Doc AnsiStyle) a)
 runNeovimInternal f r (Neovim a) =
-    (try . runReaderT (runResourceT a)) r >>= \case
+    (try . runReaderT a) r >>= \case
         Left e -> case fromException e of
             Just e' ->
                 return . Left . exceptionToDoc $ (e' :: NeovimException)
@@ -229,37 +258,37 @@ unsubscribe subscription = do
 -}
 data Config env = Config
     -- Global settings; initialized once
-    { -- | A queue of messages that the event handler will propagate to
-      -- appropriate threads and handlers.
-      eventQueue :: TQueue SomeMessage
-    , -- | The main thread will wait for this 'MVar' to be filled with a value
-      -- and then perform an action appropriate for the value of type
-      -- 'StateTransition'.
-      transitionTo :: MVar StateTransition
-    , -- | Since nvim-hs must have its "Neovim.RPC.SocketReader" and
-      -- "Neovim.RPC.EventHandler" running to determine the actual channel id
-      -- (i.e. the 'Int' value here) this field can only be set properly later.
-      -- Hence, the value of this field is put in an 'TMVar'.
-      -- Name that is used to identify this provider. Assigning such a name is
-      -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
-      providerName :: TMVar (Either String Int)
-    , -- | This 'TVar' is used to generate uniqe function names on the side of
-      -- /nvim-hs/. This is useful if you don't want to overwrite existing
-      -- functions or if you create autocmd functions.
-      uniqueCounter :: TVar Integer
-    , -- | This map is used to dispatch received messagepack function calls to
-      -- it's appropriate targets.
-      globalFunctionMap :: TMVar FunctionMap
+    { eventQueue :: TQueue SomeMessage
+    -- ^ A queue of messages that the event handler will propagate to
+    -- appropriate threads and handlers.
+    , transitionTo :: MVar StateTransition
+    -- ^ The main thread will wait for this 'MVar' to be filled with a value
+    -- and then perform an action appropriate for the value of type
+    -- 'StateTransition'.
+    , providerName :: TMVar (Either String Int)
+    -- ^ Since nvim-hs must have its "Neovim.RPC.SocketReader" and
+    -- "Neovim.RPC.EventHandler" running to determine the actual channel id
+    -- (i.e. the 'Int' value here) this field can only be set properly later.
+    -- Hence, the value of this field is put in an 'TMVar'.
+    -- Name that is used to identify this provider. Assigning such a name is
+    -- done in the neovim config (e.g. ~\/.nvim\/nvimrc).
+    , uniqueCounter :: TVar Integer
+    -- ^ This 'TVar' is used to generate uniqe function names on the side of
+    -- /nvim-hs/. This is useful if you don't want to overwrite existing
+    -- functions or if you create autocmd functions.
+    , globalFunctionMap :: TMVar FunctionMap
+    -- ^ This map is used to dispatch received messagepack function calls to
+    -- it's appropriate targets.
     , -- Local settings; intialized for each stateful component
 
-      -- | In a registered functionality this field contains a function (and
-      -- possibly some context dependent values) to register new functionality.
       pluginSettings :: Maybe (PluginSettings env)
-    , -- | Plugins can dynamically subscribe to events that neovim sends.
-      subscriptions :: TMVar Subscriptions
-    , -- | Plugin author supplyable custom configuration. Queried on the
-      -- user-facing side with 'ask' or 'asks'.
-      customConfig :: env
+    -- ^ In a registered functionality this field contains a function (and
+    -- possibly some context dependent values) to register new functionality.
+    , subscriptions :: TMVar Subscriptions
+    -- ^ Plugins can dynamically subscribe to events that neovim sends.
+    , customConfig :: env
+    -- ^ Plugin author supplyable custom configuration. Queried on the
+    -- user-facing side with 'ask' or 'asks'.
     }
 
 {- | Convenient helper to create a new config for the given state and read-only
