@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Neovim.API.THSpec where
+module API.THSpec where
 
-import Neovim.API.THSpecFunctions
+import API.THSpecFunctions
 
 import Neovim.API.TH hiding (function)
 import qualified Neovim.API.TH as TH

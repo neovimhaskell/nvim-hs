@@ -1,4 +1,4 @@
-module Neovim.RPC.CommonSpec where
+module RPC.CommonSpec where
 
 import Neovim.RPC.Common
 

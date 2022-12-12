@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Neovim.EmbeddedRPCSpec where
+module EmbeddedRPCSpec where
 
 import Test.HUnit
 import Test.Hspec
