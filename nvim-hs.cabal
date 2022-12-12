@@ -125,8 +125,6 @@ library
                       , cereal
                       , cereal-conduit >= 0.8.0
                       , conduit >= 1.3.0
-                      , path
-                      , path-io
                       , foreign-store
                       , hslogger
                       , messagepack >= 0.5.4
