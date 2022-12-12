@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {- |
 Module      :  Neovim.RPC.SocketReader
 Description :  The component which reads RPC messages from the neovim instance

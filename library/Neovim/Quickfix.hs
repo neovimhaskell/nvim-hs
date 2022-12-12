@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {- |
 Module      :  Neovim.Quickfix
@@ -13,19 +15,24 @@ Portability :  GHC
 -}
 module Neovim.Quickfix where
 
-import Control.Applicative
+import Neovim.API.String ( vim_call_function )
+import Neovim.Classes
+    ( Generic,
+      NFData,
+      (<+>),
+      Doc,
+      AnsiStyle,
+      NvimObject(toObject, fromObject),
+      (+:) )
+import Neovim.Context ( throwError, Neovim )
+
+
 import Control.Monad (void)
 import Data.ByteString as BS (ByteString, all, elem)
 import qualified Data.Map as Map
-import Data.Maybe
-import Data.MessagePack
-import Data.Monoid
+import Data.Maybe ( fromMaybe )
+import Data.MessagePack ( Object(ObjectBinary, ObjectMap) )
 import Prettyprinter (viaShow)
-
-import Neovim.API.String
-import Neovim.Classes
-import Neovim.Context
-
 import Prelude
 
 {- | This is a wrapper around neovim's @setqflist()@. @strType@ can be any

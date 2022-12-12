@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {- |
 Module      :  Neovim.Plugin
@@ -24,32 +26,75 @@ module Neovim.Plugin (
 ) where
 
 import Neovim.API.String
+    ( nvim_err_writeln, nvim_get_api_info, vim_call_function )
 import Neovim.Classes
+    ( (<+>),
+      Doc,
+      AnsiStyle,
+      Pretty(pretty),
+      NvimObject(toObject, fromObject),
+      Dictionary,
+      (+:) )
 import Neovim.Context
+    ( MonadIO(liftIO),
+      NeovimException,
+      newUniqueFunctionName,
+      runNeovim,
+      FunctionMapEntry,
+      Neovim,
+      err )
 import Neovim.Context.Internal (
     FunctionType (..),
     runNeovimInternal,
  )
 import qualified Neovim.Context.Internal as Internal
-import Neovim.Plugin.Classes hiding (register)
+import Neovim.Plugin.Classes
+    ( HasFunctionName(nvimMethod),
+      FunctionName(..),
+      NeovimEventId(NeovimEventId),
+      Synchronous(..),
+      CommandOption(..),
+      CommandOptions(getCommandOptions),
+      AutocmdOptions(AutocmdOptions),
+      FunctionalityDescription(..),
+      NvimMethod(..) )
 import Neovim.Plugin.IPC.Classes
+    ( Notification(Notification),
+      Request(Request),
+      Message(fromMessage),
+      SomeMessage,
+      readSomeMessage )
 import Neovim.Plugin.Internal
-import Neovim.RPC.FunctionCall
+    ( NeovimPlugin(..),
+      Plugin(..),
+      getDescription,
+      getFunction,
+      wrapPlugin )
+import Neovim.RPC.FunctionCall ( respond )
 
-import Control.Applicative
 import Control.Monad (foldM, void)
 import Data.Foldable (forM_)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Either (rights)
-import Data.MessagePack
+import Data.MessagePack ( Object )
 import Data.Text (Text)
 import Data.Traversable (forM)
-import System.Log.Logger
+import System.Log.Logger ( debugM, errorM )
 import UnliftIO.Async (Async, async, race)
 import UnliftIO.Concurrent (threadDelay)
 import UnliftIO.Exception (SomeException, catch, try)
 import UnliftIO.STM
+    ( TVar,
+      putTMVar,
+      takeTMVar,
+      tryReadTMVar,
+      modifyTVar,
+      TQueue,
+      atomically,
+      newTQueueIO,
+      newTVarIO,
+      readTVarIO )
 
 import Prelude
 

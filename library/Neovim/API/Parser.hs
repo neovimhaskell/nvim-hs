@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {- |
 Module      :  Neovim.API.Parser
 Description :  P.Parser for the msgpack output stram API

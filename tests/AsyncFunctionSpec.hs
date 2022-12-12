@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module AsyncFunctionSpec where
 
 import Neovim
