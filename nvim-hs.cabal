@@ -138,8 +138,6 @@ library
                       , template-haskell-compat-v0208 >= 0.1.9
                       , text
                       , time
-                      , transformers
-                      , transformers-base
                       , typed-process
                       , utf8-string
   hs-source-dirs:       src
