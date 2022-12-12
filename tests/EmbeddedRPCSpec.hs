@@ -3,30 +3,13 @@
 
 module EmbeddedRPCSpec where
 
-import Test.HUnit
 import Test.Hspec
 
 import Neovim
 import Neovim.API.Text
 import Neovim.Context (docToText)
-import qualified Neovim.Context.Internal as Internal
 import Neovim.Quickfix
-import Neovim.RPC.Common
-import Neovim.RPC.EventHandler
-import Neovim.RPC.FunctionCall (atomically')
-import Neovim.RPC.SocketReader
 import Neovim.Test
-
-import Control.Concurrent
-import Control.Concurrent.STM
-import Control.Monad.Reader (runReaderT)
-import Control.Monad.State (runStateT)
-import qualified Data.Map as Map
-import qualified GHC.IO.Device as Path
-import Path
-import Path.IO
-import System.Exit (ExitCode (..))
-import System.Process.Typed
 
 {- | Tests in here should always be wrapped in 'runInEmbeddedNeovim' def' because they
  don't fail if neovim isn't installed.  This is particularly helpful to run

@@ -1,6 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE LambdaCase #-}
 
 {- |
 Module      :  Neovim.API.TH
@@ -63,8 +63,8 @@ import Data.Vector (Vector)
 import Prettyprinter (viaShow)
 import UnliftIO.Exception
 
-import Prelude
 import qualified Data.Text as T
+import Prelude
 
 {- | Generate the API types and functions provided by @nvim --api-info@.
 
@@ -468,15 +468,13 @@ command' functionName = command (uppercaseFirstCharacter functionName) functionN
 -}
 
 autocmd :: Name -> Q Exp
-autocmd functionName =
-    let ~(c : cs) = nameBase functionName
-     in do
-            (as, fun) <- functionImplementation functionName
-            case as of
-                [] ->
-                    [|\t sync acmdOpts -> EF (Autocmd t (F (T.pack $(litE (StringL (toUpper c : cs))))) sync acmdOpts, $(return fun))|]
-                _ ->
-                    error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."
+autocmd functionName = do
+    (as, fun) <- functionImplementation functionName
+    case as of
+        [] ->
+            [|\t sync acmdOpts -> EF (Autocmd t (F (T.pack $(litE (StringL (uppercaseFirstCharacter functionName))))) sync acmdOpts, $(return fun))|]
+        _ ->
+            error "Autocmd functions have to be fully applied (i.e. they should not take any arguments)."
 
 {- | Generate a function of type @[Object] -> Neovim' Object@ from the argument
  function.

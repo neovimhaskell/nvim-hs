@@ -37,7 +37,7 @@ spec = parallel $ do
     describe "Attaching to a buffer" $ do
         it "receives nvim_buf_lines_event" . runInEmbeddedNeovim' def $ do
             received <- newEmptyMVar
-            subscribe "nvim_buf_lines_event" $ putMVar received . parseBufLinesEvent
+            subscription <- subscribe "nvim_buf_lines_event" $ putMVar received . parseBufLinesEvent
             buf <- nvim_create_buf True False
             isOk <- nvim_buf_attach buf True []
 
@@ -49,15 +49,17 @@ spec = parallel $ do
                 bleLastLine `shouldBe` -1
                 bleLines `shouldBe` [""]
                 bleMore `shouldBe` False
+            unsubscribe subscription
 
         it "receives nvim_buf_detach_event" . runInEmbeddedNeovim' def $ do
             received <- newEmptyMVar
-            subscribe "nvim_buf_detach_event" $ putMVar received
+            subscription <- subscribe "nvim_buf_detach_event" $ putMVar received
             buf <- nvim_create_buf True False
             isOk <- nvim_buf_attach buf False []
-            nvim_buf_detach buf
+            void $ nvim_buf_detach buf
 
             liftIO $ do
                 isOk `shouldBe` True
                 [buf'] <- readMVar received
                 fromObjectUnsafe buf' `shouldBe` buf
+            unsubscribe subscription
