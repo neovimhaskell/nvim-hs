@@ -35,7 +35,6 @@ import Data.Text (pack)
 import GHC.IO.Exception (ioe_filename)
 import Neovim.Plugin (startPluginThreads)
 import Neovim.Util (oneLineErrorMessage)
-import Path (File, Path, toFilePath)
 import Prettyprinter (annotate, vsep)
 import Prettyprinter.Render.Terminal (Color (..), color)
 import System.Process.Typed (
@@ -132,7 +131,7 @@ runInEmbeddedNeovim' testCfg = runInEmbeddedNeovim testCfg Plugin{environment = 
 -}
 testWithEmbeddedNeovim ::
     -- | Optional path to a file that should be opened
-    Maybe (Path b File) ->
+    Maybe FilePath ->
     -- | Maximum time (in seconds) that a test is allowed to run
     Seconds ->
     -- | Read-only configuration
@@ -148,7 +147,7 @@ testWithEmbeddedNeovim file timeoutAfter env action =
   where
     openTestFile = case file of
         Nothing -> pure ()
-        Just f -> nvim_command $ pack $ "edit " ++ toFilePath f
+        Just f -> nvim_command $ pack $ "edit " ++ f
 
 warnIfNvimIsNotOnPath :: IO a -> IO ()
 warnIfNvimIsNotOnPath test = void test `catch` \(e :: IOException) -> case ioe_filename e of
