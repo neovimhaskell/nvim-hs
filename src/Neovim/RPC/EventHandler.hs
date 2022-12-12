@@ -14,25 +14,46 @@ module Neovim.RPC.EventHandler (
     runEventHandler,
 ) where
 
-import Neovim.Classes
-import Neovim.Context
+import Neovim.Classes (NvimObject (toObject))
+import Neovim.Context (MonadIO (..), asks)
 import qualified Neovim.Context.Internal as Internal
-import Neovim.Plugin.IPC.Classes
+import Neovim.Plugin.IPC.Classes (
+    FunctionCall (..),
+    Message (fromMessage),
+    Request (Request),
+    SomeMessage,
+    readSomeMessage,
+ )
 import qualified Neovim.RPC.Classes as MsgpackRPC
-import Neovim.RPC.Common
-import Neovim.RPC.FunctionCall
+import Neovim.RPC.Common (RPCConfig (nextMessageId, recipients))
+import Neovim.RPC.FunctionCall (atomically')
 
-import Conduit as C
-import Control.Applicative
-import Control.Concurrent.STM hiding (writeTQueue)
-import Control.Monad.Reader
+import Conduit as C (
+    ConduitM,
+    ConduitT,
+    Flush (..),
+    ResourceT,
+    await,
+    runConduit,
+    runResourceT,
+    sinkHandleFlush,
+    yield,
+    (.|),
+ )
+import Control.Monad.Reader (
+    MonadReader,
+    ReaderT (runReaderT),
+    forever,
+ )
 import Data.ByteString (ByteString)
 import qualified Data.Map as Map
 import Data.Serialize (encode)
 import System.IO (Handle)
-import System.Log.Logger
+import System.Log.Logger (debugM)
+import UnliftIO (modifyTVar', readTVar)
 
 import Prelude
+import UnliftIO (MonadUnliftIO)
 
 {- | This function will establish a connection to the given socket and write
  msgpack-rpc requests to it.
@@ -55,6 +76,7 @@ newtype EventHandler a
         , Applicative
         , Monad
         , MonadIO
+        , MonadUnliftIO
         , MonadReader (Internal.Config RPCConfig)
         )
 
@@ -79,7 +101,7 @@ eventHandler =
 
 type EncodedResponse = C.Flush ByteString
 
-yield' :: (MonadIO io) => MsgpackRPC.Message -> ConduitM i EncodedResponse io ()
+yield' :: (MonadUnliftIO io) => MsgpackRPC.Message -> ConduitM i EncodedResponse io ()
 yield' o = do
     liftIO . debugM "EventHandler" $ "Sending: " ++ show o
     yield . Chunk . encode $ toObject o

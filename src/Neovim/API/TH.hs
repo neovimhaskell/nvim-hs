@@ -46,7 +46,6 @@ import TemplateHaskell.Compat.V0208
 
 import Control.Applicative
 import Control.Arrow (first)
-import Control.Concurrent.STM (STM)
 import Control.Exception
 import Control.Monad
 import Data.ByteString (ByteString)
@@ -59,11 +58,12 @@ import Data.MessagePack
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Vector (Vector)
 import Prettyprinter (viaShow)
+import UnliftIO (STM)
 import UnliftIO.Exception
 
-import qualified Data.Text as T
 import Prelude
 
 {- | Generate the API types and functions provided by @nvim --api-info@.
