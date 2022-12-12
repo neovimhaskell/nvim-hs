@@ -133,7 +133,6 @@ library
                       , optparse-applicative
                       , time-locale-compat
                       , megaparsec < 10
-                      , resourcet >= 1.1.11
                       , streaming-commons
                       , template-haskell
                       , template-haskell-compat-v0208 >= 0.1.9

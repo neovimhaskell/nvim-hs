@@ -29,7 +29,6 @@ import Neovim.RPC.EventHandler (runEventHandler)
 import Neovim.RPC.SocketReader (runSocketReader)
 
 import Control.Monad.Reader (runReaderT)
-import Control.Monad.Trans.Resource (runResourceT)
 import Data.Default (Default)
 import Data.Text (pack)
 import GHC.IO.Exception (ioe_filename)
@@ -187,7 +186,7 @@ startEmbeddedNvim timeoutAfter plugin (Internal.Neovim action) = do
                 (cfg{Internal.pluginSettings = Nothing})
 
     let actionCfg = Internal.retypeConfig (environment plugin) cfg
-        action' = runReaderT (runResourceT action) actionCfg
+        action' = runReaderT action actionCfg
     pluginHandlers <-
         startPluginThreads (Internal.retypeConfig () cfg) [wrapPlugin plugin] >>= \case
             Left e -> do
