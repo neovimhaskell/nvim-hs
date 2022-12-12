@@ -29,8 +29,6 @@ import Neovim.RPC.EventHandler (runEventHandler)
 import Neovim.RPC.SocketReader (runSocketReader)
 import Neovim.Util (oneLineErrorMessage)
 
-import Control.Concurrent (putMVar, takeMVar)
-import Control.Concurrent.STM (atomically, putTMVar)
 import Control.Monad (void)
 import Data.Default (Default (..))
 import Options.Applicative (
@@ -54,10 +52,10 @@ import Options.Applicative (
     switch,
  )
 import System.IO (stdin, stdout)
-import UnliftIO.Async (Async, async)
+import UnliftIO (Async, async, putMVar, atomically, putTMVar, takeMVar)
+import Control.Applicative ((<|>))
 
 import Prelude
-import Control.Applicative ((<|>))
 
 logger :: String
 logger = "Neovim.Main"

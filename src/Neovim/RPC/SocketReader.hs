@@ -13,8 +13,8 @@ module Neovim.RPC.SocketReader (
     parseParams,
 ) where
 
-import Neovim.Classes
-import Neovim.Context
+import Neovim.Classes ( Int64, NvimObject(toObject, fromObject) )
+import Neovim.Context ( MonadIO(liftIO), asks, Neovim, runNeovim )
 import qualified Neovim.Context.Internal as Internal
 import Neovim.Plugin.Classes (
     CommandArguments (..),
@@ -27,26 +27,33 @@ import Neovim.Plugin.Classes (
     getCommandOptions,
  )
 import Neovim.Plugin.IPC.Classes
+    ( getCurrentTime,
+      Notification(Notification),
+      Request(Request),
+      writeMessage )
 import qualified Neovim.RPC.Classes as MsgpackRPC
-import Neovim.RPC.Common
-import Neovim.RPC.FunctionCall
+import Neovim.RPC.Common ( RPCConfig(recipients) )
+import Neovim.RPC.FunctionCall ( atomically' )
 
 import Conduit as C
-import Control.Applicative
-import Control.Concurrent.STM
+    ( Void,
+      MonadTrans(lift),
+      sourceHandle,
+      (.|),
+      awaitForever,
+      runConduit,
+      ConduitT )
 import Control.Monad (void)
 import Data.Conduit.Cereal (conduitGet2)
 import Data.Default (def)
 import Data.Foldable (foldl', forM_)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.MessagePack
-import Data.Monoid
+import Data.MessagePack ( Object(ObjectArray) )
 import qualified Data.Serialize (get)
 import System.IO (Handle)
-import System.Log.Logger
-import UnliftIO (timeout)
-import UnliftIO.Async (async)
+import System.Log.Logger ( debugM, errorM, warningM )
+import UnliftIO (atomically, timeout, readTVarIO, modifyTVar', putTMVar, readTMVar, async, newEmptyTMVarIO, modifyTVar)
 
 import Prelude
 

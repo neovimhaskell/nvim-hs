@@ -29,12 +29,11 @@ import Neovim.Plugin.IPC.Classes
 import qualified Neovim.RPC.Classes as MsgpackRPC
 
 import Control.Applicative
-import Control.Concurrent.STM
 import Control.Monad.Reader
 import Data.MessagePack
-import UnliftIO.Exception (throwIO)
 
 import Prelude
+import UnliftIO (STM, newEmptyTMVarIO, readTMVar, throwIO, atomically)
 
 -- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall ::
