@@ -152,7 +152,7 @@ library
 
 test-suite hspec
   type:                 exitcode-stdio-1.0
-  hs-source-dirs:       test-suite
+  hs-source-dirs:       tests
   main-is:              Spec.hs
   default-extensions:   OverloadedStrings
                       , LambdaCase
@@ -199,14 +199,14 @@ test-suite hspec
                       , vector
                       , HUnit
 
-  other-modules:        Neovim.API.THSpec
-                      , Neovim.API.THSpecFunctions
-                      , Neovim.EmbeddedRPCSpec
-                      , Neovim.EventSubscriptionSpec
-                      , Neovim.Plugin.ClassesSpec
+  other-modules:        API.THSpec
+                      , API.THSpecFunctions
+                      , EmbeddedRPCSpec
+                      , EventSubscriptionSpec
+                      , Plugin.ClassesSpec
                       , AsyncFunctionSpec
-                      , Neovim.RPC.SocketReaderSpec
-                      , Neovim.RPC.CommonSpec
+                      , RPC.SocketReaderSpec
+                      , RPC.CommonSpec
 
   ghc-options:          -threaded -rtsopts -with-rtsopts=-N
 

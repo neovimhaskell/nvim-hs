@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Neovim.EventSubscriptionSpec where
+module EventSubscriptionSpec where
 
 import Neovim
 import Neovim.API.String

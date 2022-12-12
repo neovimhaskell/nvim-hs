@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Neovim.Plugin.ClassesSpec where
+module Plugin.ClassesSpec where
 
 import Neovim
 import Neovim.Plugin.Classes

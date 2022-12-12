@@ -1,4 +1,4 @@
-module Neovim.API.THSpecFunctions where
+module API.THSpecFunctions where
 
 import qualified Data.Map as Map
 import Neovim

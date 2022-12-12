@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Neovim.RPC.SocketReaderSpec where
+module RPC.SocketReaderSpec where
 
 import Neovim
 import Neovim.Plugin.Classes
