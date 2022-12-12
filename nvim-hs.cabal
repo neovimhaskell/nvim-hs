@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                nvim-hs
 version:             2.3.2.1
 synopsis:            Haskell plugin backend for neovim
@@ -26,10 +27,9 @@ license:             Apache-2.0
 license-file:        LICENSE
 author:              Sebastian Witte
 maintainer:          woozletoff@gmail.com
-copyright:           Copyright 2017-2018 Sebastian Witte <woozletoff@gmail.com>
+copyright:           Copyright 2017-2022 Sebastian Witte <woozletoff@gmail.com>
 category:            Editor
 build-type:          Simple
-cabal-version:       1.18
 extra-source-files:    test-files/hello
                      , apiblobs/0.1.7.msgpack
                      , apiblobs/0.2.0.msgpack
