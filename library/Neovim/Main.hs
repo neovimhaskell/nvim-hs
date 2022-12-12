@@ -1,3 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 {- |
 Module      :  Neovim.Main
 Description :  Wrapper for the actual main function
@@ -9,26 +12,52 @@ Stability   :  experimental
 -}
 module Neovim.Main where
 
-import Neovim.Config
+import Neovim.Config (
+    NeovimConfig (logOptions, plugins),
+    Priority (..),
+ )
 import qualified Neovim.Context.Internal as Internal
-import Neovim.Log
+import Neovim.Log (debugM, disableLogger, errorM, withLogger)
 import qualified Neovim.Plugin as P
-import Neovim.RPC.Common as RPC
-import Neovim.RPC.EventHandler
-import Neovim.RPC.SocketReader
+import Neovim.RPC.Common as RPC (
+    RPCConfig,
+    SocketType (Environment, TCP, UnixSocket),
+    createHandle,
+    newRPCConfig,
+ )
+import Neovim.RPC.EventHandler (runEventHandler)
+import Neovim.RPC.SocketReader (runSocketReader)
 import Neovim.Util (oneLineErrorMessage)
 
-import Control.Concurrent
+import Control.Concurrent (putMVar, takeMVar)
 import Control.Concurrent.STM (atomically, putTMVar)
-import Control.Monad
-import Data.Default
-import Data.Maybe
-import Data.Monoid
-import Options.Applicative
+import Control.Monad (void)
+import Data.Default (Default (..))
+import Options.Applicative (
+    Parser,
+    ParserInfo,
+    auto,
+    execParser,
+    fullDesc,
+    header,
+    help,
+    helper,
+    info,
+    long,
+    metavar,
+    option,
+    optional,
+    progDesc,
+    short,
+    strArgument,
+    strOption,
+    switch,
+ )
 import System.IO (stdin, stdout)
 import UnliftIO.Async (Async, async)
 
 import Prelude
+import Control.Applicative ((<|>))
 
 logger :: String
 logger = "Neovim.Main"
@@ -143,9 +172,9 @@ type TransitionHandler a = [Async ()] -> Internal.Config RPCConfig -> IO a
  using the "Config.Dyre" library while still using the /nvim-hs/ specific
  configuration facilities.
 -}
-realMain :: TransitionHandler a -- ^ 
-  -> NeovimConfig -- ^ 
-  ->
+realMain ::
+    TransitionHandler a ->
+    NeovimConfig ->
     IO ()
 realMain transitionHandler cfg = do
     os <- execParser opts

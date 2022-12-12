@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE LambdaCase #-} 
 
 {- |
 Module      :  Neovim.RPC.Common
