@@ -39,15 +39,14 @@ import Prelude
 
 -- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall ::
-    (NvimObject result) =>
+    (HasMsgpackRpcQueue m, MonadUnliftIO m, NvimObject result) =>
     FunctionName ->
     [Object] ->
-    Neovim env (STM (Either NeovimException result))
+    m (STM (Either NeovimException result))
 acall fn parameters = do
-    q <- Internal.asks' Internal.eventQueue
     mv <- liftIO newEmptyTMVarIO
     timestamp <- liftIO getCurrentTime
-    writeMessage q $ FunctionCall fn parameters mv timestamp
+    writeMsgpackRpcQueue q $ FunctionCall fn parameters mv timestamp
     return $ convertObject <$> readTMVar mv
   where
     convertObject ::
