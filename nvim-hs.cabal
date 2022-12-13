@@ -104,6 +104,7 @@ library
                       , Neovim.Context
                       , Neovim.Context.Internal
                       , Neovim.Exceptions
+                      , Neovim.Internal.RPC
                       , Neovim.Plugin
                       , Neovim.Plugin.Classes
                       , Neovim.Plugin.Internal

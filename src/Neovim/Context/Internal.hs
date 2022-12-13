@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -31,6 +32,7 @@ import Neovim.Exceptions (
     NeovimException (..),
     exceptionToDoc,
  )
+import Neovim.Internal.RPC
 import Neovim.Plugin.Classes (
     FunctionName (..),
     FunctionalityDescription,
@@ -170,20 +172,7 @@ newUniqueFunctionName = do
         modifyTVar' tu succ
         return u
 
-{- | This data type is used to dispatch a remote function call to the appopriate
- recipient.
--}
-newtype FunctionType
-    = -- | 'Stateful' functions are handled within a special thread, the 'TQueue'
-      -- is the communication endpoint for the arguments we have to pass.
-      Stateful (TQueue SomeMessage)
-
-instance Pretty FunctionType where
-    pretty = \case
-        Stateful _ -> "\\os -> Neovim env o"
-
--- | Type of the values stored in the function map.
-type FunctionMapEntry = (FunctionalityDescription, FunctionType)
+type FunctionMapEntry = (FunctionalityDescription, MsgpackRpcQueue)
 
 {- | A function map is a map containing the names of functions as keys and some
  context dependent value which contains all the necessary information to
@@ -215,23 +204,19 @@ data Subscriptions = Subscriptions
 -}
 subscribe :: Text -> ([Object] -> Neovim env ()) -> Neovim env Subscription
 subscribe event action = do
-    let eventId = NeovimEventId event
+    let subscriptionEventId = NeovimEventId event
     cfg <- ask'
     let subscriptions' = subscriptions cfg
     atomically $ do
         s <- takeTMVar subscriptions'
         let subscriptionId = nextSubscriptionId s
-        let newSubscription =
-                Subscription
-                    { subId = subscriptionId
-                    , subEventId = eventId
-                    , subAction = void . runNeovim cfg . action
-                    }
+            subscriptionAction = void . runNeovim cfg . action
+            newSubscription = Subscription{..}
         putTMVar
             subscriptions'
             s
                 { nextSubscriptionId = succ subscriptionId
-                , byEventId = Map.insertWith (<>) eventId [newSubscription] (byEventId s)
+                , byEventId = Map.insertWith (<>) subscriptionEventId [newSubscription] (byEventId s)
                 }
         pure newSubscription
 
@@ -241,8 +226,8 @@ unsubscribe subscription = do
     subscriptions' <- asks' subscriptions
     void . atomically $ do
         s <- takeTMVar subscriptions'
-        let eventId = subEventId subscription
-            deleteSubscription = Just . filter ((/= subId subscription) . subId)
+        let eventId = subscriptionEventId subscription
+            deleteSubscription = Just . filter ((/= subscriptionId subscription) . subscriptionId)
         putTMVar
             subscriptions'
             s
@@ -258,7 +243,7 @@ unsubscribe subscription = do
 -}
 data Config env = Config
     -- Global settings; initialized once
-    { eventQueue :: TQueue SomeMessage
+    { eventQueue :: MsgpackRpcQueue
     -- ^ A queue of messages that the event handler will propagate to
     -- appropriate threads and handlers.
     , transitionTo :: MVar StateTransition
@@ -325,7 +310,7 @@ data PluginSettings env where
 newConfig :: IO (Maybe String) -> IO env -> IO (Config env)
 newConfig ioProviderName r =
     Config
-        <$> newTQueueIO
+        <$> newMsgpackRcpQueue
         <*> newEmptyMVar
         <*> (maybe newEmptyTMVarIO (newTMVarIO . Left) =<< ioProviderName)
         <*> newTVarIO 100

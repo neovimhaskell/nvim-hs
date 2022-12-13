@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- |
 Module      :  Neovim.RPC.FunctionCall
@@ -24,6 +24,7 @@ module Neovim.RPC.FunctionCall (
 import Neovim.Classes
 import Neovim.Context
 import qualified Neovim.Context.Internal as Internal
+import Neovim.Internal.RPC
 import Neovim.Plugin.Classes (FunctionName)
 import Neovim.Plugin.IPC.Classes
 import qualified Neovim.RPC.Classes as MsgpackRPC
@@ -31,9 +32,10 @@ import qualified Neovim.RPC.Classes as MsgpackRPC
 import Control.Applicative
 import Control.Monad.Reader
 import Data.MessagePack
+import Data.Text (Text)
 
+import UnliftIO (MonadUnliftIO, STM, atomically, newEmptyTMVarIO, readTMVar, throwIO)
 import Prelude
-import UnliftIO (STM, newEmptyTMVarIO, readTMVar, throwIO, atomically)
 
 -- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall ::
@@ -101,8 +103,15 @@ wait' :: Neovim env (STM result) -> Neovim env ()
 wait' = void . wait
 
 -- | Send the result back to the neovim instance.
-respond :: (NvimObject result) => Request -> Either String result -> Neovim env ()
-respond Request{..} result = do
-    q <- Internal.asks' Internal.eventQueue
-    writeMessage q . MsgpackRPC.Response reqId $
-        either (Left . toObject) (Right . toObject) result
+respond ::
+    (HasMsgpackRpcQueue m, MonadUnliftIO m, NvimObject result) =>
+    MsgpackRequest ->
+    Either Text result ->
+    m ()
+respond MsgpackRequest{..} result =
+    writeMsgpackRpcQueue $
+        Response
+            MsgpackResponse
+                { responseRequestId = requestId
+                , responseResult = toObject <$> result
+                }

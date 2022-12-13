@@ -33,6 +33,7 @@ module Neovim.Plugin.Classes (
 ) where
 
 import Neovim.Classes
+import Neovim.Internal.RPC
 
 import Control.Monad.Error.Class (MonadError (throwError))
 import Data.Char (isDigit)
@@ -47,29 +48,6 @@ import Prettyprinter (cat, comma, lparen, rparen, viaShow)
 
 import Prelude hiding (sequence)
 
--- | Essentially just a string.
-newtype FunctionName = F Text
-    deriving (Eq, Ord, Show, Read, Generic)
-    deriving (NFData, Pretty) via Text
-
-newtype NeovimEventId = NeovimEventId Text
-    deriving (Eq, Ord, Show, Read, Generic)
-    deriving (Pretty) via Text
-    deriving (NFData) via Text
-
-instance NvimObject NeovimEventId where
-    toObject (NeovimEventId e) = toObject e
-    fromObject o = NeovimEventId <$> fromObject o
-
-newtype SubscriptionId = SubscriptionId Int64
-    deriving (Eq, Ord, Show, Read)
-    deriving (Enum) via Int64
-
-data Subscription = Subscription
-    { subId :: SubscriptionId
-    , subEventId :: NeovimEventId
-    , subAction :: [Object] -> IO ()
-    }
 
 {- | Functionality specific functional description entries.
 
@@ -116,6 +94,18 @@ instance Pretty FunctionalityDescription where
                 <+> pretty s
                 <+> pretty aopts
                 <+> pretty fname
+
+instance HasFunctionName FunctionalityDescription where
+    name = \case
+        Function n _ -> n
+        Command n _ -> n
+        Autocmd _ n _ _ -> n
+
+    nvimMethod = \case
+        Function (F n) _ -> NvimMethod $ n <> ":function"
+        Command (F n) _ -> NvimMethod $ n <> ":command"
+        Autocmd _ (F n) _ _ -> NvimMethod n
+
 
 {- | This option detemines how neovim should behave when calling some
  functionality on a remote host.
@@ -430,24 +420,4 @@ instance NvimObject AutocmdOptions where
     fromObject o =
         throwError $
             "Did not expect to receive an AutocmdOptions object: " <+> viaShow o
-
-newtype NvimMethod = NvimMethod {nvimMethodName :: Text}
-    deriving (Eq, Ord, Show, Read, Generic)
-    deriving (Pretty, NFData) via Text
-
--- | Conveniennce class to extract a name from some value.
-class HasFunctionName a where
-    name :: a -> FunctionName
-    nvimMethod :: a -> NvimMethod
-
-instance HasFunctionName FunctionalityDescription where
-    name = \case
-        Function n _ -> n
-        Command n _ -> n
-        Autocmd _ n _ _ -> n
-
-    nvimMethod = \case
-        Function (F n) _ -> NvimMethod $ n <> ":function"
-        Command (F n) _ -> NvimMethod $ n <> ":command"
-        Autocmd _ (F n) _ _ -> NvimMethod n
 
