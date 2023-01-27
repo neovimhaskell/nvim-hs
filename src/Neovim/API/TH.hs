@@ -184,10 +184,8 @@ createFunction typeMap nf = do
         functionName = mkName $ name nf
         toObjVar v = [|toObject $(varE v)|]
 
-    retType <-
-        let env = mkName "env"
-         in forallT [specifiedPlainTV env] (return [])
-                . appT [t|Neovim $(varT env)|]
+    let env = mkName "env"
+    retType <- appT [t|Neovim $(varT env)|]
                 . withDeferred
                 . apiTypeToHaskellType typeMap
                 $ returnType nf
@@ -211,7 +209,9 @@ createFunction typeMap nf = do
             $ applyPrefixWithNumber nf
 
     sequence
-        [ (sigD functionName . return) (foldr ((AppT . AppT ArrowT) . fst) retType vars)
+        [ (sigD functionName . return)
+            . ForallT [specifiedPlainTV env] []
+            $ foldr ((AppT . AppT ArrowT) . fst) retType vars
         , funD
             functionName
             [ clause
