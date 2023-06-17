@@ -45,6 +45,7 @@ jobs:
           - '9.0'
           - '9.2'
           - '9.4'
+          - '9.6'
 
     name: 'cabal_test: ghc-${{ matrix.ghc_version }}'
     runs-on: ubuntu-latest
