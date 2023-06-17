@@ -129,7 +129,7 @@ library
                       , hslogger
                       , messagepack >= 0.5.4
                       , network
-                      , mtl >= 2.2.1 && < 2.3
+                      , mtl >= 2.2.1 && < 2.4
                       , optparse-applicative
                       , time-locale-compat
                       , megaparsec < 10
