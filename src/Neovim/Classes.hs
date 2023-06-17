@@ -32,7 +32,7 @@ module Neovim.Classes (
 
 import Neovim.Exceptions (NeovimException (..))
 
-import Control.Applicative (Applicative (liftA2, (<*>)), (<$>))
+import Control.Applicative (Applicative (liftA2))
 import Control.Arrow ((***))
 import Control.DeepSeq (NFData)
 import Control.Monad ()
