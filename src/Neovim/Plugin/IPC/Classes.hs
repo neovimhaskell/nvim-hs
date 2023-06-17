@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- |
 Module      :  Neovim.Plugin.IPC.Classes
@@ -30,9 +30,7 @@ module Neovim.Plugin.IPC.Classes (
 import Neovim.Classes (
     Generic,
     Int64,
-    NFData (..),
     Pretty (pretty),
-    deepseq,
     (<+>),
  )
 import Neovim.Plugin.Classes (FunctionName, NeovimEventId)
@@ -55,6 +53,7 @@ import UnliftIO (
     writeTQueue,
  )
 
+import Control.DeepSeq (NFData, deepseq, rnf)
 import Prelude
 
 {- | Taken from xmonad and based on ideas in /An Extensible Dynamically-Typed
@@ -113,12 +112,12 @@ instance Pretty FunctionCall where
  an identifier used to map the result to the function that has been called.
 -}
 data Request = Request
-    { -- | Name of the function to call.
-      reqMethod :: FunctionName
-    , -- | Identifier to map the result to a function call invocation.
-      reqId :: !Int64
-    , -- | Arguments for the function.
-      reqArgs :: [Object]
+    { reqMethod :: FunctionName
+    -- ^ Name of the function to call.
+    , reqId :: !Int64
+    -- ^ Identifier to map the result to a function call invocation.
+    , reqArgs :: [Object]
+    -- ^ Arguments for the function.
     }
     deriving (Eq, Ord, Show, Typeable, Generic)
 
@@ -145,10 +144,10 @@ instance Pretty Request where
  of the computation.
 -}
 data Notification = Notification
-    { -- | Event name of the notification.
-      notEvent :: NeovimEventId
-    , -- | Arguments for the function.
-      notArgs :: [Object]
+    { notEvent :: NeovimEventId
+    -- ^ Event name of the notification.
+    , notArgs :: [Object]
+    -- ^ Arguments for the function.
     }
     deriving (Eq, Ord, Show, Typeable, Generic)
 

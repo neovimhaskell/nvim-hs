@@ -25,7 +25,6 @@ import Neovim.Classes (
     Doc,
     NFData,
     Pretty (pretty),
-    deepseq,
  )
 import Neovim.Exceptions (
     NeovimException (..),
@@ -42,6 +41,8 @@ import Neovim.Plugin.Classes (
  )
 import Neovim.Plugin.IPC (SomeMessage)
 
+import Control.Monad.IO.Class (MonadIO)
+import Data.Functor (void)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.MessagePack (Object)
@@ -87,9 +88,9 @@ import Control.Monad.Reader (
     MonadReader (ask, local),
     ReaderT (..),
     asks,
-    void,
  )
 import Prelude
+import Control.DeepSeq (deepseq)
 
 {- | This is the environment in which all plugins are initially started.
 
