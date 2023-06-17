@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 {- |
 Module      :  Neovim.Classes
@@ -32,10 +32,14 @@ module Neovim.Classes (
 
 import Neovim.Exceptions (NeovimException (..))
 
-import Control.Applicative
+import Control.Applicative (Applicative (liftA2, (<*>)), (<$>))
 import Control.Arrow ((***))
-import Control.DeepSeq
-import Control.Monad.Except
+import Control.DeepSeq (NFData)
+import Control.Monad ()
+import Control.Monad.Except (
+    MonadError (throwError),
+ )
+import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString (ByteString)
 import Data.Int (
     Int16,
@@ -47,7 +51,6 @@ import qualified Data.Map.Strict as SMap
 import Data.MessagePack
 import Data.Monoid
 import Data.Text as Text (Text)
-import Data.Traversable hiding (forM, mapM)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Data.Word (
@@ -349,7 +352,7 @@ instance NvimObject Object where
 
 -- By the magic of vim, i will create these.
 instance (NvimObject o1, NvimObject o2) => NvimObject (o1, o2) where
-    toObject (o1, o2) = ObjectArray $ [toObject o1, toObject o2]
+    toObject (o1, o2) = ObjectArray [toObject o1, toObject o2]
 
     fromObject (ObjectArray [o1, o2]) =
         (,)
@@ -358,7 +361,7 @@ instance (NvimObject o1, NvimObject o2) => NvimObject (o1, o2) where
     fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3) => NvimObject (o1, o2, o3) where
-    toObject (o1, o2, o3) = ObjectArray $ [toObject o1, toObject o2, toObject o3]
+    toObject (o1, o2, o3) = ObjectArray [toObject o1, toObject o2, toObject o3]
 
     fromObject (ObjectArray [o1, o2, o3]) =
         (,,)
@@ -418,7 +421,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
     fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8) where
-    toObject (o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8]
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8]) =
         (,,,,,,,)
@@ -433,7 +436,7 @@ instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject
     fromObject o = throwError $ "Expected ObjectArray, but got" <+> viaShow o
 
 instance (NvimObject o1, NvimObject o2, NvimObject o3, NvimObject o4, NvimObject o5, NvimObject o6, NvimObject o7, NvimObject o8, NvimObject o9) => NvimObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) where
-    toObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray $ [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8, toObject o9]
+    toObject (o1, o2, o3, o4, o5, o6, o7, o8, o9) = ObjectArray [toObject o1, toObject o2, toObject o3, toObject o4, toObject o5, toObject o6, toObject o7, toObject o8, toObject o9]
 
     fromObject (ObjectArray [o1, o2, o3, o4, o5, o6, o7, o8, o9]) =
         (,,,,,,,,)

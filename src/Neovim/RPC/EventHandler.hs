@@ -40,20 +40,18 @@ import Conduit as C (
     yield,
     (.|),
  )
+import Control.Monad (forever)
 import Control.Monad.Reader (
     MonadReader,
     ReaderT (runReaderT),
-    forever,
  )
 import Data.ByteString (ByteString)
 import qualified Data.Map as Map
 import Data.Serialize (encode)
 import System.IO (Handle)
 import System.Log.Logger (debugM)
-import UnliftIO (modifyTVar', readTVar)
-
+import UnliftIO (MonadUnliftIO, modifyTVar', readTVar)
 import Prelude
-import UnliftIO (MonadUnliftIO)
 
 {- | This function will establish a connection to the given socket and write
  msgpack-rpc requests to it.

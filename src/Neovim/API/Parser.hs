@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 {- |
 Module      :  Neovim.API.Parser
 Description :  P.Parser for the msgpack output stram API
@@ -19,7 +20,8 @@ import Neovim.Classes
 import Neovim.OS (isWindows)
 
 import Control.Applicative (optional)
-import Control.Monad.Except (MonadError (throwError), forM)
+import Control.Monad (forM)
+import Control.Monad.Except (MonadError (throwError))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import Data.Map (Map)
@@ -56,16 +58,16 @@ data NeovimType
  throudh the @nvim --api-info@ command.
 -}
 data NeovimFunction = NeovimFunction
-    { -- | function name
-      name :: String
-    , -- | A list of type name and variable name.
-      parameters :: [(NeovimType, String)]
-    , -- | Indicator whether the function can fail/throws exceptions.
-      canFail :: Bool
-    , -- | Indicator whether the this function is asynchronous.
-      async :: Bool
-    , -- | Functions return type.
-      returnType :: NeovimType
+    { name :: String
+    -- ^ function name
+    , parameters :: [(NeovimType, String)]
+    -- ^ A list of type name and variable name.
+    , canFail :: Bool
+    -- ^ Indicator whether the function can fail/throws exceptions.
+    , async :: Bool
+    -- ^ Indicator whether the this function is asynchronous.
+    , returnType :: NeovimType
+    -- ^ Functions return type.
     }
     deriving (Show)
 
@@ -73,12 +75,12 @@ data NeovimFunction = NeovimFunction
  output.
 -}
 data NeovimAPI = NeovimAPI
-    { -- | The error types are defined by a name and an identifier.
-      errorTypes :: [(String, Int64)]
-    , -- | Extension types defined by neovim.
-      customTypes :: [(String, Int64)]
-    , -- | The remotely executable functions provided by the neovim api.
-      functions :: [NeovimFunction]
+    { errorTypes :: [(String, Int64)]
+    -- ^ The error types are defined by a name and an identifier.
+    , customTypes :: [(String, Int64)]
+    -- ^ Extension types defined by neovim.
+    , functions :: [NeovimFunction]
+    -- ^ The remotely executable functions provided by the neovim api.
     }
     deriving (Show)
 

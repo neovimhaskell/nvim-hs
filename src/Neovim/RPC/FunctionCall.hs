@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- |
 Module      :  Neovim.RPC.FunctionCall
@@ -29,11 +29,12 @@ import Neovim.Plugin.IPC.Classes
 import qualified Neovim.RPC.Classes as MsgpackRPC
 
 import Control.Applicative
+import Control.Monad (void, (<=<))
 import Control.Monad.Reader
 import Data.MessagePack
 
+import UnliftIO (STM, atomically, newEmptyTMVarIO, readTMVar, throwIO)
 import Prelude
-import UnliftIO (STM, newEmptyTMVarIO, readTMVar, throwIO, atomically)
 
 -- | Helper function that concurrently puts a 'Message' in the event queue and returns an 'STM' action that returns the result.
 acall ::
