@@ -76,7 +76,7 @@ common defaults
   build-depends:        base >=4.9 && < 5 
                       , containers
                       , data-default
-                      , deepseq >= 1.1 && < 1.5
+                      , deepseq >= 1.1 && < 2
                       , prettyprinter
                       , prettyprinter-ansi-terminal
                       , unliftio >= 0.2
