@@ -2,7 +2,7 @@ flags: {}
 packages:
 - '.'
 
-resolver: lts-21.19
+resolver: lts-21.25
 extra-deps: []
 
 allow-newer: false
