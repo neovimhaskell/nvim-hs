@@ -67,23 +67,6 @@ jobs:
       - run: cabal install --overwrite-policy=always hspec-discover
       - run: cabal test --test-show-details=streaming --test-options="--format=checks" 
 
-  os_test:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-
-    name: 'os_test: ${{ matrix.os }}'
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/cache@v4.2.3
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-os_test-${{ hashFiles('stack.yaml', 'nvim-hs.cabal') }}
-      - run: stack test --fast
-
   build_haddock:
     runs-on: ubuntu-latest
     steps:
