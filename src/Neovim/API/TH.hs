@@ -107,6 +107,7 @@ stringListTypeMap =
                 , ("Float", [t|Double|])
                 , ("String", [t|String|])
                 , ("Array", [t|[Object]|])
+                , ("Dict", [t|Map String Object|])
                 , ("Dictionary", [t|Map String Object|])
                 , ("void", [t|()|])
                 ]
@@ -123,6 +124,7 @@ textVectorTypeMap =
     adjustTypeMapForText =
         Map.insert "String" [t|Text|]
             . Map.insert "Array" [t|Vector Object|]
+            . Map.insert "Dict" [t|Map Text Object|]
             . Map.insert "Dictionary" [t|Map Text Object|]
 
 bytestringVectorTypeMap :: TypeMap
@@ -134,6 +136,7 @@ bytestringVectorTypeMap =
     adjustTypeMapForByteString =
         Map.insert "String" [t|ByteString|]
             . Map.insert "Array" [t|Vector Object|]
+            . Map.insert "Dict" [t|Map ByteString Object|]
             . Map.insert "Dictionary" [t|Map ByteString Object|]
 
 apiTypeToHaskellType :: TypeMap -> NeovimType -> Q Type
