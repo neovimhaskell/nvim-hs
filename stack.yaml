@@ -1,1 +1,17 @@
-stack-ghc-9.6.yaml
+flags: {}
+packages:
+- '.'
+
+resolver: nightly-2025-03-20
+extra-deps: []
+
+allow-newer: false
+
+nix:
+  # Not using pure here because it is very practical to inherit
+  # $NVIM when developing and debugging plugins.
+  pure: false
+
+  packages:
+  - zlib
+  - neovim # for api generation
