@@ -12,6 +12,7 @@ Stability   :  experimental
 module Neovim.API.Parser (
     NeovimAPI (..),
     NeovimFunction (..),
+    NeovimFunctionParameters (..),
     NeovimType (..),
     parseAPI,
 ) where
@@ -26,7 +27,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.MessagePack (Object)
+import Data.MessagePack (Object (..))
 import Data.Serialize (decode)
 import Neovim.Compat.Megaparsec as P (
     MonadParsec (eof, try),
@@ -60,7 +61,7 @@ data NeovimType
 data NeovimFunction = NeovimFunction
     { name :: String
     -- ^ function name
-    , parameters :: [(NeovimType, String)]
+    , parameters :: [NeovimFunctionParameters]
     -- ^ A list of type name and variable name.
     , canFail :: Bool
     -- ^ Indicator whether the function can fail/throws exceptions.
@@ -68,6 +69,13 @@ data NeovimFunction = NeovimFunction
     -- ^ Indicator whether the this function is asynchronous.
     , returnType :: NeovimType
     -- ^ Functions return type.
+    }
+    deriving (Show)
+
+data NeovimFunctionParameters = NeovimFunctionParameters
+    { parameterType :: NeovimType
+    , parameterName :: String
+    , parameterIsOptional :: Bool
     }
     deriving (Show)
 
@@ -136,16 +144,30 @@ extractCustomTypes objAPI = extractTypeNameAndID =<< oLookup "types" objAPI
 extractFunctions :: Map String Object -> Either (Doc AnsiStyle) [NeovimFunction]
 extractFunctions objAPI = mapM extractFunction =<< oLookup "functions" objAPI
 
-toParameterlist :: [(String, String)] -> Either (Doc AnsiStyle) [(NeovimType, String)]
-toParameterlist ps = forM ps $ \(t, n) -> do
-    t' <- parseType t
-    return (t', n)
+parseFunctionParameters :: Map String Object -> Either (Doc AnsiStyle) [NeovimFunctionParameters]
+parseFunctionParameters m = case Map.lookup "parameters" m of
+    Just (ObjectArray params) -> mapM parseFunctionParameter params
+    Just o -> throwError $ "Unexpected object for function parameters array: " <> pretty (show o)
+    Nothing -> throwError $ "No entry for: parameters"
+
+parseFunctionParameter :: Object -> Either (Doc AnsiStyle) NeovimFunctionParameters
+parseFunctionParameter o = case o of
+    ObjectArray (typeObj : nameObj : rest) -> do
+        t <- parseType =<< fromObject typeObj
+        n <- fromObject nameObj
+        isOptional <- case rest of
+            [] -> pure False -- for backwards compatibility
+            [ObjectBool b] -> pure b
+            [notBool] -> throwError $ "Expected boolean to indicate optionality: " <> pretty (show notBool)
+            os -> throwError $ "Unexpected remainder of " <> pretty (show os)
+        pure $ NeovimFunctionParameters t n isOptional
+    notArray -> throwError $ "Unexpected object for function parameters" <> pretty (show notArray)
 
 extractFunction :: Map String Object -> Either (Doc AnsiStyle) NeovimFunction
 extractFunction funDefMap =
     NeovimFunction
         <$> oLookup "name" funDefMap
-        <*> (oLookup "parameters" funDefMap >>= toParameterlist)
+        <*> parseFunctionParameters funDefMap
         <*> oLookupDefault True "can_fail" funDefMap
         <*> oLookupDefault False "async" funDefMap
         <*> (oLookup "return_type" funDefMap >>= parseType)

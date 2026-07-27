@@ -199,15 +199,15 @@ createFunction typeMap nf = do
     let prefixWithNumber i n = "arg" ++ show i ++ "_" ++ n
         applyPrefixWithNumber =
             zipWith
-                (\i (t, n) -> (t, prefixWithNumber i n))
+                (\i p -> p { parameterName = prefixWithNumber i (parameterName p) })
                 [0 :: Int ..]
                 . parameters
     vars <-
         mapM
-            ( \(t, n) ->
+            ( \NeovimFunctionParameters{parameterType, parameterName} ->
                 (,)
-                    <$> apiTypeToHaskellType typeMap t
-                    <*> newName n
+                    <$> apiTypeToHaskellType typeMap parameterType
+                    <*> newName parameterName
             )
             $ applyPrefixWithNumber nf
 
