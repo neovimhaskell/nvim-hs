@@ -2,7 +2,7 @@ flags: {}
 packages:
 - '.'
 
-resolver: nightly-2023-12-26
+resolver: lts-22.44
 extra-deps: []
 
 allow-newer: false
