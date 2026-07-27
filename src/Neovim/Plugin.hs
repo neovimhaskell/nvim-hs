@@ -26,7 +26,7 @@ module Neovim.Plugin (
 ) where
 
 import Neovim.API.String
-    ( nvim_err_writeln, nvim_get_api_info, vim_call_function )
+    ( nvim_err_writeln, vim_call_function )
 import Neovim.Classes
     ( (<+>),
       Doc,
@@ -70,14 +70,14 @@ import Neovim.Plugin.Internal
       getDescription,
       getFunction,
       wrapPlugin )
-import Neovim.RPC.FunctionCall ( respond )
+import Neovim.RPC.FunctionCall ( respond, scall' )
 
 import Control.Monad (foldM, void)
 import Data.Foldable (forM_)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Either (rights)
-import Data.MessagePack ( Object )
+import Data.MessagePack ( Object (ObjectArray) )
 import Data.Text (Text)
 import Data.Traversable (forM)
 import System.Log.Logger ( debugM, errorM )
@@ -202,10 +202,12 @@ getProviderName = do
         Just p ->
             return p
         Nothing -> do
-            api <- nvim_get_api_info
+            -- The return type of nvim_get_api_info has changed. It is now a 2 element array, which
+            -- generates a tuple of 2 elements. To make this code backwards compatible, we use
+            -- internals here.
+            api <- scall' (F "nvim_get_api_info") []
             case api of
-                [] -> err "empty nvim_get_api_info"
-                (i : _) -> do
+                ObjectArray (i : _) -> do
                     case fromObject i :: Either (Doc AnsiStyle) Int of
                         Left _ ->
                             err $
@@ -214,6 +216,8 @@ getProviderName = do
                         Right channelId -> do
                             liftIO . atomically . putTMVar mp . Right $ fromIntegral channelId
                             return . Right $ fromIntegral channelId
+                ObjectArray [] -> err "empty nvim_get_api_info"
+                _ -> err $ "Unexpected reutnr type of nvim_get_api_info"
 
 registerFunctionality ::
     FunctionalityDescription ->
